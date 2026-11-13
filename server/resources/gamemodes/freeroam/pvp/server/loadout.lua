@@ -1412,7 +1412,7 @@ AddEventHandler("open77:weapons:completed", function(
     if accepted ~= true then
         if instance.ruleset == "blade" and operation == "assign" and reason == "native_arm_slot_owned" then
             bladeChoices[info.playerId] = Config.blade.default
-            TriggerClientEvent("deathmatch:notice", info.playerId, { kind="warning", title="BLADE FFA",
+            TriggerClientEvent("deathmatch:notice", info.playerId, { kind="warning", title="КЛИНКИ FFA",
                 message="Your arm implant is already equipped. Using a katana; remove the implant before selecting Mantis Blades." })
             Loadout.issue(info.playerId, instance, "occupied_arm_fallback")
             Loadout.openPicker(info.playerId, false)
@@ -1694,7 +1694,7 @@ RegisterNetEvent("chat:ready", function()
     if playerId == nil then return end
     TriggerClientEvent("chat:addSuggestions", playerId, { {
         command = "/guns",
-        help = "Choose the weapons you play with.",
+        help = "Выбрать оружие.",
         parameters = { { name = "weapon", help = "a weapon key such as nekomata or carnage; 'list' prints every one. Omit to open the picker.", optional = true } },
     } })
 end)

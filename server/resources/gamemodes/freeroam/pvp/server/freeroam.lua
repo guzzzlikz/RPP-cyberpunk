@@ -200,10 +200,10 @@ RegisterNetEvent("freeroam:pvp:queue", function(format, bots)
 end)
 RegisterNetEvent("chat:ready", function()
     TriggerClientEvent("chat:addSuggestions", source, {
-        { command="/pvp", help="Open the Freeroam PvP activity." },
-        { command="/pvp.join", help="Join a free-for-all fight." },
-        { command="/pvp.blade", help="Join Blade FFA: melee weapons and Cyberlab abilities." },
-        { command="/pvp.leave", help="Leave PvP and return to your position." },
+        { command="/pvp", help="Открыть PvP во Freeroam." },
+        { command="/pvp.join", help="Вступить в бой «каждый сам за себя»." },
+        { command="/pvp.blade", help="Вступить в «Клинки FFA»: ближний бой и способности кибер-лаборатории." },
+        { command="/pvp.leave", help="Выйти из PvP и вернуться на своё место." },
     })
 end)
 AddEventHandler("onPlayerDisconnected", function(id)

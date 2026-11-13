@@ -38,7 +38,7 @@ local function snapshot(issuer, target)
         local definition = definitionFor(slot)
         if definition then
             catalog[#catalog + 1] = { slot = slot,
-                label = slot == "arms" and "Gorilla Arms" or "Double Jump",
+                label = slot == "arms" and "Руки гориллы" or "Двойной прыжок",
                 definition = definition.id, grades = definition.grades }
         end
     end
@@ -182,6 +182,6 @@ end)
 
 RegisterNetEvent("chat:ready", function()
     if connected(source) then TriggerClientEvent("chat:addSuggestions", source, {
-        { command = "/cyberlab", help = "Open your cyberware controls (operators may pick any player).", parameters = {} },
+        { command = "/cyberlab", help = "Открыть управление имплантами (операторы могут выбрать любого игрока).", parameters = {} },
     }) end
 end)

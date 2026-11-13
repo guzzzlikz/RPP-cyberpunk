@@ -174,6 +174,7 @@ end
 --- The board with the page API client/main.lua uses.
 function S.create()
     if type(Open77.ui) ~= "table" or type(Open77.ui.create) ~= "function" then return nil, "nativeui_unavailable" end
+    if type(Open77.ui.loadFont) == "function" then pcall(Open77.ui.loadFont, "ui/fonts/Play-Bold.ttf", "RppPlay", true) end -- RPP: Cyrillic fallback face (docs/ui-theme.md)
     local ui, why = Open77.ui.create({ document = "ui/scoreboard.rml", layer = "hud", zIndex = 40, visible = true })
     if not ui then return nil, why end
     local page = { handlers = {} }

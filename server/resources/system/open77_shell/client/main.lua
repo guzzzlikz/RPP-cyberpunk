@@ -234,7 +234,7 @@ local function mountServerLoadScreen(serverName)
     page:setFocus(false, false)
     page:show()
     loadScreenSend("server", { name = tostring(serverName or "") })
-    loadScreenSend("progress", { phase = "world", label = "Loading arena", fraction = 0.0 })
+    loadScreenSend("progress", { phase = "world", label = "Загрузка арены", fraction = 0.0 })
     transitionLog("server loadscreen mounted server=%s", tostring(serverName))
     -- An estimated "Loading arena" fill while the world streams, replaced by the
     -- engine's real fill (open77:loading:progress) the instant it arrives.
@@ -246,7 +246,7 @@ local function mountServerLoadScreen(serverName)
             and not loadScreenRealProgress do
             local elapsed = Open77.time.monotonic() - started
             loadScreenSend("progress", {
-                phase = "world", label = "Loading arena",
+                phase = "world", label = "Загрузка арены",
                 fraction = 0.92 * (1.0 - math.exp(-elapsed / 4.5))
             })
             Wait(150)
@@ -396,7 +396,7 @@ local function connectionWorker(server, request, generation)
                                 phase = "creating_character",
                                 endpoint = server.endpoint,
                                 server = server.name,
-                                reason = "Complete your character before entering Night City."
+                                reason = "Закончи персонажа, прежде чем войти в Найт-Сити."
                             })
                         end
                         Wait(NETWORK_POLL_MS)
@@ -432,7 +432,7 @@ local function connectionWorker(server, request, generation)
                     reply(request, {
                         accepted = true,
                         development = false,
-                        reason = "Server resources verified. Entering Night City.",
+                        reason = "Ресурсы сервера проверены. Входим в Найт-Сити.",
                         playerId = status.playerId,
                         tickRate = status.serverTickRate,
                         snapshotRate = status.snapshotRate,
@@ -706,7 +706,7 @@ AddEventHandler("open77:loading:progress", function(progress)
     -- estimate the moment the engine's true value takes over.
     if loadScreenPage then
         loadScreenRealProgress = true
-        loadScreenSend("progress", { phase = "world", label = "Loading arena", fraction = value })
+        loadScreenSend("progress", { phase = "world", label = "Загрузка арены", fraction = value })
     end
     -- A full loading bar is the tightest "the vanilla loading screen is ending"
     -- signal: lift the cover right after it, so the cover masks that screen to
@@ -876,7 +876,7 @@ AddEventHandler("open77:pregame:creator_orphaned", function(reason)
     local text = reason and REASON_TEXT[tostring(reason)] or nil
     transitionLog("creator orphaned reason=%s; showing the escape notice", tostring(reason))
     shell:send("shell:notice", {
-        message = text or "Your session ended while you were creating a character."
+        message = text or "Сессия завершилась, пока ты создавал персонажа."
     })
     -- Retire any hide still in flight: this surface must stay up until the
     -- player is out of the creator and the browser takes over.
@@ -979,7 +979,7 @@ local function releaseLoadingCover(reason)
     -- Land the bar full before it goes, so the load reads as completed rather
     -- than cut off wherever the estimate happened to be.
     send("world:loading", { progress = 1.0 })
-    loadScreenSend("progress", { phase = "world", label = "Loading arena", fraction = 1.0 })
+    loadScreenSend("progress", { phase = "world", label = "Загрузка арены", fraction = 1.0 })
     -- A short settle so the full bar and the world's first frame are seen.
     SetTimeout(300, function()
         hideShell("handoff:" .. tostring(reason), generation)

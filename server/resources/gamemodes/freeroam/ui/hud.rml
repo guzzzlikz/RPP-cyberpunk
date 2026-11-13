@@ -38,9 +38,9 @@
             <div class="vb-bars">
                 <div class="vb-head">
                     <span class="vb-slash">//</span>
-                    <span class="vb-title">BIOMONITOR</span>
-                    <span class="vb-state">SYS.OK</span>
-                    <span class="vb-crit">CRITICAL</span>
+                    <span class="vb-title">БИОМОНИТОР</span>
+                    <span class="vb-state">НОРМА</span>
+                    <span class="vb-crit">КРИТИЧНО</span>
                     <span class="grow"></span>
                     <span class="vb-max">{{hp}}<span class="vb-max-of"> / {{hpMax}}</span></span>
                 </div>
@@ -62,7 +62,7 @@
                 </div>
                 <div class="vb-foot">
                     <div class="vb-stamina"><div class="vb-sta-fill" data-style-width="staPct + '%'" data-class-low="25 > staPct"></div></div>
-                    <span class="vb-sta-tag">STA</span>
+                    <span class="vb-sta-tag">ВЫН</span>
                     <div class="vb-ruler">
                         <span></span><span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span><span></span>
@@ -76,10 +76,10 @@
     <!-- right: weapons and the command hints, turned toward the centre -->
     <div id="right" class="wing wing-right">
         <div id="hints" data-if="hintsVisible">
-            <div class="hint"><span class="hint-text">Menu &amp; tools</span><span class="hint-cmd">/freeroam</span></div>
-            <div class="hint"><span class="hint-text">Street racing</span><span class="hint-cmd">/race</span></div>
-            <div class="hint"><span class="hint-text">Combat arenas</span><span class="hint-cmd">/pvp</span></div>
-            <div class="hint"><span class="hint-text">Animations</span><span class="hint-cmd">/anim</span></div>
+            <div class="hint"><span class="hint-text">Меню и инструменты</span><span class="hint-cmd">/freeroam</span></div>
+            <div class="hint"><span class="hint-text">Уличные гонки</span><span class="hint-cmd">/race</span></div>
+            <div class="hint"><span class="hint-text">Боевые арены</span><span class="hint-cmd">/pvp</span></div>
+            <div class="hint"><span class="hint-text">Анимации</span><span class="hint-cmd">/anim</span></div>
         </div>
     </div>
 

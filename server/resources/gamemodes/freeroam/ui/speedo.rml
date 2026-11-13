@@ -13,15 +13,15 @@
             <div class="hud-row">
                 <div class="speed"><span class="speed-lead">{{speedLead}}</span><span class="speed-num">{{speedNum}}</span></div>
                 <div class="tells">
-                    <span class="tell" data-class-on="airborne">AIR</span>
-                    <span class="tell" data-class-on="gear == 'R'">REV</span>
-                    <span class="tell" data-class-warn="35 > integrity">DMG</span>
+                    <span class="tell" data-class-on="airborne">ПОЛЁТ</span>
+                    <span class="tell" data-class-on="gear == 'R'">ЗАД</span>
+                    <span class="tell" data-class-warn="35 > integrity">ПОВР</span>
                 </div>
             </div>
             <div class="hud-row sub">
-                <span class="gear" data-class-rev="gear == 'R'">GEAR {{gear}}</span>
+                <span class="gear" data-class-rev="gear == 'R'">ПЕРЕДАЧА {{gear}}</span>
                 <span class="grow"></span>
-                <span class="unit">KM/H</span>
+                <span class="unit">КМ/Ч</span>
             </div>
             <div class="rpm-line"><div class="rpm-fill" data-style-width="rpmPct + '%'" data-class-red="rpmPct > 88"></div></div>
         </div>

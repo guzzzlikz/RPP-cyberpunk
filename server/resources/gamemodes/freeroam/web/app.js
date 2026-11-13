@@ -185,9 +185,9 @@
       ? garageState.latest : null;
     const identity = latest && (latest.label || latest.record || `VEHICLE ${latest.id}`);
     document.getElementById("vehicle-latest").textContent = latest
-      ? `LATEST · ${identity} · ${latest.engineOn ? "ENGINE ON" : "ENGINE OFF"} · ` +
+      ? `LATEST · ${identity} · ${latest.engineOn ? "ДВИГАТЕЛЬ ВКЛ" : "ДВИГАТЕЛЬ ВЫКЛ"} · ` +
         `${latest.locked ? "LOCKED" : "UNLOCKED"} · ` +
-        `${latest.lightsOn ? "LIGHTS ON" : "LIGHTS OFF"}`
+        `${latest.lightsOn ? "ФАРЫ ВКЛ" : "ФАРЫ ВЫКЛ"}`
       : "Your garage is empty. Choose your first ride below.";
   }
 
@@ -278,7 +278,7 @@
       label.textContent = location.label || location.name;
       const detail = document.createElement("i");
       const p = location.position || {};
-      detail.textContent = `${location.district || "Night City"} · ${Math.round(p.x)}, ${Math.round(p.y)}, ${Math.round(p.z)}`;
+      detail.textContent = `${location.district || "Найт-Сити"} · ${Math.round(p.x)}, ${Math.round(p.y)}, ${Math.round(p.z)}`;
       button.append(label, detail);
       button.addEventListener("click", () => send("goto", { name: location.name }));
       locations.append(button);
@@ -488,7 +488,7 @@
       // Which television this row is. A set this client is rendering is the one
       // on its screen; everything else is somewhere else on the map, and its
       // volume is not the volume of the picture in front of the player.
-      where.textContent = `${screen.materialised === true ? "ON SCREEN" : "DRIVING A SET ELSEWHERE"} · ${distance}`;
+      where.textContent = `${screen.materialised === true ? "НА ЭКРАНЕ" : "УПРАВЛЯЕТСЯ ДРУГОЙ ТЕЛЕВИЗОР"} · ${distance}`;
 
       const urlRow = document.createElement("div");
       urlRow.className = "row";
@@ -672,7 +672,7 @@
       tvCatalogue = asArray(payload.catalogue);
       document.getElementById("tv-status").textContent = tvCatalogue.length
         ? `${tvCatalogue.length} screens available · Choose a model to place it nearby.`
-        : "No televisions are available. Check that the media resource is running.";
+        : "Телевизоров нет. Проверь, что запущен ресурс media.";
       renderTvCatalogue();
       return;
     }

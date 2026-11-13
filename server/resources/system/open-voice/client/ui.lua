@@ -89,7 +89,7 @@ local function defaults()
     for i = 1, PIPS do pips[i] = { used = i <= 3, on = i <= 2 } end
     return {
         ready = false, shown = false, visible = true, state = "offline", stateLabel = STATE_LABELS.offline,
-        activation = "PTT", lit = 0, label = "NORMAL", modeName = "normal", distance = "20", color = "#FCEE0A",
+        activation = "PTT", lit = 0, label = "ОБЫЧНО", modeName = "normal", distance = "20", color = "#FCEE0A",
         key = "F11", pips = pips, heard = 0, error = "", hasError = false,
     }
 end
@@ -109,6 +109,7 @@ end
 --- A surface with the page API client/main.lua uses: on, send, show, hide, destroy.
 function V.create()
     if type(Open77.ui) ~= "table" or type(Open77.ui.create) ~= "function" then return nil, "nativeui_unavailable" end
+    if type(Open77.ui.loadFont) == "function" then pcall(Open77.ui.loadFont, "ui/fonts/Play-Bold.ttf", "RppPlay", true) end -- RPP: Cyrillic fallback face (docs/ui-theme.md)
     local ui, why = Open77.ui.create({
         document = "ui/voice.rml", layer = "hud", zIndex = 12, visible = true,
         models = { voice = defaults() },

@@ -548,7 +548,7 @@ RegisterNetEvent("open77:media:result", function(ok, detail)
         if menu then
             menu:send("freeroam:state", menuState())
             menu:send("freeroam:result", { ok = false,
-                text = "Television controls are reserved for authorized administrators." })
+                text = "Управлять телевизорами могут только администраторы." })
         end
     end
     if menu ~= nil then

@@ -3,7 +3,7 @@
 (function(root) {
   "use strict";
   const slots = ["Head", "Face", "InnerChest", "OuterChest", "Legs", "Feet", "Outfit"];
-  const labels = {Head:"Headwear",Face:"Eyewear",InnerChest:"Tops",OuterChest:"Jackets",Legs:"Bottoms",Feet:"Footwear",Outfit:"Full body"};
+  const labels = {Head:"Headwear",Face:"Eyewear",InnerChest:"Tops",OuterChest:"Jackets",Legs:"Bottoms",Feet:"Footwear",Outfit:"Всё тело"};
   const clone = value => JSON.parse(JSON.stringify(value));
   const equal = (a,b) => {
     if (a === b) return true;

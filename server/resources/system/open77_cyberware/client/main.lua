@@ -524,7 +524,7 @@ CreateThread(function()
             CyberwareMeleePrediction.observe(actionIncarnation,predictedArmsGrade,state,milliseconds(),
                 Open77.players and type(Open77.players.getHealthState)=="function" and Open77.players.getHealthState() or nil)
             if state and state.chargeExpired and not expired then
-                TriggerEvent("chat:addMessage", {type="system",author="Cyberware",text="Charge expired. Release attack to charge again."})
+                TriggerEvent("chat:addMessage", {type="system",author="Cyberware",text="Заряд пропал. Отпусти атаку, чтобы зарядить снова."})
             end
             expired = state and state.chargeExpired or false
             local sequence = state and state.sequence or (previous and previous.sequence or 0)

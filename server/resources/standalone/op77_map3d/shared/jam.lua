@@ -7,7 +7,7 @@ local J = Map3DJam
 
 local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 
--- { strength = 0..1 (1: nothing of the map is left), label = "NO SIGNAL",
+-- { strength = 0..1 (1: nothing of the map is left), label = "НЕТ СИГНАЛА",
 --   zone: position = { x, y } (or x, y), radius, fade }
 function J.normalize(def)
     if def ~= nil and type(def) ~= "table" then return nil, "a jam is a table" end

@@ -79,7 +79,7 @@ local function start(actor, mode, command)
                 if not running(batch) then break end
                 if admitted then
                     batch.done = batch.done + 1
-                    TriggerClientEvent("chat:addMessage", id, { args = { "PLAYTEST", "An admin enrolled you in " .. labels[mode] .. "." } })
+                    TriggerClientEvent("chat:addMessage", id, { args = { "PLAYTEST", "Админ записал тебя в " .. labels[mode] .. "." } })
                 elseif session(id) ~= target.session then batch.skipped = batch.skipped + 1
                 else batch.failed = batch.failed + 1; say(actor, "Could not transfer player " .. id .. "; their character is not ready.") end
                 Wait(150)

@@ -8,7 +8,7 @@ FreeroamConfig = {
     -- Chat message sent when a player announces freeroam:ready.
     welcome = {
         enabled = true,
-        text = "Welcome to freeroam — /freeroam.help lists the commands.",
+        text = "Добро пожаловать во freeroam — /freeroam.help покажет команды.",
         color = { 252, 238, 10 },
     },
 
@@ -58,7 +58,7 @@ FreeroamConfig = {
         points = {
             {
                 name = "freeroam_spawn",
-                label = "Freeroam spawn",
+                label = "Точка появления",
                 position = { x = -1430.261230, y = 1257.660767, z = 23.088669 },
                 heading = -154.489395,
             },
@@ -74,18 +74,18 @@ FreeroamConfig = {
         -- (entity tests, markers/respawn/inspector docs) and are safe landing
         -- spots; adjust freely.
         locations = {
-            { name = "parkour", label = "Rooftop foot race start", district = "Watson", position = { x = -1023.235901, y = 1492.811035, z = 25.870430 }, heading = 0.0 },
-            { name = "arena",      label = "Freeroam arena",        district = "Badlands",    position = { x = 381.358826, y = -2401.794189, z = 181.988541 }, heading = 0.0 },
-            { name = "lab",        label = "Open77 laboratory",     district = "East",        position = { x = 1669.75, y = -739.12, z = 49.86 },   heading = 0.0 },
-            { name = "city",       label = "City west",             district = "City Center", position = { x = -667.14, y = -382.61, z = 9.16 },    heading = 0.0 },
-            { name = "dealer",     label = "Vehicle dealership",    district = "Westbrook",   position = { x = -1442.2, y = 127.4, z = 18.0 },      heading = 0.0 },
-            { name = "racegrid",   label = "Westbrook race grid",   district = "Westbrook",   position = { x = -1450.2, y = 119.9, z = 14.8 },      heading = 200.0 },
-            { name = "heights",    label = "Northwest heights",     district = "North Oak",   position = { x = -1441.0, y = 1269.0, z = 123.0 },    heading = 180.0 },
-            { name = "stoop",      label = "King Stoop forecourt",  district = "Watson",      position = { x = -410.22, y = 722.73, z = 115.0 },    heading = 147.0 },
-            { name = "northside",  label = "North promenade",       district = "Watson",      position = { x = -469.47, y = 930.99, z = 56.45 },    heading = -68.0 },
-            { name = "junction",   label = "Lower Watson junction", district = "Watson",      position = { x = -644.91, y = 1019.37, z = 36.56 },   heading = 75.5 },
-            { name = "underpass",  label = "Lower Watson underpass",district = "Watson",      position = { x = -701.49, y = 1033.97, z = 35.71 },   heading = -104.5 },
-            { name = "coast",      label = "Southwest coast",       district = "Badlands",    position = { x = -1716.38, y = -2421.28, z = 62.59 }, heading = 0.0 },
+            { name = "parkour", label = "Старт забега по крышам", district = "Watson", position = { x = -1023.235901, y = 1492.811035, z = 25.870430 }, heading = 0.0 },
+            { name = "arena",      label = "Арена Freeroam",        district = "Badlands",    position = { x = 381.358826, y = -2401.794189, z = 181.988541 }, heading = 0.0 },
+            { name = "lab",        label = "Лаборатория Open77",     district = "East",        position = { x = 1669.75, y = -739.12, z = 49.86 },   heading = 0.0 },
+            { name = "city",       label = "Запад города",             district = "Центр города", position = { x = -667.14, y = -382.61, z = 9.16 },    heading = 0.0 },
+            { name = "dealer",     label = "Автосалон",    district = "Westbrook",   position = { x = -1442.2, y = 127.4, z = 18.0 },      heading = 0.0 },
+            { name = "racegrid",   label = "Старт гонки в Вестбруке",   district = "Westbrook",   position = { x = -1450.2, y = 119.9, z = 14.8 },      heading = 200.0 },
+            { name = "heights",    label = "Северо-западные высоты",     district = "North Oak",   position = { x = -1441.0, y = 1269.0, z = 123.0 },    heading = 180.0 },
+            { name = "stoop",      label = "Площадь Кинг-Ступ",  district = "Watson",      position = { x = -410.22, y = 722.73, z = 115.0 },    heading = 147.0 },
+            { name = "northside",  label = "Северная набережная",       district = "Watson",      position = { x = -469.47, y = 930.99, z = 56.45 },    heading = -68.0 },
+            { name = "junction",   label = "Развязка Нижнего Уотсона", district = "Watson",      position = { x = -644.91, y = 1019.37, z = 36.56 },   heading = 75.5 },
+            { name = "underpass",  label = "Тоннель Нижнего Уотсона",district = "Watson",      position = { x = -701.49, y = 1033.97, z = 35.71 },   heading = -104.5 },
+            { name = "coast",      label = "Юго-западное побережье",       district = "Badlands",    position = { x = -1716.38, y = -2421.28, z = 62.59 }, heading = 0.0 },
         },
     },
 
@@ -181,9 +181,9 @@ FreeroamConfig = {
             { key = "zhuo",      label = "L-69 Zhuo",        category = "Shotguns", record = "Items.Preset_Zhuo_Default" },
             { key = "defender",  label = "M2067 Defender",   category = "Heavy",   record = "Items.Preset_Defender_Default" },
             { key = "katana",    label = "Katana",           category = "Melee",   record = "Items.Preset_Katana_Default", melee = true },
-            { key = "knife",     label = "Knife",            category = "Melee",   record = "Items.Preset_Knife_Default", melee = true },
-            { key = "machete",   label = "Machete",          category = "Melee",   record = "Items.Preset_Machete_Default", melee = true },
-            { key = "hammer",    label = "Hammer",           category = "Melee",   record = "Items.Preset_Hammer_Default", melee = true },
+            { key = "knife",     label = "Нож",            category = "Melee",   record = "Items.Preset_Knife_Default", melee = true },
+            { key = "machete",   label = "Мачете",          category = "Melee",   record = "Items.Preset_Machete_Default", melee = true },
+            { key = "hammer",    label = "Молот",           category = "Melee",   record = "Items.Preset_Hammer_Default", melee = true },
         },
     },
 
@@ -241,7 +241,7 @@ FreeroamConfig = {
     -- of web/design-system.css (the freeroam HUD), named beside it.
     map3d = {
         enabled = true,
-        title = "NIGHT CITY",
+        title = "НАЙТ-СИТИ",
         subtitle = "FREEROAM",
         theme = {
             background = "#0b0e14",               -- --o-ink-900 (--surface-app)
@@ -265,10 +265,10 @@ FreeroamConfig = {
         },
         -- The legend (replaces the map's own list).
         categories = {
-            { id = "destination", label = "Destinations", icon = "flag", color = "#fcee0a" },
-            { id = "spawn", label = "Spawn points", icon = "star", color = "#2be58b" },
-            { id = "player", label = "Players", icon = "user", color = "#fcec40" },
-            { id = "default", label = "Other", icon = "pin" },
+            { id = "destination", label = "Места", icon = "flag", color = "#fcee0a" },
+            { id = "spawn", label = "Точки появления", icon = "star", color = "#2be58b" },
+            { id = "player", label = "Игроки", icon = "user", color = "#fcec40" },
+            { id = "default", label = "Другое", icon = "pin" },
         },
         -- Category of each mirrored blip (its icon and colour come from the row).
         locationCategory = "destination",

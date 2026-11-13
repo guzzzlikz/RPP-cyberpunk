@@ -5,17 +5,17 @@ local readyRequests = {}
 local CHAT_SUGGESTIONS = {
     {
         command = "/help",
-        help = "Show chat and command help.",
+        help = "Справка по чату и командам.",
         parameters = {}
     },
     {
         command = "/clear",
-        help = "Clear your local chat history.",
+        help = "Очистить историю чата.",
         parameters = {}
     },
     {
         command = "/id",
-        help = "Show your temporary session player ID.",
+        help = "Показать временный ID в этой сессии.",
         parameters = {}
     },
 }
@@ -84,7 +84,7 @@ RegisterCommand("help", function(player)
     push(player, {
         type = "system",
         author = "COMMANDS",
-        text = "Type / to browse available commands. Use the arrow keys to select a suggestion and Tab to complete it.",
+        text = "Введи /, чтобы увидеть команды. Стрелки — выбор подсказки, Tab — дополнить.",
         color = { 252, 238, 10 }
     })
 end, false)
@@ -101,7 +101,7 @@ RegisterCommand("id", function(player)
     push(player, {
         type = "system",
         author = "SESSION",
-        text = "Your session ID is " .. tostring(player) .. ".",
+        text = "Твой ID в сессии: " .. tostring(player) .. ".",
         color = { 252, 238, 10 }
     })
 end, false)

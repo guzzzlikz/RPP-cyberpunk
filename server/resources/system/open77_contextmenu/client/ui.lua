@@ -83,7 +83,7 @@ function M.describe(target, distance)
     local title = KIND_TITLES[kind] or "Target"
     if kind == "player" then
         if type(target.name) == "string" and target.name ~= "" then title = target.name
-        elseif tonumber(target.playerId) then title = "Player #" .. math.floor(tonumber(target.playerId)) end
+        elseif tonumber(target.playerId) then title = "Игрок #" .. math.floor(tonumber(target.playerId)) end
     elseif type(target.name) == "string" and target.name ~= "" then
         title = target.name
     end
@@ -168,7 +168,7 @@ local function defaults()
         open = false, locked = false, loading = false, available = false, keyboard = false,
         left = false, up = false, panelShown = false, empty = false, hasError = false, busy = false,
         kindLabel = "", title = "", distance = "", status = "", statusTag = "", desc = "",
-        key = "ALT", hint = "Hold - click a target - right click or Esc to close",
+        key = "ALT", hint = "Удерживай — клик по цели — ПКМ или Esc, чтобы закрыть",
     }
 end
 
@@ -178,6 +178,7 @@ function M.create(config)
         return nil, "nativeui_unavailable"
     end
     local appearance = type(config) == "table" and type(config.appearance) == "table" and config.appearance or {}
+    if type(Open77.ui.loadFont) == "function" then pcall(Open77.ui.loadFont, "ui/fonts/Play-Bold.ttf", "RppPlay", true) end -- RPP: Cyrillic fallback face (docs/ui-theme.md)
     local ui, why = Open77.ui.create({
         document = "ui/contextmenu.rml", layer = "hud", zIndex = 60, visible = true,
         models = { cm = defaults() },
@@ -319,7 +320,7 @@ function M.create(config)
             stopLoading()
             local key = tostring(p.key or "ALT"):upper():sub(1, 12)
             ui:merge("cm", { open = true, locked = false, panelShown = false, key = key,
-                hint = "Hold - click a target - right click or Esc to close", status = "", statusTag = "",
+                hint = "Удерживай — клик по цели — ПКМ или Esc, чтобы закрыть", status = "", statusTag = "",
                 kindLabel = "", title = "", distance = "" })
             ui:show()
             local w, h = screen()
@@ -356,7 +357,7 @@ function M.create(config)
             local w, h = screen()
             lockReticle(math.floor(x * w + 0.5), math.floor(y * h + 0.5))
             clearRows()
-            ui:merge("cm", { locked = true, panelShown = true, kindLabel = "Scan", title = "Looking",
+            ui:merge("cm", { locked = true, panelShown = true, kindLabel = "Scan", title = "Смотрим",
                 distance = "", statusTag = "SCAN", status = "Resolving the target..." })
             local first = not S.shown
             S.shown = true
@@ -365,7 +366,7 @@ function M.create(config)
         elseif name == "context:empty" then
             if not S.opened or p.epoch ~= S.epoch then return end
             stopLoading()
-            ui:merge("cm", { empty = true, kindLabel = "None", title = "No target",
+            ui:merge("cm", { empty = true, kindLabel = "None", title = "Нет цели",
                 statusTag = "EMPTY", status = tostring(p.message or "Click another object or surface."):sub(1, 120) })
             ui:animate("#reticle", { from = { scale = 0.85 }, to = { scale = 1 }, spring = { duration = 0.3, bounce = 0.5 } })
         elseif name == "context:menu" then

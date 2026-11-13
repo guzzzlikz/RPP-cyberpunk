@@ -85,7 +85,7 @@ RegisterNetEvent("open77:scenes:state", function(payload)
         state.dirty, state.endedAt = true, Open77.time.monotonic()
         local reason = payload.reason
         if reason ~= nil and reason ~= "stood" and reason ~= "cancelled" and reason ~= "moved" then
-            notify("Scene ended: " .. tostring(reason))
+            notify("Сцена окончена: " .. tostring(reason))
         end
     end
 end)

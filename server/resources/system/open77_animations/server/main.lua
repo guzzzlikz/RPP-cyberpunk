@@ -2,8 +2,8 @@
 -- platform service. This command can only address its authenticated caller.
 local lastRequest, lastSuggestion = {}, {}
 local suggestions = { {
-    command = '/anim', help = 'Open the animation menu. /anim stop cancels your current action.',
-    parameters = { { name = 'profile|list|stop', help = 'Try smoke, dance, or handsup.' },
+    command = '/anim', help = 'Открыть меню анимаций. /anim stop — отменить текущую.',
+    parameters = { { name = 'profile|list|stop', help = 'Попробуй smoke, dance или handsup.' },
         { name = 'variant', help = 'Optional 1-based clip number from /anim info <profile>.' } },
 } }
 -- A command's reply. The server console runs commands as source 0, which is

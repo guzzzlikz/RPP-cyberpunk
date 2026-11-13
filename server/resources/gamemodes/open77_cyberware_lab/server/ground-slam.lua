@@ -5,10 +5,10 @@ CyberwareLabSlam = {}
 -- native ToggleWalk/vehicle actions; creators should audit their own bindings.
 local inputKey = "l"
 local presets = {
-    {id="harmless",label="Harmless",description="Native slam with no damage or knockback.",damage=0,knockback=0},
-    {id="combat",label="Combat",description="Nonlethal area damage and knockback, subject to combat rules.",damage=35,knockback=1.5},
-    {id="gorilla",label="Gorilla",description="Combat preset requiring active Gorilla Arms.",damage=35,knockback=1.5,arms=true},
-    {id="parkour",label="Parkour",description="Combat preset requiring active double-jump legs.",damage=35,knockback=1.5,legs=true},
+    {id="harmless",label="Безопасный",description="Удар без урона и отбрасывания.",damage=0,knockback=0},
+    {id="combat",label="Боевой",description="Несмертельный урон по площади и отбрасывание по правилам боя.",damage=35,knockback=1.5},
+    {id="gorilla",label="Горилла",description="Боевой пресет, нужны активные Руки гориллы.",damage=35,knockback=1.5,arms=true},
+    {id="parkour",label="Паркур",description="Боевой пресет, нужны ноги с двойным прыжком.",damage=35,knockback=1.5,legs=true},
 }
 local definitions, failures, reads, actions = {}, {}, {}, {}
 local outcomeHistory = {}

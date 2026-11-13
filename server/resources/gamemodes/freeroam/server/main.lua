@@ -488,23 +488,23 @@ end)
 
 -- Suggestions delivered to each player's chat when it opens.
 local CHAT_SUGGESTIONS = {
-    { command = "/freeroam", help = "Open the freeroam menu.", parameters = {} },
-    { command = "/car", help = "Spawn a vehicle next to you.", parameters = {
-        { name = "model", help = "Shortcut (hella, caliburn, kusanagi...) or a full Vehicle.* record", optional = true } } },
-    { command = "/dv", help = "Delete your latest vehicle, or all of them with 'all'.", parameters = {
+    { command = "/freeroam", help = "Открыть меню freeroam.", parameters = {} },
+    { command = "/car", help = "Создать транспорт рядом с собой.", parameters = {
+        { name = "model", help = "Короткое имя (hella, caliburn, kusanagi...) или полная запись Vehicle.*", optional = true } } },
+    { command = "/dv", help = "Удалить последний транспорт или весь с 'all'.", parameters = {
         { name = "all", optional = true } } },
-    { command = "/goto", help = "Teleport to a named location.", parameters = {
-        { name = "location", help = "See /locations." } } },
-    { command = "/tpc", help = "Teleport to world coordinates.", parameters = {
+    { command = "/goto", help = "Телепорт в известное место.", parameters = {
+        { name = "location", help = "Смотри /locations." } } },
+    { command = "/tpc", help = "Телепорт по координатам.", parameters = {
         { name = "x" }, { name = "y" }, { name = "z" }, { name = "heading", optional = true } } },
-    { command = "/locations", help = "List the /goto destinations.", parameters = {} },
-    { command = "/spawn", help = "Return to a spawn point.", parameters = {
-        { name = "name", help = "A specific point, otherwise the configured selection.", optional = true } } },
-    { command = "/suicide", help = "Kill yourself (automatic respawn takes over).", parameters = {} },
-    { command = "/revive", help = "Revive in place if you are dead.", parameters = {} },
-    { command = "/players", help = "List the players known to the gamemode.", parameters = {} },
-    { command = "/freeroam.status", help = "Gamemode status.", parameters = {} },
-    { command = "/freeroam.help", help = "Freeroam gamemode help.", parameters = {} },
+    { command = "/locations", help = "Список мест для /goto.", parameters = {} },
+    { command = "/spawn", help = "Вернуться на точку появления.", parameters = {
+        { name = "name", help = "Конкретная точка, иначе — из настроек.", optional = true } } },
+    { command = "/suicide", help = "Умереть (затем автоматическое возрождение).", parameters = {} },
+    { command = "/revive", help = "Воскреснуть на месте, если ты мёртв.", parameters = {} },
+    { command = "/players", help = "Список игроков режима.", parameters = {} },
+    { command = "/freeroam.status", help = "Состояние режима.", parameters = {} },
+    { command = "/freeroam.help", help = "Справка по режиму freeroam.", parameters = {} },
     { command = "/freeroam.tp", help = "[admin] Teleport a player to a location.", parameters = {
         { name = "playerId" }, { name = "location" } } },
     { command = "/freeroam.respawn", help = "[admin] Respawn a dead player.", parameters = {

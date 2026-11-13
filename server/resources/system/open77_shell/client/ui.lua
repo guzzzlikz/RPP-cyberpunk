@@ -48,7 +48,7 @@ local REASONS = {
     connection_already_in_progress = "Already connecting",
     resource_download_failed = "The server's content pack could not be downloaded. Check your connection and try again.",
     connection_refused = "The server refused the connection. It may be offline or restarting.",
-    connection_timeout = "The server did not respond in time.",
+    connection_timeout = "Сервер не ответил вовремя.",
     invalid_display_name = "Username must contain 1 to 32 UTF-8 bytes",
     identity_update_requires_offline_session = "Disconnect before changing your username",
     identity_master_rejected = "The Master rejected this username",
@@ -60,7 +60,7 @@ local REASONS = {
     invalid_magic = "That address is not an Open//77 server.",
     invalid_server_packet = "The server sent data this client could not read - it is most likely running a different Open//77 version.",
     malformed_server_reject = "The server refused the connection but its reply could not be read.",
-    connect_timeout = "The server did not respond. It may be offline, full, or unreachable.",
+    connect_timeout = "Сервер не отвечает. Он выключен, заполнен или недоступен.",
     handshake_timeout = "The connection opened but the server never finished the handshake.",
     server_rejected = "The server rejected your connection.",
     server_welcome_identity_mismatch = "The server could not verify your identity. Try reconnecting.",
@@ -77,7 +77,7 @@ local REASONS = {
     server_disconnected = "You were disconnected from the server.",
     database_error = "The server could not load your character because its database is unavailable or a database operation failed.",
     database_unavailable = "The server cannot access its character database.",
-    database_unreachable = "The server's database is not responding.",
+    database_unreachable = "База данных сервера не отвечает.",
     pristine_load_timeout = "The game did not finish preparing your character in time.",
     launcher_required = "Choose a server in the Open77 launcher first.",
     native_transition_in_progress = "The game is preparing your character. Wait for this transition to finish, or quit the game.",
@@ -111,7 +111,7 @@ function U.explainResource(reason, diagnostic)
         summary = "The resource server's hostname could not be resolved."
         owner = "Check DNS and resources.download.publicBaseUrl. The game address and resource address can be different."
     elseif os == 12002 then
-        summary = "The resource server did not respond in time."
+        summary = "Сервер ресурсов не ответил вовремя."
         owner = "Check the TCP resource port, reverse proxy timeout and upload bandwidth. Opening the UDP game port alone is not enough."
     elseif os == 12029 or code:find("resource_http_connect_failed", 1, true) then
         summary = "The game server is reachable, but its resource download service could not be reached."
@@ -161,7 +161,7 @@ function U.explain(reason, diagnostic)
     local raw = clean(reason or "server_disconnected")
     local token = raw:match("^([^:]*)") or raw
     if token:match("^database_") then
-        return { code = token, title = "Server database error", message = REASONS[token] or REASONS.database_error,
+        return { code = token, title = "Ошибка базы данных сервера", message = REASONS[token] or REASONS.database_error,
                  action = "This is a server-side problem. Contact the server owner, then retry after they restore the database.",
                  owner = "Check Database & persistence in Warden, start MySQL/MariaDB and restart resources whose initialization failed.", fields = {} }
     end
@@ -169,17 +169,17 @@ function U.explain(reason, diagnostic)
     if download then
         local fields = {}
         for i, f in ipairs(download.fields) do fields[i] = { clean(f[1]), clean(f[2]) } end
-        return { code = token, title = "Resources could not load", message = download.summary, action = download.player,
+        return { code = token, title = "Не удалось загрузить ресурсы", message = download.summary, action = download.player,
                  owner = download.owner, fields = fields }
     end
     local detail = raw:find(":", 1, true) and raw:sub(raw:find(":", 1, true) + 1):match("^%s*(.-)%s*$") or ""
     local message = REASONS[raw] or REASONS[detail] or REASONS[token]
     if not message then
         if (token:match("^server_reject") or token:match("^kicked") or token:match("^banned")) and detail ~= "" then message = detail
-        else message = "The session could not continue. Share the details below with the server owner." end
+        else message = "Сессия прервана. Отправь подробности ниже владельцу сервера." end
     end
     local version = raw:find("version") or raw:find("unknown_message")
-    return { code = raw, title = version and "Version mismatch" or "Connection interrupted", message = message,
+    return { code = raw, title = version and "Несовпадение версий" or "Соединение прервано", message = message,
              action = version and "Review client updates in the launcher and check the server version with its owner."
                  or "You can retry this server or choose another one in the launcher.", fields = {}, owner = "" }
 end
@@ -269,6 +269,7 @@ function U.create()
         local ok, why = Open77.ui.loadFont(font[1], font[2], false)
         if not ok then print("Open77 shell: font " .. font[1] .. " not loaded: " .. tostring(why)) end
     end
+    if type(Open77.ui.loadFont) == "function" then pcall(Open77.ui.loadFont, "ui/fonts/Play-Bold.ttf", "RppPlay", true) end -- RPP: Cyrillic fallback face (docs/ui-theme.md)
     local ui, why = Open77.ui.create({ document = "ui/shell.rml", layer = "system", zIndex = 5, visible = false })
     if not ui then return nil, why end
     local page = { handlers = {} }

@@ -10,12 +10,12 @@ local STALE_DELAY = 8500
 local CLOSED_ROWS = 6   -- rows shown while the chat is closed (the newest)
 local KINDS = { message = true, system = true, announce = true, warning = true, error = true, action = true, join = true, leave = true }
 local CHANNELS = {
-    global = { label = "GLOBAL", color = "#fcee0a" },
-    ["local"] = { label = "LOCAL", color = "#8a94a2" },
-    squad = { label = "SQUAD", color = "#2be58b" },
-    whisper = { label = "WHISPER", color = "#7c5cff" },
+    global = { label = "ОБЩИЙ", color = "#fcee0a" },
+    ["local"] = { label = "МЕСТНЫЙ", color = "#8a94a2" },
+    squad = { label = "ОТРЯД", color = "#2be58b" },
+    whisper = { label = "ШЁПОТ", color = "#7c5cff" },
     ooc = { label = "OOC", color = "#ffb020" },
-    admin = { label = "ADMIN", color = "#ff3b4e" },
+    admin = { label = "АДМИН", color = "#ff3b4e" },
 }
 
 local function bounded(v, max) return tostring(v == nil and "" or v):sub(1, max or MAX_LENGTH) end

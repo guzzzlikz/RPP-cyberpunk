@@ -839,7 +839,7 @@ RegisterNetEvent("race:go", function()
     playRaceSfx(presentation.countdownGoSfx, "race_countdown_go", 2.0)
     playRaceSfx(presentation.goSfx, "race_go", 5.0)
     playStartVfx()
-    if page then page:send("race:pulse", { kind = "go", text = "GO!" }) end
+    if page then page:send("race:pulse", { kind = "go", text = "ВПЕРЁД!" }) end
 end)
 
 RegisterNetEvent("race:checkpointAccepted", function(payload)

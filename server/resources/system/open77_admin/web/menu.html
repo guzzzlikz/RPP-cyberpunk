@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Open77 Admin Menu</title>
+<title>Меню администратора Open77</title>
 <!-- The token file first, always. Never edit the copy in this folder: it is
      mirrored byte-for-byte into every resource that owns a WebUI surface, and
      `Get-FileHash resources\*\web\open77-ui.css` returning one unique hash is
@@ -18,13 +18,13 @@
 
   <header class="head">
     <img class="mark" src="logo.png" alt="Open77">
-    <span class="title" id="title">ADMIN</span>
+    <span class="title" id="title">АДМИН</span>
   </header>
 
-  <div class="session"><span>// SERVER ADMIN</span><span id="roles"></span></div>
+  <div class="session"><span>// АДМИН СЕРВЕРА</span><span id="roles"></span></div>
   <p class="trail" id="trail"></p>
 
-  <ul class="list" id="list" role="listbox" aria-label="Admin actions"></ul>
+  <ul class="list" id="list" role="listbox" aria-label="Действия админа"></ul>
 
   <p class="more" id="more"></p>
   <p class="detail" id="detail"></p>
@@ -32,32 +32,32 @@
   <p class="status" id="status"></p>
 
   <footer class="foot">
-    <span><b>&#8593;&#8595;</b> move</span>
-    <span><b>&#9166;</b> select</span>
-    <span><b>&#8592;&#8594;</b> value</span>
-    <span><b>&#9003;</b> back</span>
+    <span><b>&#8593;&#8595;</b> выбор</span>
+    <span><b>&#9166;</b> ок</span>
+    <span><b>&#8592;&#8594;</b> значение</span>
+    <span><b>&#9003;</b> назад</span>
   </footer>
 
 </div>
 
 <section class="input-panel" id="input-panel" role="dialog" aria-modal="true" aria-labelledby="input-title" hidden>
-  <span class="eyebrow">// CONFIRM DETAILS</span>
+  <span class="eyebrow">// ПОДТВЕРЖДЕНИЕ</span>
   <h1 id="input-title"></h1>
   <form id="input-form">
-    <label for="input-value" id="input-label">Reason</label>
+    <label for="input-value" id="input-label">Причина</label>
     <textarea id="input-value" rows="3" maxlength="256" required aria-describedby="input-hint input-error" spellcheck="false"></textarea>
     <p id="input-hint"></p><p id="input-error" role="alert"></p>
-    <div class="input-actions"><button type="button" id="input-cancel">Cancel · Esc</button><button type="submit">Continue · Enter</button></div>
+    <div class="input-actions"><button type="button" id="input-cancel">Отмена · Esc</button><button type="submit">Продолжить · Enter</button></div>
   </form>
 </section>
 <aside id="announcement" class="announcement" role="status" hidden>
-  <span class="eyebrow" id="announcement-title">// SERVER ANNOUNCEMENT</span><p id="announcement-text"></p>
+  <span class="eyebrow" id="announcement-title">// ОБЪЯВЛЕНИЕ СЕРВЕРА</span><p id="announcement-text"></p>
 </aside>
-<aside id="noclip-hud" class="noclip-hud" hidden aria-label="Noclip controls">
-  <header><span>// ADMIN FLIGHT</span><span id="noclip-mode">NOCLIP</span></header>
+<aside id="noclip-hud" class="noclip-hud" hidden aria-label="Управление ноклипом">
+  <header><span>// ПОЛЁТ АДМИНА</span><span id="noclip-mode">НОКЛИП</span></header>
   <div class="noclip-speed"><strong id="noclip-speed">60</strong><span>m/s</span><small id="noclip-base"></small></div>
-  <div class="noclip-controls"><span><b>WHEEL</b> speed</span><span><b>SHIFT</b> boost</span><span><b>ALT</b> precision</span></div>
-  <div class="noclip-controls"><span><b>SPACE / CTRL</b> up / down</span><span>Move with your usual keys</span></div>
+  <div class="noclip-controls"><span><b>КОЛЕСО</b> скорость</span><span><b>SHIFT</b> ускорение</span><span><b>ALT</b> точно</span></div>
+  <div class="noclip-controls"><span><b>SPACE / CTRL</b> вверх / вниз</span><span>Двигайся обычными клавишами</span></div>
 </aside>
 <script src="menu.js"></script>
 </body>

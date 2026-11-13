@@ -38,9 +38,9 @@
         <div id="rows"></div>
         <div id="desc" data-class-on="desc != ''"><span>{{desc}}</span></div>
         <div id="foot">
-            <span class="fk">UP/DN</span><span class="ft">MOVE</span>
-            <span class="fk">ENTER</span><span class="ft">SELECT</span>
-            <span class="fk">ESC</span><span class="ft">CLOSE</span>
+            <span class="fk">ВВЕРХ/ВНИЗ</span><span class="ft">ВЫБОР</span>
+            <span class="fk">ENTER</span><span class="ft">ОК</span>
+            <span class="fk">ESC</span><span class="ft">ЗАКРЫТЬ</span>
         </div>
     </div>
 

@@ -37,10 +37,10 @@ local CHAT_SUGGESTIONS = {
     } },
     { command = "/prop.clear", help = "Remove every prop owned by this resource." },
     { command = "/prop.catalog", help = "List the curated prop model aliases." },
-    { command = "/prop.pickup", help = "Pick up a nearby prop and carry it.", parameters = {
+    { command = "/prop.pickup", help = "Поднять ближайший предмет и нести.", parameters = {
         { name = "id" }
     } },
-    { command = "/prop.drop", help = "Drop whatever you are carrying." },
+    { command = "/prop.drop", help = "Бросить то, что несёшь." },
     { command = "/light.toggle", help = "Switch a light off or on without respawning it.",
       parameters = { { name = "id" }, { name = "state", help = "on or off." } } },
     { command = "/light.create", help = "Create a light at explicit coordinates.", parameters = {

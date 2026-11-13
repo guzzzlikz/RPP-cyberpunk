@@ -189,11 +189,11 @@ RegisterNetEvent("open77:command:result", function(raw, accepted, message)
 
     local text = message
     if not accepted and message == "unknown_command" then
-        text = "Unknown command: /" .. raw
+        text = "Неизвестная команда: /" .. raw
     elseif not accepted and string.match(message, "^permission_denied:") then
-        text = "You do not have permission to run /" .. raw
+        text = "Нет прав на команду /" .. raw
     elseif text == "" then
-        text = accepted and "Command completed." or "Command failed."
+        text = accepted and "Команда выполнена." or "Команда не выполнена."
     end
     addMessage({
         type = accepted and "system" or "error",
@@ -255,7 +255,7 @@ AddEventHandler("onClientResourceStart", function(name)
         if not connectedOnce then addMessage({
             type = "system",
             author = "OPEN77",
-            text = "Chat connected — press T to type",
+            text = "Чат подключён — нажми T, чтобы писать",
             color = { 252, 238, 10 }
         }) end
         connectedOnce = true
@@ -312,7 +312,7 @@ AddEventHandler("onClientResourceStart", function(name)
                 addMessage({
                     type = "error",
                     author = "NETWORK",
-                    text = tostring(errorMessage or "Message could not be sent."),
+                    text = tostring(errorMessage or "Сообщение не отправлено."),
                     color = { 255, 76, 92 }
                 })
             end

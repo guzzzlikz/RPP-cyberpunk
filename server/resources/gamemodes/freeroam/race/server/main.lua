@@ -247,7 +247,7 @@ local function sendToLobby(playerId, reason, retainedState, attempt)
                 end
             end)
         elseif attempt >= 10 then
-            notify(playerId, "error", "RETURN PENDING",
+            notify(playerId, "error", "ВОЗВРАЩЕНИЕ",
                 "Could not return to Freeroam yet. Use /race.leave to retry.", 6000)
         end
     end
@@ -1137,7 +1137,7 @@ local function pollGridVehicles(now)
                     record.vehicleReady = true
                     changed = true
                     record.vehicleAssignmentRetryAtMs = nil
-                    notify(playerId, "success", onFoot(heat.course) and "RUNNER READY" or "DRIVER READY",
+                    notify(playerId, "success", onFoot(heat.course) and "БЕГУН ГОТОВ" or "ГОНЩИК ГОТОВ",
                         "Starting position confirmed. Waiting for the start sequence.", 3000)
                     log(("player %d ready on grid (%s)"):format(
                         playerId, onFoot(heat.course) and "on foot" or tostring(record.vehicleId)))
@@ -1173,7 +1173,7 @@ local function guardGridVehicles(now)
                 record.vehicleReady = false
                 removeRaceVehicle(record, "grid_hold_failed")
                 log(("grid hold failed player=%d: %s"):format(playerId, tostring(reason)))
-                notify(playerId, "error", "GRID FAILED",
+                notify(playerId, "error", "СТАРТ НЕ СОБРАН",
                     "Your vehicle could not be held safely on the starting grid.", 5000)
             end
             end
@@ -1224,7 +1224,7 @@ local function beginGrid(forced)
         if failure ~= nil then
             table.remove(queue, index)
             setState(playerId, "freeroam")
-            notify(playerId, "info", "QUEUE LEFT", "Race entry cancelled: " .. failure, 4000)
+            notify(playerId, "info", "ВЫХОД ИЗ ОЧЕРЕДИ", "Участие в гонке отменено: " .. failure, 4000)
         end
     end
     if #queue == 0 or (not forced and #queue < Engine.minRacers) then
@@ -1252,11 +1252,11 @@ local function beginGrid(forced)
                 releaseRaceProtection(playerId, record)
                 record.returnPosition = nil
                 setState(playerId, "freeroam")
-                notify(playerId, "error", "QUEUE LEFT", "Race protection could not be enabled. Please retry.", 4000)
+                notify(playerId, "error", "ВЫХОД ИЗ ОЧЕРЕДИ", "Не удалось включить защиту гонки. Попробуй ещё раз.", 4000)
             end
         else
             setState(playerId, "freeroam")
-            notify(playerId, "error", "QUEUE LEFT", "Your return position is unavailable.", 4000)
+            notify(playerId, "error", "ВЫХОД ИЗ ОЧЕРЕДИ", "Место для возврата недоступно.", 4000)
         end
     end
     queueDeadlineMs = nil
@@ -1309,7 +1309,7 @@ local function beginGrid(forced)
             local placed, reason = placeAt(playerId, slot.position, slot.heading, heat.bucket, "foot_grid")
             if not placed then
                 record.state, record.dnfReason = "dnf", "placement_failed"
-                notify(playerId, "error", "GRID FAILED", tostring(reason), 5000)
+                notify(playerId, "error", "СТАРТ НЕ СОБРАН", tostring(reason), 5000)
             end
         else
         local carGround = slot.position
@@ -1339,11 +1339,11 @@ local function beginGrid(forced)
             record.dnfReason = vehicleId == nil and "vehicle_failed" or "driver_assignment_failed"
             log(("grid setup failed for %d: vehicle=%s assignment=%s"):format(
                 playerId, tostring(vehicleReason), tostring(assignmentReason)))
-            notify(playerId, "error", "GRID FAILED",
+            notify(playerId, "error", "СТАРТ НЕ СОБРАН",
                 vehicleId == nil and "Your race vehicle could not be created."
                     or "You could not be assigned to the race vehicle.", 5000)
         else
-            notify(playerId, "info", "STARTING GRID",
+            notify(playerId, "info", "СТАРТОВАЯ СЕТКА",
                 "Vehicle held on the grid until GO. Exit remains locked until Race cleanup.", 8000)
         end
         end
@@ -1527,7 +1527,7 @@ local function finishPlayer(playerId, record)
         for _, memberId in ipairs(heat.members) do
             local member = players[memberId]
             if member and member.state == "racing" then
-                notify(memberId, "warning", "FINISH WINDOW",
+                notify(memberId, "warning", "ОКНО ФИНИША",
                     ("The leader finished · %.0f seconds remaining."):format(
                         Engine.finishGraceSeconds), 5000)
             end
@@ -1652,7 +1652,7 @@ end
 local function leaveRace(playerId, reason)
     if removeFromQueue(playerId) then
         setState(playerId, "freeroam")
-        notify(playerId, "info", "RACE", "Queue left.", 2500)
+        notify(playerId, "info", "RACE", "Ты вышел из очереди.", 2500)
         pushAllStates()
         return true
     end
@@ -1750,14 +1750,14 @@ local function notifyEditor(playerId, kind, message, durationMs)
             id = "race_editor_feedback_" .. tostring(playerId),
             replace = true,
             type = kind or "info",
-            title = "COURSE EDITOR",
+            title = "РЕДАКТОР ТРАСС",
             message = message,
             icon = "CP",
             durationMs = durationMs or 2400,
         })
     end
     TriggerClientEvent("race:notice", playerId, {
-        kind = kind or "info", title = "COURSE EDITOR", message = message,
+        kind = kind or "info", title = "РЕДАКТОР ТРАСС", message = message,
     })
 end
 
@@ -1772,8 +1772,8 @@ local function closeEditorSession(playerId, reason, returnToLobby)
     })
     if returnToLobby and Open77.players.name(playerId) ~= nil then
         sendToLobby(playerId, reason or "editor_closed")
-        notify(playerId, "info", "COURSE EDITOR",
-            reason == "session_expired" and "Editor session expired."
+        notify(playerId, "info", "РЕДАКТОР ТРАСС",
+            reason == "session_expired" and "Сессия редактора истекла."
                 or "Editor closed. Returning to Freeroam.", 3500)
     end
     pushAllStates()
@@ -2099,7 +2099,7 @@ end)
 
 RegisterNetEvent("race:leave", function(reason)
     if not leaveRace(source, tostring(reason or "left")) then
-        notify(source, "warning", "RACE", "You are not queued or racing.", 3000)
+        notify(source, "warning", "RACE", "Ты не в очереди и не в гонке.", 3000)
     end
 end)
 
@@ -2116,12 +2116,12 @@ RegisterNetEvent("race:returnCheckpoint", function()
         or currentHeat.course.start
     local ok, reason = returnToPoint(playerId, point, currentHeat.bucket, function(settled, failure)
         if heat ~= currentHeat or record.state ~= "racing" then return end
-        notify(playerId, settled and "info" or "warning", "FOOT RACE",
+        notify(playerId, settled and "info" or "warning", "ЗАБЕГ",
             settled and "Returned to checkpoint. The clock keeps running." or
                 "Checkpoint return failed: " .. tostring(failure), 3000)
         pushState(playerId)
     end)
-    if not ok then notify(playerId, "warning", "FOOT RACE", tostring(reason), 2500) end
+    if not ok then notify(playerId, "warning", "ЗАБЕГ", tostring(reason), 2500) end
     pushState(playerId)
 end)
 
@@ -2154,7 +2154,7 @@ AddEventHandler("onPlayerLifeStateChanged", function(value)
         if ok then
             protectRacer(playerId, record)
             record.lastPosition = nil
-            notify(playerId, "info", "FOOT RACE", "Returned to checkpoint. The clock keeps running.", 3000)
+            notify(playerId, "info", "ЗАБЕГ", "Ты на чекпоинте. Время идёт.", 3000)
         else
             log(("foot checkpoint recovery failed player=%d reason=%s"):format(playerId, tostring(reason)))
         end
@@ -2266,7 +2266,7 @@ CreateThread(function()
                             record.state = "dnf"
                             record.dnfReason = "grid_timeout"
                             removeRaceVehicle(record, "grid_timeout")
-                            notify(playerId, "error", "GRID TIMEOUT",
+                            notify(playerId, "error", "ВРЕМЯ НА СТАРТ ВЫШЛО",
                                 "Driver seat was not confirmed in time.", 5000)
                         end
                     end
@@ -2313,12 +2313,12 @@ end)
 -- ------------------------------------------------------------- commands --
 
 local CHAT_SUGGESTIONS = {
-    { command = "/race", help = "Open Freeroam's Race activity and course catalogue." },
-    { command = "/race.join", help = "Join the next Race heat." },
-    { command = "/race.leave", help = "Leave the Race queue or forfeit the heat." },
-    { command = "/race.status", help = "Show Race server state." },
-    { command = "/race.course.list", help = "List available courses." },
-    { command = "/race.editor", help = "Open the gated course editor (admin)." },
+    { command = "/race", help = "Открыть гонки и каталог трасс." },
+    { command = "/race.join", help = "Вступить в следующий заезд." },
+    { command = "/race.leave", help = "Выйти из очереди или сдаться в заезде." },
+    { command = "/race.status", help = "Показать состояние гонок на сервере." },
+    { command = "/race.course.list", help = "Список трасс." },
+    { command = "/race.editor", help = "Открыть редактор трасс (админ)." },
 }
 
 RegisterNetEvent("chat:ready", function()

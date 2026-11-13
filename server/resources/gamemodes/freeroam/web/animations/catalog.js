@@ -1,16 +1,16 @@
 /* Pure catalogue projection, shared by the WebUI and Node regression tests. */
 (function (root) {
   'use strict';
-  // "On the move" lists exactly the layer profiles: upper-body gestures and holds
+  // "В движении" lists exactly the layer profiles: upper-body gestures and holds
   // played over the body's own walking. Every other category is a workspot
   // family and stands still (walking cancels it), which its label says.
-  const categories = { onthemove: 'On the move', postures: 'Postures (stationary)', gestures: 'Gestures (stationary)', social: 'Social (stationary)', dance: 'Dance (stationary)', emotions: 'Emotions (stationary)', relaxation: 'Relaxation (stationary)', seated: 'Seated (stationary)', consumables: 'Food & drink (stationary)', work: 'Work (stationary)', music: 'Music (stationary)', interactions: 'Interactions (stationary)' };
-  const placements = { standing: 'Standing', ground: 'On the ground', chair: 'Needs a chair', wall: 'Needs a wall', bed: 'Needs a bed', counter: 'Needs a counter', barstool: 'Needs a bar stool' };
-  const arms = { both: 'both arms', right: 'right arm', left: 'left arm' };
+  const categories = { onthemove: 'В движении', postures: 'Позы (на месте)', gestures: 'Жесты (на месте)', social: 'Общение (на месте)', dance: 'Танцы (на месте)', emotions: 'Эмоции (на месте)', relaxation: 'Отдых (на месте)', seated: 'Сидя (на месте)', consumables: 'Еда и напитки (на месте)', work: 'Работа (на месте)', music: 'Музыка (на месте)', interactions: 'Взаимодействие (на месте)' };
+  const placements = { standing: 'Стоя', ground: 'На земле', chair: 'Нужен стул', wall: 'Нужна стена', bed: 'Нужна кровать', counter: 'Нужна стойка', barstool: 'Нужен барный стул' };
+  const arms = { both: 'обе руки', right: 'правая рука', left: 'левая рука' };
   const aliases = { armscrossed: 'cross arms bras croises', armscrossed2: 'cross arms bras croises', handsup: 'surrender mains levees', handsback: 'hands behind back mains dos', handships: 'hands hips hanches', dance: 'danse dancing', smoke: 'fumer cigarette', drink: 'boire canette', chair: 'assis chaise', sit: 'assis sol', lie: 'allonge dormir', lean: 'mur appuyer', phone: 'telephone', clap: 'applaudir', think: 'reflechir', cry: 'pleurer', guitar: 'guitare',
     smoke_walk: 'fumer cigarette marcher walk', cigar_walk: 'fumer cigare marcher walk', drink_walk: 'boire canette marcher walk', bottle_walk: 'boire bouteille marcher walk', call_walk: 'telephone appel marcher walk', phone_walk: 'telephone marcher walk', handsup_walk: 'surrender mains levees marcher walk', handsback_walk: 'menotte cuffed hands behind back marcher walk', armscrossed_walk: 'bras croises marcher walk', handships_walk: 'hanches marcher walk', pocket_walk: 'poche marcher walk', talk_walk: 'parler gesticuler marcher walk', hold_item_walk: 'tenir objet marcher walk',
     point: 'pointer doigt finger', wave: 'saluer bonjour hello hi', raisehand: 'lever main', beckon: 'viens come here', stop: 'halte halt', thumbsup: 'pouce', shrug: 'hausser epaules', facepalm: 'main visage', scratchhead: 'gratter tete', what: 'quoi', me: 'moi', carry: 'porter caisse crate' };
-  // Order inside "On the move": gestures first (they play once), then holds, then the carry family.
+  // Order inside "В движении": gestures first (they play once), then holds, then the carry family.
   function rankOf(profile) {
     if (profile.kind !== 'layer') return 9;
     if (/^carry/.test(profile.id)) return 2;
@@ -59,15 +59,15 @@
     }
     return [...groups.values()];
   }
-  // "On the move" reads by use: gestures, then holds, then carry; other views stay alphabetical.
+  // "В движении" reads by use: gestures, then holds, then carry; other views stay alphabetical.
   function order(items, category) {
     return category === 'onthemove' ? items.sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label) || a.index - b.index)
       : items.sort((a, b) => a.label.localeCompare(b.label) || a.index - b.index);
   }
   function describe(item) {
     if (!item) return '';
-    const parts = [item.walks ? 'Walk while it plays' : (placements[item.placement] || item.placement)];
-    if (item.walks) parts.push(item.once ? 'Plays once' : 'Holds until stopped', item.arms);
+    const parts = [item.walks ? 'Можно идти' : (placements[item.placement] || item.placement)];
+    if (item.walks) parts.push(item.once ? 'Один раз' : 'До остановки', item.arms);
     if (item.prop) parts.push('Prop: ' + item.prop);
     return parts.join(' \u00b7 ');
   }

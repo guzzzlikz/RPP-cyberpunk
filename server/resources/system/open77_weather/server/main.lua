@@ -30,9 +30,9 @@ local publishChange = type(Open77.environment) == "table"
     and Open77.environment.publishChange or nil
 
 local CHAT_SUGGESTIONS = {
-    { command = "/weather", help = "Show the synchronized time and weather state.", parameters = {} },
-    { command = "/weather.status", help = "Show the synchronized time and weather state.", parameters = {} },
-    { command = "/weather.time", help = "Show the synchronized server clock.", parameters = {} },
+    { command = "/weather", help = "Показать время и погоду.", parameters = {} },
+    { command = "/weather.status", help = "Показать время и погоду.", parameters = {} },
+    { command = "/weather.time", help = "Показать время сервера.", parameters = {} },
     { command = "/weather.time.set", help = "Set the authoritative server time.", parameters = {
         { name = "HH:MM[:SS]", help = "24-hour time, for example 21:30:00." }
     } },

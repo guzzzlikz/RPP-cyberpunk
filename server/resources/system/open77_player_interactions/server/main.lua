@@ -8,6 +8,6 @@ RegisterCommand('interaction', function(player, args)
     else
         local state = Open77.playerInteractions.current(player)
         TriggerClientEvent('chat:addMessage', player, {type='system', author='INTERACTIONS',
-            text=state and (state.kind..' · '..state.phase..' · /interaction cancel') or 'No active interaction.'})
+            text=state and (state.kind..' · '..state.phase..' · /interaction cancel — отмена') or 'Нет активного взаимодействия.'})
     end
 end, false)

@@ -72,22 +72,24 @@ AddEventHandler("onClientResourceStart", function(name)
     -- `and` rather than a bare call: a client older than the native drawer has
     -- no `render` at all, and indexing nil would take the whole resource down
     -- instead of falling back to the page.
-    local rendered = Open77.nameplates.render ~= nil and Open77.nameplates.render(true)
+    -- RPP: the native drawer cannot show Cyrillic. Its glyph set is built into
+    -- Open77.dll and holds Latin only, whatever `style({ font = ... })` picks:
+    -- tested 2026-11-14, Russian names stayed blank with "condensed" (Bahnschrift).
+    -- So by default the plates go through the WebUI page below: CEF takes any
+    -- glyph from the Windows fonts. The price is the lag described above (a
+    -- plate trails a fast camera turn). Set RPP_WEB_NAMEPLATES = false to get the
+    -- native drawer back (in-frame, Latin only).
+    local RPP_WEB_NAMEPLATES = true
+    if RPP_WEB_NAMEPLATES and Open77.nameplates.render ~= nil then
+        Open77.nameplates.render(false)
+    end
+    local rendered = not RPP_WEB_NAMEPLATES
+        and Open77.nameplates.render ~= nil and Open77.nameplates.render(true)
     if rendered then
         nativeRender = true
         Open77.nameplates.render(enabled)
-        -- RPP: the embedded plate faces ("chakra", "rajdhani") have no Cyrillic,
-        -- so Russian names were blank. "condensed" is Windows' Bahnschrift
-        -- Condensed (system face, full Cyrillic). Yellow/black theme accent.
         if Open77.nameplates.style then
-            local ok, styled, why = pcall(Open77.nameplates.style, {
-                font = "condensed",
-                accent = "#FCEE0A",
-                uppercase = false,
-            })
-            if not ok or styled == false then
-                print("[open77_nameplates] style failed: " .. tostring(ok and why or styled))
-            end
+            pcall(Open77.nameplates.style, { accent = "#FCEE0A", uppercase = false })
         end
         return
     end

@@ -76,7 +76,7 @@
     var rows = list(payload.rows);
 
     elements.title.textContent = text(payload.title) || "ADMIN";
-    elements.roles.textContent = text(payload.roles) || "Direct grants";
+    elements.roles.textContent = text(payload.roles) || "Прямые права";
     elements.detail.textContent = text(payload.detail);
     elements.trail.textContent = text(payload.trail).toUpperCase().split("/").join(" / ");
 
@@ -204,14 +204,14 @@
     if (hud.hidden) return;
     var speed = Number(payload.effective) || 0;
     document.getElementById("noclip-speed").textContent = speed.toFixed(speed < 1 ? 2 : speed < 10 ? 1 : 0);
-    document.getElementById("noclip-mode").textContent = payload.paused ? "INPUT PAUSED" : payload.slow ? "PRECISION" : payload.boost ? "BOOST" : "NOCLIP";
+    document.getElementById("noclip-mode").textContent = payload.paused ? "ВВОД ПРИОСТАНОВЛЕН" : payload.slow ? "PRECISION" : payload.boost ? "BOOST" : "NOCLIP";
     document.getElementById("noclip-base").textContent = payload.boost || payload.slow ? "BASE " + Number(payload.speed).toFixed(1) : "";
     hud.classList.toggle("paused", !!payload.paused);
   });
   var announcementTimer;
   Open77.on("menu:announcement", function (payload) {
     clearTimeout(announcementTimer);
-    document.getElementById("announcement-title").textContent = "// " + (text(payload.title) || "SERVER ANNOUNCEMENT");
+    document.getElementById("announcement-title").textContent = "// " + (text(payload.title) || "ОБЪЯВЛЕНИЕ СЕРВЕРА");
     document.getElementById("announcement-text").textContent = text(payload.text);
     document.getElementById("announcement").hidden = false;
     announcementTimer = setTimeout(function () { document.getElementById("announcement").hidden = true; }, 10000);

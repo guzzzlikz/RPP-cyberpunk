@@ -135,12 +135,12 @@ end
 -- for the whole scene, so the presented body hands back to it in place.
 S.define("ripperdoc", {
     profile = "ripperdoc",
-    label = "Ripperdoc chair",
+    label = "Кресло рипердока",
     prompt = "Lie down",
     enter = { clip = "cyberm__ripperdoc__enter", durationMs = 6800 },
     idles = {
-        { clip = "cyberm__ripperdoc__idle", label = "Rest" },
-        { clip = "cyberm__ripperdoc__idle_device", label = "Arm in the scanner" },
+        { clip = "cyberm__ripperdoc__idle", label = "Отдых" },
+        { clip = "cyberm__ripperdoc__idle_device", label = "Рука в сканере" },
     },
     exit = { clip = "cyberm__ripperdoc__exit", durationMs = 3867 },
     stand = { x = -0.057, y = 1.584, yaw = 2.13 },
@@ -156,8 +156,8 @@ S.define("ripperdoc", {
 -- towards +X, so the posture (facing +Y) is turned 90 degrees, and the anchor goes down to the floor
 -- the base stands on. Measured from the mesh bounds and placements, checked in game:
 -- docs/research/rp-scenes.md.
-S.defineFurniture("surgical_chair_a", { scene = "ripperdoc", label = "ripperdoc chair", offset = { x = 0.07, y = 0, z = -0.43 }, yaw = 90 })
+S.defineFurniture("surgical_chair_a", { scene = "ripperdoc", label = "кресло рипердока", offset = { x = 0.07, y = 0, z = -0.43 }, yaw = 90 })
 -- The mirrored chair keeps the same pivot heights and headrest side (mirrored across its Y).
-S.defineFurniture("surgical_chair_a_mirrored", { scene = "ripperdoc", label = "ripperdoc chair", offset = { x = 0.07, y = 0, z = -0.43 }, yaw = 90 })
+S.defineFurniture("surgical_chair_a_mirrored", { scene = "ripperdoc", label = "кресло рипердока", offset = { x = 0.07, y = 0, z = -0.43 }, yaw = 90 })
 -- Chair b: the base stands 0.52 m under the seat's pivot, the headrest 0.74 m along +X.
-S.defineFurniture("surgical_chair_b", { scene = "ripperdoc", label = "ripperdoc chair", offset = { x = 0.08, y = 0, z = -0.52 }, yaw = 90 })
+S.defineFurniture("surgical_chair_b", { scene = "ripperdoc", label = "кресло рипердока", offset = { x = 0.08, y = 0, z = -0.52 }, yaw = 90 })

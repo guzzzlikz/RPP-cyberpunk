@@ -198,13 +198,13 @@ local function reconcile()
         -- runs this again on the new player.
         local switched, reason = Open77.appearance.switchBodyFamily(record.family, false)
         if switched then
-            notify("system", "Reloading the " .. record.family .. " player body.")
+            notify("system", "Загружаем " .. record.family .. " тело персонажа.")
             return
         end
         if tostring(reason) ~= "body_family_already_active" then
             TriggerServerEvent("open77:appearance:bodyFamilyRejected", record.family)
             record.family = current
-            notify("error", "Body type change unavailable: " .. tostring(reason))
+            notify("error", "Смена типа тела недоступна: " .. tostring(reason))
         end
     end
     if record.snapshot ~= nil and failed ~= record.revision and not wears(record.snapshot) then
@@ -224,14 +224,14 @@ local function reconcile()
         end
         failed = record.revision
         finishMutation()
-        notify("error", "Stored appearance could not be restored: " .. tostring(reason) .. ". Reconnect to retry.")
+        notify("error", "Сохранённую внешность не удалось восстановить: " .. tostring(reason) .. ". Reconnect to retry.")
         return
     end
     if reopen ~= nil then
         local gender = reopen
         reopen = nil
         local sent = TriggerServerEvent("open77:appearance:requestOpen", "ripperdoc", gender)
-        if sent then notify("system", "Body type loaded. Reopening the appearance editor.") end
+        if sent then notify("system", "Тип тела загружен. Открываем редактор снова.") end
     end
     announce()
     publishBody()
@@ -246,7 +246,7 @@ local function takeTransition()
     if type(result) ~= "string" or result == "" then return end
     local action, gender = result:match("^([^:]+):(.+)$")
     if action == "error" then
-        notify("error", "Body type change failed: " .. tostring(gender))
+        notify("error", "Не удалось сменить тип тела: " .. tostring(gender))
     elseif action == "edit" and (gender == "male" or gender == "female") then
         reopen = gender
     end
@@ -325,7 +325,7 @@ end)
 
 RegisterNetEvent("open77:appearance:bootstrapFailed", function(reason)
     Open77.session.failCharacterBootstrap(tostring(reason or "database_error"))
-    notify("error", "Character could not be loaded: " .. tostring(reason))
+    notify("error", "Не удалось загрузить персонажа: " .. tostring(reason))
 end)
 
 
@@ -339,7 +339,7 @@ RegisterNetEvent("open77:appearance:bootstrapReady", function(family, characterK
     record.family = family
     record.key = tostring(characterKey or "default")
     local ok, reason = Open77.session.resolveCharacterBootstrap(family)
-    if not ok then notify("error", "Character bootstrap failed: " .. tostring(reason)) end
+    if not ok then notify("error", "Ошибка запуска персонажа: " .. tostring(reason)) end
     reconcile()
 end)
 
@@ -441,20 +441,20 @@ RegisterNetEvent("open77:appearance:beginEdit", function(nonce, revision, mode, 
         if switched then
             TriggerServerEvent("open77:appearance:abort", edit.nonce, "body_family_transition")
             edit = nil
-            notify("system", "Switching body type. The editor will reopen automatically.")
+            notify("system", "Меняем тип тела. Редактор откроется снова сам.")
             return
         end
         if tostring(reason) ~= "body_family_already_active" then
             TriggerServerEvent("open77:appearance:abort", edit.nonce, "body_family_transition_failed")
             edit = nil
-            return notify("error", "Body type change unavailable: " .. tostring(reason))
+            return notify("error", "Смена типа тела недоступна: " .. tostring(reason))
         end
     end
     local opened, reason = Open77.appearance.open({ mode = mode, gender = gender })
     if not opened then
         TriggerServerEvent("open77:appearance:abort", edit.nonce, "open_failed")
         edit = nil
-        notify("error", "Appearance editor unavailable: " .. tostring(reason))
+        notify("error", "Редактор внешности недоступен: " .. tostring(reason))
     end
 end)
 
@@ -499,14 +499,14 @@ AddEventHandler("open77:appearance:confirmed", function()
                 -- the capture above), carry on, and let the player fix it in the wardrobe or the
                 -- editor: their next save rewrites the record. A failed capture still latches below.
                 failed = nil
-                notify("info", "Part of your saved appearance could not be restored exactly. Check it in the wardrobe or the appearance editor.")
+                notify("info", "Часть внешности восстановилась неточно. Проверь в гардеробе или редакторе внешности.")
             else
                 failed = record.revision
-                notify("error", "Restored appearance does not match its stored options.")
+                notify("error", "Восстановленная внешность не совпадает с сохранённой.")
             end
         elseif (applying or failed ~= nil) and record then
             failed = record.revision
-            notify("error", "Restored appearance could not be captured: " .. tostring(captureError))
+            notify("error", "Не удалось считать восстановленную внешность: " .. tostring(captureError))
         end
         applying = false
         finishMutation()
@@ -519,7 +519,7 @@ AddEventHandler("open77:appearance:confirmed", function()
         TriggerServerEvent("open77:appearance:abort", edit.nonce, "capture_failed")
         edit = nil
         finishMutation()
-        notify("error", "Appearance capture failed: " .. tostring(payloadReason or reason))
+        notify("error", "Не удалось считать внешность: " .. tostring(payloadReason or reason))
         reconcile()
         return
     end
@@ -527,7 +527,7 @@ AddEventHandler("open77:appearance:confirmed", function()
     if not sent then
         edit = nil
         finishMutation()
-        notify("error", "Appearance was not saved: " .. tostring(sendReason))
+        notify("error", "Внешность не сохранена: " .. tostring(sendReason))
         reconcile()
     end
 end)
@@ -544,7 +544,7 @@ AddEventHandler("open77:appearance:restore_failed", function()
     applying = false
     if record ~= nil then failed = record.revision end
     finishMutation()
-    notify("error", "Stored appearance could not be restored by the customization mirror. Reconnect to retry.")
+    notify("error", "Зеркало кастомизации не смогло восстановить внешность. Переподключись.")
     reconcile()
 end)
 
@@ -555,7 +555,7 @@ RegisterNetEvent("open77:appearance:accepted", function(nonce, revision, snapsho
     if edit.family ~= nil then record.family = edit.family end
     edit = nil
     finishMutation()
-    notify("system", "Appearance saved.")
+    notify("system", "Внешность сохранена.")
     reconcile()
 end)
 
@@ -567,7 +567,7 @@ RegisterNetEvent("open77:appearance:rejected", function(nonce, reason, revision,
     end
     edit = nil
     finishMutation()
-    notify("error", "Appearance was not saved: " .. tostring(reason))
+    notify("error", "Внешность не сохранена: " .. tostring(reason))
     reconcile()
 end)
 
@@ -601,7 +601,7 @@ RegisterNetEvent("open77:appearance:createRequired", function(nonce, characterKe
         TriggerServerEvent("open77:appearance:createAbort", nonce)
         creation = nil
         Open77.session.failCharacterBootstrap(reason or "character_creator_unavailable")
-        notify("error", "Character creator unavailable: " .. tostring(reason))
+        notify("error", "Создание персонажа недоступно: " .. tostring(reason))
     end
 end)
 
@@ -624,9 +624,9 @@ RegisterNetEvent("open77:appearance:createAccepted", function(nonce, family, rev
     local resolved, reason = Open77.session.resolveCharacterBootstrap(record.family)
     if not resolved then
         Open77.session.failCharacterBootstrap(reason or "character_bootstrap_failed")
-        return notify("error", "Character creation failed: " .. tostring(reason))
+        return notify("error", "Не удалось создать персонажа: " .. tostring(reason))
     end
-    notify("system", "Character created. Entering Night City.")
+    notify("system", "Персонаж создан. Добро пожаловать в Найт-Сити.")
 end)
 
 RegisterNetEvent("open77:appearance:createRejected", function(nonce, reason)
@@ -634,7 +634,7 @@ RegisterNetEvent("open77:appearance:createRejected", function(nonce, reason)
     creation = nil
     finishMutation()
     Open77.session.failCharacterBootstrap(reason or "character_creation_rejected")
-    notify("error", "Character was not created: " .. tostring(reason))
+    notify("error", "Персонаж не создан: " .. tostring(reason))
 end)
 
 -- The creator is a modal the native layer reports through a mailbox; while one

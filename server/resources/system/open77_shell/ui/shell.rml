@@ -30,18 +30,18 @@
         <div id="layout">
             <div id="hero">
                 <div id="tilehead">
-                    <div id="statelabel"><span class="mark">//</span><span id="statetext">WELCOME TO THE CITY</span></div>
-                    <div id="signal"><span class="sq"></span><span id="signaltext">STANDBY</span></div>
+                    <div id="statelabel"><span class="mark">//</span><span id="statetext">ДОБРО ПОЖАЛОВАТЬ В ГОРОД</span></div>
+                    <div id="signal"><span class="sq"></span><span id="signaltext">ОЖИДАНИЕ</span></div>
                 </div>
                 <div id="herocopy">
-                    <div id="h1a">Your city.</div>
-                    <div id="h1b">Your rules.</div>
-                    <div id="message">A new story starts with your next server.</div>
-                    <div id="nextstep">Choose your community in the launcher. We'll take you there.</div>
+                    <div id="h1a">Твой город.</div>
+                    <div id="h1b">Твои правила.</div>
+                    <div id="message">Новая история начнётся на следующем сервере.</div>
+                    <div id="nextstep">Выбери сообщество в лаунчере, и мы отвезём тебя туда.</div>
                 </div>
                 <div id="herobottom">
-                    <span id="elapsed">READY WHEN YOU ARE</span>
-                    <div id="cancel" class="tbtn act off"><span>Cancel connection</span></div>
+                    <span id="elapsed">ЖДЁМ ТЕБЯ</span>
+                    <div id="cancel" class="tbtn act off"><span>Отменить подключение</span></div>
                 </div>
             </div>
 
@@ -49,17 +49,17 @@
                 <div id="dest" class="glass">
                     <div id="dest-edge"></div>
                     <div id="dest-notch"></div>
-                    <div class="eyebrow y"><span>YOUR DESTINATION</span></div>
-                    <div id="servername">Where to next?</div>
-                    <div id="endpoint">Choose a server in the launcher.</div>
-                    <div id="privacy" class="act"><div id="privacy-box"><div id="privacy-tick"></div></div><span>SHOW IP ADDRESSES</span></div>
-                    <div id="destfoot"><span id="master">LAUNCHER MANAGED</span><span class="grow"></span><span id="connstatus">OFFLINE</span></div>
+                    <div class="eyebrow y"><span>КУДА ЕДЕМ</span></div>
+                    <div id="servername">Куда дальше?</div>
+                    <div id="endpoint">Выбери сервер в лаунчере.</div>
+                    <div id="privacy" class="act"><div id="privacy-box"><div id="privacy-tick"></div></div><span>ПОКАЗАТЬ IP-АДРЕСА</span></div>
+                    <div id="destfoot"><span id="master">УПРАВЛЯЕТ ЛАУНЧЕР</span><span class="grow"></span><span id="connstatus">НЕ В СЕТИ</span></div>
                 </div>
                 <div id="controls">
-                    <div id="retry" class="sbtn act"><div class="sk"><span>RETRY CONNECTION</span></div><path class="arr" view-box="0 0 24 24" d="M7 17L17 7 M8 7h9v9"/></div>
-                    <div id="retryhint">No connection to retry yet.</div>
-                    <div id="launcher" class="sbtn primary act"><div class="sk"><span>BACK TO LAUNCHER</span></div><path class="arr" view-box="0 0 24 24" d="M7 17L17 7 M8 7h9v9"/></div>
-                    <div id="launcherfoot"><span>Opens the launcher &amp; closes the game</span><span class="grow"></span><div id="quit" class="tbtn act"><span>Quit game</span></div></div>
+                    <div id="retry" class="sbtn act"><div class="sk"><span>ПОДКЛЮЧИТЬСЯ СНОВА</span></div><path class="arr" view-box="0 0 24 24" d="M7 17L17 7 M8 7h9v9"/></div>
+                    <div id="retryhint">Пока не к чему переподключаться.</div>
+                    <div id="launcher" class="sbtn primary act"><div class="sk"><span>В ЛАУНЧЕР</span></div><path class="arr" view-box="0 0 24 24" d="M7 17L17 7 M8 7h9v9"/></div>
+                    <div id="launcherfoot"><span>Откроет лаунчер и закроет игру</span><span class="grow"></span><div id="quit" class="tbtn act"><span>Выйти из игры</span></div></div>
                 </div>
             </div>
         </div>
@@ -68,9 +68,9 @@
             <div id="rail-edge"></div>
             <div id="railhead">
                 <div class="grow">
-                    <div class="eyebrow"><span class="mark">//</span><span>THE ROAD TO NIGHT CITY</span></div>
-                    <div id="phase">Standing by</div>
-                    <div id="progdetail">Choose a server in the launcher.</div>
+                    <div class="eyebrow"><span class="mark">//</span><span>ДОРОГА В НАЙТ-СИТИ</span></div>
+                    <div id="phase">Ожидание</div>
+                    <div id="progdetail">Выбери сервер в лаунчере.</div>
                 </div>
                 <div id="readout">
                     <div id="pctline"><span id="percent">00</span><span id="pctsign">%</span></div>
@@ -78,15 +78,15 @@
                 </div>
             </div>
             <div id="bar"><div id="g0" class="grp"><div id="s0_0" class="seg"><div id="f0_0" class="segfill"></div></div><div id="s0_1" class="seg"><div id="f0_1" class="segfill"></div></div><div id="s0_2" class="seg"><div id="f0_2" class="segfill"></div></div><div id="s0_3" class="seg"><div id="f0_3" class="segfill"></div></div><div id="s0_4" class="seg"><div id="f0_4" class="segfill"></div></div><div id="s0_5" class="seg"><div id="f0_5" class="segfill"></div></div><div id="s0_6" class="seg"><div id="f0_6" class="segfill"></div></div><div id="s0_7" class="seg"><div id="f0_7" class="segfill"></div></div><div id="s0_8" class="seg"><div id="f0_8" class="segfill"></div></div><div id="s0_9" class="seg"><div id="f0_9" class="segfill"></div></div></div><div id="g1" class="grp"><div id="s1_0" class="seg"><div id="f1_0" class="segfill"></div></div><div id="s1_1" class="seg"><div id="f1_1" class="segfill"></div></div><div id="s1_2" class="seg"><div id="f1_2" class="segfill"></div></div><div id="s1_3" class="seg"><div id="f1_3" class="segfill"></div></div><div id="s1_4" class="seg"><div id="f1_4" class="segfill"></div></div><div id="s1_5" class="seg"><div id="f1_5" class="segfill"></div></div><div id="s1_6" class="seg"><div id="f1_6" class="segfill"></div></div><div id="s1_7" class="seg"><div id="f1_7" class="segfill"></div></div><div id="s1_8" class="seg"><div id="f1_8" class="segfill"></div></div><div id="s1_9" class="seg"><div id="f1_9" class="segfill"></div></div></div><div id="g2" class="grp"><div id="s2_0" class="seg"><div id="f2_0" class="segfill"></div></div><div id="s2_1" class="seg"><div id="f2_1" class="segfill"></div></div><div id="s2_2" class="seg"><div id="f2_2" class="segfill"></div></div><div id="s2_3" class="seg"><div id="f2_3" class="segfill"></div></div><div id="s2_4" class="seg"><div id="f2_4" class="segfill"></div></div><div id="s2_5" class="seg"><div id="f2_5" class="segfill"></div></div><div id="s2_6" class="seg"><div id="f2_6" class="segfill"></div></div><div id="s2_7" class="seg"><div id="f2_7" class="segfill"></div></div><div id="s2_8" class="seg"><div id="f2_8" class="segfill"></div></div><div id="s2_9" class="seg"><div id="f2_9" class="segfill"></div></div></div><div id="g3" class="grp"><div id="s3_0" class="seg"><div id="f3_0" class="segfill"></div></div><div id="s3_1" class="seg"><div id="f3_1" class="segfill"></div></div><div id="s3_2" class="seg"><div id="f3_2" class="segfill"></div></div><div id="s3_3" class="seg"><div id="f3_3" class="segfill"></div></div><div id="s3_4" class="seg"><div id="f3_4" class="segfill"></div></div><div id="s3_5" class="seg"><div id="f3_5" class="segfill"></div></div><div id="s3_6" class="seg"><div id="f3_6" class="segfill"></div></div><div id="s3_7" class="seg"><div id="f3_7" class="segfill"></div></div><div id="s3_8" class="seg"><div id="f3_8" class="segfill"></div></div><div id="s3_9" class="seg"><div id="f3_9" class="segfill"></div></div></div><div id="g4" class="grp"><div id="s4_0" class="seg"><div id="f4_0" class="segfill"></div></div><div id="s4_1" class="seg"><div id="f4_1" class="segfill"></div></div><div id="s4_2" class="seg"><div id="f4_2" class="segfill"></div></div><div id="s4_3" class="seg"><div id="f4_3" class="segfill"></div></div><div id="s4_4" class="seg"><div id="f4_4" class="segfill"></div></div><div id="s4_5" class="seg"><div id="f4_5" class="segfill"></div></div><div id="s4_6" class="seg"><div id="f4_6" class="segfill"></div></div><div id="s4_7" class="seg"><div id="f4_7" class="segfill"></div></div><div id="s4_8" class="seg"><div id="f4_8" class="segfill"></div></div><div id="s4_9" class="seg"><div id="f4_9" class="segfill"></div></div></div></div>
-            <div id="labels"><div id="st0" class="lab"><span class="snum">01</span><div class="ltext"><div class="sname">Identity</div><div class="ssub">Verify your session</div></div></div><div id="st1" class="lab"><span class="snum">02</span><div class="ltext"><div class="sname">Connection</div><div class="ssub">Meet your server</div></div></div><div id="st2" class="lab"><span class="snum">03</span><div class="ltext"><div class="sname">Resources</div><div class="ssub">Download &amp; verify</div></div></div><div id="st3" class="lab"><span class="snum">04</span><div class="ltext"><div class="sname">Character</div><div class="ssub">Make yourself at home</div></div></div><div id="st4" class="lab"><span class="snum">05</span><div class="ltext"><div class="sname">Night City</div><div class="ssub">Enter your world</div></div></div></div>
+            <div id="labels"><div id="st0" class="lab"><span class="snum">01</span><div class="ltext"><div class="sname">Личность</div><div class="ssub">Проверка сессии</div></div></div><div id="st1" class="lab"><span class="snum">02</span><div class="ltext"><div class="sname">Подключение</div><div class="ssub">Связь с сервером</div></div></div><div id="st2" class="lab"><span class="snum">03</span><div class="ltext"><div class="sname">Ресурсы</div><div class="ssub">Загрузка и проверка</div></div></div><div id="st3" class="lab"><span class="snum">04</span><div class="ltext"><div class="sname">Персонаж</div><div class="ssub">Располагайся</div></div></div><div id="st4" class="lab"><span class="snum">05</span><div class="ltext"><div class="sname">Найт-Сити</div><div class="ssub">Вход в мир</div></div></div></div>
         </div>
 
         <div id="diag" class="glass">
             <div id="diag-edge"></div>
             <div id="diaghead">
-                <div class="grow"><div class="eyebrow p"><span>LET'S GET YOU BACK IN</span></div><div id="failurecode"></div></div>
-                <div id="copy" class="qbtn act"><span id="copytext">Copy report</span></div>
-                <div id="toggledetails" class="tbtn act"><span id="toggletext">Show details</span></div>
+                <div class="grow"><div class="eyebrow p"><span>ВЕРНЁМ ТЕБЯ В ИГРУ</span></div><div id="failurecode"></div></div>
+                <div id="copy" class="qbtn act"><span id="copytext">Скопировать отчёт</span></div>
+                <div id="toggledetails" class="tbtn act"><span id="toggletext">Подробнее</span></div>
             </div>
             <div id="details"></div>
         </div>
@@ -94,16 +94,16 @@
 
         <div id="foot">
             <div id="footcopy">
-                <div id="network"><span class="mark">//</span><span>ONE CITY. ENDLESS STORIES.</span></div>
-                <div id="footstatus">Cyberpunk 2077 / Community multiplayer</div>
+                <div id="network"><span class="mark">//</span><span>ОДИН ГОРОД. БЕСКОНЕЧНЫЕ ИСТОРИИ.</span></div>
+                <div id="footstatus">Cyberpunk 2077 / мультиплеер сообщества</div>
             </div>
             <div class="grow"></div>
             <div id="music">
                 <div id="musictoggle" class="act"><path id="musicicon" view-box="0 0 24 24" d="M7 5h3v14H7zM14 5h3v14h-3z"/></div>
                 <div id="musictrack">
-                    <div class="eyebrow"><span>NIGHT CITY RADIO</span><span id="eq"><span class="eqb"></span><span class="eqb b2"></span><span class="eqb b3"></span></span></div>
-                    <div id="musictitle">System Initialization</div>
-                    <div id="musicstatus">Loading preferences</div>
+                    <div class="eyebrow"><span>РАДИО НАЙТ-СИТИ</span><span id="eq"><span class="eqb"></span><span class="eqb b2"></span><span class="eqb b3"></span></span></div>
+                    <div id="musictitle">Запуск системы</div>
+                    <div id="musicstatus">Загрузка настроек</div>
                 </div>
                 <div id="volbars"><div id="vb1" class="vb act"></div><div id="vb2" class="vb act"></div><div id="vb3" class="vb act"></div><div id="vb4" class="vb act"></div><div id="vb5" class="vb act"></div></div>
             </div>
@@ -132,9 +132,9 @@
 
     <div id="notice" class="glass">
         <div id="notice-edge"></div>
-        <div class="eyebrow p"><span>SESSION INTERRUPTED</span></div>
+        <div class="eyebrow p"><span>СЕССИЯ ПРЕРВАНА</span></div>
         <div id="noticemessage"></div>
-        <div id="noticehint">Press <span class="key">Esc</span> to leave character creation. Your connection details will remain available.</div>
+        <div id="noticehint">Нажми <span class="key">Esc</span> чтобы выйти из создания персонажа. Данные подключения сохранятся.</div>
     </div>
 </div>
 </body>

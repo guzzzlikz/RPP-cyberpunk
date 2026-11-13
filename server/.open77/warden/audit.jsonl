@@ -1,6 +1,0 @@
-﻿{"seq":1,"atUtc":"2026-11-13T11:26:11.2148737+00:00","user":"(first-run)","action":"provision.apply","detail":"wrote K:\\RPPCyber\\server\\server.jsonc","ok":true}
-{"seq":2,"atUtc":"2026-11-13T11:27:01.7905925+00:00","user":"rppveinoria","action":"setup.admin","detail":"administrator account created","ok":true}
-{"seq":3,"atUtc":"2026-11-13T12:27:21.2176084+00:00","user":"rppveinoria","action":"config.apply","detail":"error: The master requires public or unlisted server visibility. (Parameter \u0027Visibility\u0027)","ok":false}
-{"seq":4,"atUtc":"2026-11-13T12:27:26.7910085+00:00","user":"rppveinoria","action":"config.apply","detail":"configuration written; nothing changed","ok":true}
-{"seq":5,"atUtc":"2026-11-13T12:29:06.8947936+00:00","user":"rppveinoria","action":"config.apply","detail":"configuration written; restart the server to apply","ok":true}
-{"seq":6,"atUtc":"2026-11-13T12:31:15.1659229+00:00","user":"rppveinoria","action":"config.apply","detail":"configuration written; restart the server to apply","ok":true}

@@ -313,7 +313,7 @@ AddEventHandler("open77:map:opened", function() mapRequest = nil end)
 -- tablet...). The contract is four client events, so any resource can take part:
 --
 --   TriggerEvent("open77:mapProvider:register", { resource = GetCurrentResourceName(),
---       label = "City map (3D)", priority = 100 })   -- at start, and on ...:query
+--       label = "Карта города (3D)", priority = 100 })   -- at start, and on ...:query
 --   AddEventHandler("open77:mapProvider:show", function(request)
 --       if request.provider ~= GetCurrentResourceName() then return end
 --       openMyMap()

@@ -21,9 +21,9 @@
 
   const phaseNames = {
     waiting: "LOBBY",
-    forming: "COURSE VOTE",
-    reveal: "COURSE SELECTED",
-    grid: "DRIVERS TO CARS",
+    forming: "ГОЛОСОВАНИЕ ЗА ТРАССУ",
+    reveal: "ТРАССА ВЫБРАНА",
+    grid: "ГОНЩИКИ, ПО МАШИНАМ",
     countdown: "COUNTDOWN",
     active: "RACING",
     results: "RESULTS"
@@ -167,9 +167,9 @@
       const name = document.createElement("b");
       name.textContent = String(course.name || course.id || "Course").slice(0, 64);
       const specs = document.createElement("em");
-      specs.textContent = `${String(course.type || "circuit").toUpperCase()} · ${integer(course.laps, 1)}L · ${integer(course.checkpointCount)}CP · ${course.automaticGrid ? "AUTO GRID" : `${integer(course.gridCapacity)} GRID`} · ${String(course.vehicleLabel || "CAR").toUpperCase()}`;
+      specs.textContent = `${String(course.type || "circuit").toUpperCase()} · ${integer(course.laps, 1)}L · ${integer(course.checkpointCount)}CP · ${course.automaticGrid ? "АВТОСТАРТ" : `${integer(course.gridCapacity)} GRID`} · ${String(course.vehicleLabel || "CAR").toUpperCase()}`;
       const description = document.createElement("p");
-      description.textContent = String(course.description || "No description.").slice(0, 240);
+      description.textContent = String(course.description || "Без описания.").slice(0, 240);
       card.append(routeArt(course), name, specs, description);
       container.append(card);
     }
@@ -189,7 +189,7 @@
     }) : course.route;
     const points = (Array.isArray(route) ? route : [])
       .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
-    if (points.length < 2) { art.append(element("span", "route-number", "ROUTE PREVIEW UNAVAILABLE")); return art; }
+    if (points.length < 2) { art.append(element("span", "route-number", "ПРЕДПРОСМОТР НЕДОСТУПЕН")); return art; }
     const xs = points.map(p => p.x), ys = points.map(p => p.y);
     const minX = Math.min(...xs), minY = Math.min(...ys);
     const width = Math.max(...xs) - minX, height = Math.max(...ys) - minY;
@@ -237,7 +237,7 @@
           element("h4", "", String(course.name || "Unnamed route").slice(0, 64)),
           element("div", "route-specs", `${(number(course.routeMetres) / 1000).toFixed(1)} km route · ${integer(course.checkpointCount)} checkpoints`),
           element("div", "route-specs", course.automaticGrid ? "Automatic starting line · no course limit" : `${integer(course.gridCapacity)} grid slots`),
-          element("div", "route-vehicle", course.vehicleLabel || "Race vehicle"));
+          element("div", "route-vehicle", course.vehicleLabel || "Машина для гонки"));
         const votes = element("div", "route-votes"); votes.append(element("span", "", "VOTES"), element("b", "", "0"));
         card.append(art, info, votes);
         card.addEventListener("click", () => {
@@ -246,7 +246,7 @@
         });
         $("voteCourses").append(card);
       });
-      if (!candidates.length) $("voteCourses").append(element("p", "vote-help", "No courses available. An admin can create one in the course editor."));
+      if (!candidates.length) $("voteCourses").append(element("p", "vote-help", "Трасс нет. Админ может создать её в редакторе трасс."));
     }
     [...$("voteCourses").querySelectorAll(".route-card")].forEach((card, index) => {
       const course = candidates[index];
@@ -255,20 +255,20 @@
       card.classList.toggle("selected", selected); card.classList.toggle("winner", winner);
       card.setAttribute("aria-pressed", String(selected));
       card.setAttribute("aria-disabled", String(!canVote));
-      card.setAttribute("aria-label", `${course.name}. ${integer(course.votes)} votes. ${winner ? "Selected course." : selected ? "Your vote." : canVote ? "Vote for this course." : "Join the queue to vote."}`);
-      card.querySelector(".route-pick").textContent = winner ? "SELECTED" : selected ? "YOUR VOTE ✓" : canVote ? "VOTE ↗" : state.nextCourseLocked && !ballot.id ? "NEXT HEAT" : "PREVIEW";
+      card.setAttribute("aria-label", `${course.name}. ${integer(course.votes)} votes. ${winner ? "Выбранная трасса." : selected ? "Твой голос." : canVote ? "Голосовать за эту трассу." : "Встань в очередь, чтобы голосовать."}`);
+      card.querySelector(".route-pick").textContent = winner ? "SELECTED" : selected ? "ТВОЙ ГОЛОС ✓" : canVote ? "VOTE ↗" : state.nextCourseLocked && !ballot.id ? "СЛЕДУЮЩИЙ ЗАЕЗД" : "PREVIEW";
       const count = card.querySelector(".route-votes b"), value = String(integer(course.votes));
       if (count.textContent !== value) {
         count.textContent = value; count.classList.remove("changed"); void count.offsetWidth; count.classList.add("changed");
       }
       card.querySelector(".route-votes").classList.toggle("hidden", !ballot.id);
     });
-    $("voteTitle").textContent = ballot.winnerId ? "The route is decided." : state.nextCourseLocked && !ballot.id ? "Next on the grid." : "Where to next?";
-    $("voteSummary").textContent = ballot.id ? `${integer(ballot.totalVotes)} / ${integer(ballot.eligibleCount)} voted` : "COURSE PREVIEW";
+    $("voteTitle").textContent = ballot.winnerId ? "Маршрут выбран." : state.nextCourseLocked && !ballot.id ? "Следующие на старте." : "Куда едем?";
+    $("voteSummary").textContent = ballot.id ? `${integer(ballot.totalVotes)} / ${integer(ballot.eligibleCount)} voted` : "ПРЕДПРОСМОТР ТРАССЫ";
     $("voteHelp").textContent = ballot.winnerId
-      ? ballot.resultReason === "tie" ? "It's a tie! The server drew a winner from the tied courses."
-        : ballot.resultReason === "random" ? "No votes cast. The server picked the next route." : "The votes are in. Get ready for the starting line."
-      : !ballot.id && state.nextCourseLocked ? "Course locked for the next heat. An admin selection takes priority over voting."
+      ? ballot.resultReason === "tie" ? "Ничья! Сервер выбрал трассу жребием."
+        : ballot.resultReason === "random" ? "Голосов нет. Сервер выбрал маршрут сам." : "Голоса подсчитаны. Готовься к старту."
+      : !ballot.id && state.nextCourseLocked ? "Трасса закреплена на следующий заезд. Выбор админа важнее голосования."
       : state.queued ? "Your vote is counted live. Change it until voting closes; ties are drawn at random."
       : "Join the queue to vote. One player, one vote; ties are drawn at random.";
   }
@@ -306,7 +306,7 @@
     if (rows.length) empty?.remove();
     else if (!empty) {
       const placeholder = element("div", "roster-empty");
-      placeholder.append(element("b", "", "First to the line?"), element("p", "", "Join the queue. Other players will appear here as they arrive."));
+      placeholder.append(element("b", "", "Первый на старте?"), element("p", "", "Встань в очередь. Другие игроки появятся здесь, когда подключатся."));
       container.append(placeholder);
     }
     $("rosterFoot").textContent = `${queued.length} waiting${racing.length ? ` · ${racing.length} in current heat` : ""} · Queue order is preserved`;
@@ -316,43 +316,43 @@
     const phase = state.phase, ballot = state.ballot || {}, next = state.nextCourse || {};
     const foot = state.mode === "foot", automatic = next.automaticGrid === true;
     const seconds = Math.max(0, Math.ceil(number(state.remainingMs) / 1000));
-    const title = phase === "forming" ? ballot.id ? "Choose the next course." : "Your grid is forming."
+    const title = phase === "forming" ? ballot.id ? "Выбери следующую трассу." : "Стартовая сетка собирается."
       : phase === "reveal" ? `${next.name || "Course"} is up next.`
       : phase === "grid" ? "Getting everyone to the line."
       : phase === "countdown" ? "Eyes on the lights."
       : phase === "active" ? `${state.course?.name || "Race"} · live.`
-      : phase === "results" ? "That's a wrap. Next heat soon."
-      : "The city is your starting line.";
+      : phase === "results" ? "Готово. Скоро следующий заезд."
+      : "Город — твоя стартовая линия.";
     $("stageTitle").textContent = title;
-    $("stageLabel").textContent = state.onFoot && phase === "grid" ? "RUNNERS TO THE LINE" : phaseNames[phase] || "THE NEXT HEAT";
-    $("rosterLabel").textContent = foot ? "02 / THE RUNNERS" : "02 / THE DRIVERS";
+    $("stageLabel").textContent = state.onFoot && phase === "grid" ? "БЕГУНЫ, НА СТАРТ" : phaseNames[phase] || "СЛЕДУЮЩИЙ ЗАЕЗД";
+    $("rosterLabel").textContent = foot ? "02 / БЕГУНЫ" : "02 / ГОНЩИКИ";
     $("participantLabel").textContent = state.onFoot ? "RUNNER" : "DRIVER";
-    $("stageHint").textContent = phase === "forming" ? "Vote, change your pick, and watch the grid come together."
-      : phase === "reveal" ? automatic ? "Automatic starting line · All queued runners join this heat" : `${integer(state.nextGridCapacity)} grid slots · ${next.vehicleLabel || "Race vehicle"} · Automatic boarding next`
-      : phase === "grid" ? `${(state.rows || []).filter(r => r.vehicleReady).length} / ${integer(state.participantCount)} ${state.onFoot ? "runners ready · Wait for GO" : "drivers seated · Vehicles held until GO"}`
+    $("stageHint").textContent = phase === "forming" ? "Голосуй, меняй выбор и смотри, как собирается старт."
+      : phase === "reveal" ? automatic ? "Автоматическая линия старта · все из очереди бегут в этом заезде" : `${integer(state.nextGridCapacity)} grid slots · ${next.vehicleLabel || "Машина для гонки"} · Automatic boarding next`
+      : phase === "grid" ? `${(state.rows || []).filter(r => r.vehicleReady).length} / ${integer(state.participantCount)} ${state.onFoot ? "бегунов готовы · жди старта" : "гонщиков в машинах · машины держатся до старта"}`
       : phase === "countdown" ? state.onFoot ? "Starting line locked. Run at the green light." : "Grid locked. Vehicles release at the green light."
       : phase === "active" || phase === "results" ? "The next queue stays open. Join and vote while this heat finishes."
       : foot && !next.id ? "No foot courses yet. Open the course editor: capture the start and checkpoints."
       : `Join to open the vote. ${integer(state.minimumRacers, 1)} ${foot ? "runner" : "driver"}${integer(state.minimumRacers, 1) > 1 ? "s" : ""} needed to start.`;
-    $("clockLabel").textContent = ({ forming: ballot.id ? "VOTING CLOSES IN" : "GRID OPENS IN", reveal: "TO THE GRID IN", grid: state.gridLoadActive ? "GRID LOADING" : state.onFoot ? "READINESS TIMEOUT" : "BOARDING TIMEOUT", countdown: "GREEN LIGHT IN", active: state.finishWindowActive ? "FINISH WINDOW" : "TIME REMAINING", results: "RESULTS CLOSE IN" })[phase] || (foot ? "WAITING FOR RUNNERS" : "WAITING FOR DRIVERS");
+    $("clockLabel").textContent = ({ forming: ballot.id ? "ГОЛОСОВАНИЕ ЗАКРОЕТСЯ ЧЕРЕЗ" : "СТАРТ ОТКРОЕТСЯ ЧЕРЕЗ", reveal: "НА СТАРТ ЧЕРЕЗ", grid: state.gridLoadActive ? "СТАРТ ЗАГРУЖАЕТСЯ" : state.onFoot ? "ВРЕМЯ НА ГОТОВНОСТЬ" : "ВРЕМЯ НА ПОСАДКУ", countdown: "ЗЕЛЁНЫЙ ЧЕРЕЗ", active: state.finishWindowActive ? "ОКНО ФИНИША" : "ОСТАЛОСЬ ВРЕМЕНИ", results: "ИТОГИ ЗАКРОЮТСЯ ЧЕРЕЗ" })[phase] || (foot ? "ЖДЁМ БЕГУНОВ" : "ЖДЁМ ГОНЩИКОВ");
     $("lobbyClock").textContent = phase === "waiting" ? "—" : phase === "countdown" ? String(seconds) : raceTime(seconds * 1000, true);
     const ratio = phase === "forming" ? number(state.remainingMs) / Math.max(1, number(ballot.durationMs, 30000)) : phase === "countdown" ? number(state.remainingMs) / 3000 : 0;
     $("clockProgress").style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`;
     $("sessionStage").classList.toggle("urgent", ["forming", "countdown"].includes(phase) && seconds <= 5);
     $("sessionStage").classList.toggle("reveal", phase === "reveal");
-    $("queueLabel").textContent = state.queued ? `QUEUE POSITION ${integer(state.queuePosition)}` : state.participant ? "CURRENT HEAT" : "YOUR NEXT RACE";
+    $("queueLabel").textContent = state.queued ? `QUEUE POSITION ${integer(state.queuePosition)}` : state.participant ? "ТЕКУЩИЙ ЗАЕЗД" : "ТВОЯ СЛЕДУЮЩАЯ ГОНКА";
     $("queueCopy").textContent = state.queued ? !automatic && state.nextCourseLocked && integer(state.queuePosition) > integer(state.nextGridCapacity)
-      ? "This grid is full. Your place is kept for the following heat."
+      ? "Мест на старте нет. Твоё место сохранено на следующий заезд."
       : "You're in. Stay in Freeroam; we'll bring you to the starting line."
-      : state.participant ? "You're in the current heat. Good luck out there."
-      : state.canJoin ? foot ? "No course limit. Everyone lines up behind the start." : "Unlimited queue. Grid size follows the selected course." : "Return to Freeroam with a ready character to join.";
+      : state.participant ? "Ты в текущем заезде. Удачи!"
+      : state.canJoin ? foot ? "Без лимита. Все встают за линией старта." : "Очередь без лимита. Размер старта зависит от трассы." : "Вернись в Freeroam с готовым персонажем, чтобы вступить.";
     $("joinButton").classList.toggle("hidden", state.canJoin !== true);
     $("leaveQueueButton").classList.toggle("hidden", state.canLeaveQueue !== true);
     $("leaveRaceButton").classList.toggle("hidden", state.canLeaveRace !== true);
     $("returnCheckpointButton").classList.toggle("hidden", state.canReturnCheckpoint !== true);
     $("returnCheckpointButton").disabled = state.returningToCheckpoint === true;
     $("currentHeat").classList.toggle("hidden", !state.participantCount);
-    $("currentHeat").textContent = `NOW RACING / ${state.course?.name || "Current heat"} · ${integer(state.participantCount)} ${state.onFoot ? "runners" : "drivers"}. Votes on this screen are for the next heat.`;
+    $("currentHeat").textContent = `NOW RACING / ${state.course?.name || "Текущий заезд"} · ${integer(state.participantCount)} ${state.onFoot ? "runners" : "drivers"}. Votes on this screen are for the next heat.`;
     renderBallot(); renderRoster();
   }
 
@@ -408,7 +408,7 @@
     const required = draft.type === "sprint" ? 1 : 2;
     if (checkpoints.length < required)
       return `Next: capture ${required - checkpoints.length} more checkpoint${required - checkpoints.length === 1 ? "" : "s"}.`;
-    return "Course geometry is ready. Open options if needed, then save.";
+    return "Трасса готова. При необходимости открой настройки, затем сохрани.";
   }
 
   function emitEditor(action, extra = {}) {
@@ -458,8 +458,8 @@
     if (!options.length) {
       dropdown.classList.add("empty");
       dropdown.dataset.value = "";
-      dropdown.querySelector(".custom-dropdown-value").textContent = "NO OPTIONS AVAILABLE";
-      trigger.title = "No options available";
+      dropdown.querySelector(".custom-dropdown-value").textContent = "НАСТРОЕК НЕТ";
+      trigger.title = "Настроек нет";
       closeCustomDropdowns();
       return;
     }
@@ -537,7 +537,7 @@
       return;
     }
     const draft = editor.draft || {};
-    $("editorMode").textContent = draft.vehicle === "on_foot" ? "ON FOOT" : "DRIVE MODE";
+    $("editorMode").textContent = draft.vehicle === "on_foot" ? "ПЕШКОМ" : "РЕЖИМ ЕЗДЫ";
     const checkpoints = Array.isArray(draft.checkpoints) ? draft.checkpoints : [];
     const grid = Array.isArray(draft.grid) ? draft.grid : [];
     const vehicles = Array.isArray(editor.vehicles) ? editor.vehicles : [];
@@ -561,7 +561,7 @@
       label: String(vehicle.label || vehicle.id || "Vehicle")
     })), String(draft.vehicle || (vehicles[0] && vehicles[0].id) || ""));
     setDropdownOptions("editType", [
-      { value: "circuit", label: "Circuit / multilap" },
+      { value: "circuit", label: "Кольцо / несколько кругов" },
       { value: "sprint", label: "Start -> finish" }
     ], draft.type === "sprint" ? "sprint" : "circuit");
     $("editLaps").value = String(integer(draft.laps, 1));
@@ -572,11 +572,11 @@
     $("vehicleField").classList.toggle("hidden", automaticGrid);
     $("undoGrid").classList.toggle("hidden", automaticGrid);
     $("respawnEditorVehicle").classList.toggle("hidden", automaticGrid);
-    $("exitEditor").textContent = automaticGrid ? "EXIT EDITOR" : "EXIT DRIVE MODE";
+    $("exitEditor").textContent = automaticGrid ? "ВЫЙТИ ИЗ РЕДАКТОРА" : "ВЫЙТИ ИЗ РЕЖИМА ЕЗДЫ";
     $("captureHint").textContent = automaticGrid
-      ? "Stand at the start and face the route, then capture it once. Everyone lines up behind you. Move to each landing and add a checkpoint."
-      : "Drive onto the exact mark and face the desired direction before each capture.";
-    $("gridCount").textContent = automaticGrid ? "AUTO · NO COURSE LIMIT" : `${grid.length} SLOT${grid.length === 1 ? "" : "S"}`;
+      ? "Встань на старт лицом к маршруту и запиши его один раз. Все выстроятся за тобой. Затем дойди до каждой точки и добавь чекпоинт."
+      : "Перед каждой записью встань точно на отметку и развернись в нужную сторону.";
+    $("gridCount").textContent = automaticGrid ? "АВТО · БЕЗ ЛИМИТА" : `${grid.length} SLOT${grid.length === 1 ? "" : "S"}`;
     $("captureGrid").hidden = automaticGrid;
     $("checkpointCount").textContent = String(checkpoints.length);
     const status = $("editorStatus");
@@ -587,10 +587,10 @@
     status.textContent = String(editorStatusCopy ||
       (editor.storage && editor.storage.ready
         ? `JSON storage ready · ${String(editor.storage.directory || "data/courses")}`
-        : `JSON storage unavailable · ${String(editor.storage && editor.storage.error || "unknown error")}`)).slice(0, 180);
+        : `JSON storage unavailable · ${String(editor.storage && editor.storage.error || "неизвестная ошибка")}`)).slice(0, 180);
 
     $("editorDriveHud").classList.toggle("error", Boolean(editor.error));
-    $("driveCourseName").textContent = String(draft.name || "New Night City Race").slice(0, 48);
+    $("driveCourseName").textContent = String(draft.name || "Новая гонка по Найт-Сити").slice(0, 48);
     $("driveStartCount").textContent = draft.start && draft.start.position ? "1 / 1" : "0 / 1";
     $("driveGridCount").textContent = automaticGrid ? "AUTO" : String(grid.length);
     $("driveCheckpointCount").textContent = String(checkpoints.length);
@@ -614,7 +614,7 @@
 
     const gridList = $("gridList");
     gridList.replaceChildren();
-    if (automaticGrid) gridList.textContent = "One line behind the start, facing your captured direction. Leave level ground clear behind it. No individual spawns needed.";
+    if (automaticGrid) gridList.textContent = "Одна линия за стартом, в записанном направлении. Оставь за ней ровную свободную площадку. Отдельные места не нужны.";
     (automaticGrid ? [] : grid).forEach((slot, index) => {
       const row = document.createElement("div");
       row.className = "checkpoint-item grid-item";
@@ -719,9 +719,9 @@
     const vertical = elevation > 14 ? " · UP" : elevation < -14 ? " · DOWN" : "";
     const near = distance <= Math.max(18, number(guidance.radius, 7) * 2);
     $("guideDirection").textContent = near && !vertical && guidance.direction !== "BEHIND"
-      ? "CROSS THE ZONE" : `${String(guidance.direction || "AHEAD").slice(0, 12)}${vertical}`;
+      ? "ПЕРЕСЕКИ ЗОНУ" : `${String(guidance.direction || "AHEAD").slice(0, 12)}${vertical}`;
     element.classList.toggle("finish-target", guidance.finish === true);
-    $("guideCheckpoint").textContent = guidance.finish === true ? "FINISH LINE" :
+    $("guideCheckpoint").textContent = guidance.finish === true ? "ФИНИШ" :
       `CHECKPOINT ${integer(guidance.checkpoint, 1)} / ${integer(guidance.total, 1)}`;
   }
 
@@ -762,8 +762,8 @@
     body.dataset.phase = participant ? phase : "waiting";
     $("activityTitle").textContent = state.mode === "foot" ? "parkour." : "racing.";
     $("activityDescription").textContent = state.mode === "foot"
-      ? "Athlete double jump · Advanced ground / air dash · Build your route through Night City."
-      : "Queue from the city. Race together. Return to your session.";
+      ? "Двойной прыжок · рывок по земле и в воздухе · проложи маршрут через Найт-Сити."
+      : "Очередь прямо из города. Гоняй вместе. Потом вернёшься в игру.";
     body.classList.toggle("has-activity", participant || state.queued === true);
     body.classList.toggle("in-race", inRace);
     body.classList.toggle("editor-active", Boolean(state.editor && state.editor.open !== false));
@@ -779,21 +779,21 @@
     $("hudCheckpoint").textContent = `${Math.min(integer(state.checkpointIndex, 1), integer(state.totalCheckpoints, 1))} / ${integer(state.totalCheckpoints, 1)}`;
     const finishWindowActive = state.finishWindowActive === true && phase === "active";
     $("raceBar").classList.toggle("finish-window", finishWindowActive);
-    $("hudTimeLabel").textContent = finishWindowActive ? "FINISH WINDOW" : "RACE TIME";
+    $("hudTimeLabel").textContent = finishWindowActive ? "ОКНО ФИНИША" : "ВРЕМЯ";
     $("hudTime").textContent = finishWindowActive
       ? raceTime(state.remainingMs, true) : raceTime(state.elapsedMs);
     $("nextIndex").textContent = `${integer(next.index, integer(state.checkpointIndex, 1))} / ${integer(state.totalCheckpoints, 1)}`;
-    $("nextLap").textContent = course.type === "sprint" ? "POINT TO POINT" : `LAP ${integer(state.lap, 1)}/${integer(state.laps, 1)}`;
+    $("nextLap").textContent = course.type === "sprint" ? "ИЗ ТОЧКИ В ТОЧКУ" : `LAP ${integer(state.lap, 1)}/${integer(state.laps, 1)}`;
     $("bestLap").textContent = `BEST ${state.bestLapMs != null ? raceTime(state.bestLapMs) : "--:--.---"}`;
     renderGuidance(state.guidance, inRace, phase);
 
     const phaseName = phaseNames[phase] || phase.toUpperCase();
-    $("boardPhase").textContent = finishWindowActive ? "FINISH WINDOW" : phaseName;
+    $("boardPhase").textContent = finishWindowActive ? "ОКНО ФИНИША" : phaseName;
     $("boardTime").textContent = finishWindowActive
       ? raceTime(state.remainingMs, true)
       : phase === "grid" || phase === "countdown" || phase === "forming"
       ? raceTime(state.remainingMs, true) : raceTime(state.elapsedMs);
-    $("boardCourse").textContent = String(course.name || "RACE CLASSIFICATION").slice(0, 64);
+    $("boardCourse").textContent = String(course.name || "ТАБЛИЦА ГОНКИ").slice(0, 64);
     $("boardMeta").textContent = `${String(course.type || "circuit").toUpperCase()} · ${integer(course.laps, 1)} LAP${integer(course.laps, 1) === 1 ? "" : "S"} · ${integer(course.checkpointCount, state.totalCheckpoints)} CHECKPOINTS`;
 
     const onGrid = participant && phase === "grid";
@@ -802,32 +802,32 @@
     if (goActive) {
       animateCountdown("go", "go");
       $("countdownValue").textContent = "GO!";
-      $("countdownLabel").textContent = "GREEN LIGHT";
-      $("countdownCourse").textContent = String(course.name || "RACE STARTED").toUpperCase().slice(0, 64);
+      $("countdownLabel").textContent = "ЗЕЛЁНЫЙ";
+      $("countdownCourse").textContent = String(course.name || "ГОНКА НАЧАЛАСЬ").toUpperCase().slice(0, 64);
     } else if (onGrid) {
       const vehicle = state.vehicle || {};
       if (state.gridLoadActive === true) {
         const loadSeconds = Math.max(1, Math.ceil(number(state.remainingMs) / 1000));
         animateCountdown("ready", `grid-load:${loadSeconds}`);
         $("countdownValue").textContent = String(loadSeconds);
-        $("countdownLabel").textContent = "GRID LOADING";
+        $("countdownLabel").textContent = "СТАРТ ЗАГРУЖАЕТСЯ";
         $("countdownCourse").textContent = vehicle.ready === true
-          ? "DRIVER LOCKED · WAITING FOR ALL PLAYERS"
-          : `${String(vehicle.label || "RACE VEHICLE")} · AUTOMATIC BOARDING`.toUpperCase().slice(0, 64);
+          ? "ГОНЩИК НА МЕСТЕ · ЖДЁМ ВСЕХ"
+          : `${String(vehicle.label || "МАШИНА ДЛЯ ГОНКИ")} · AUTOMATIC BOARDING`.toUpperCase().slice(0, 64);
       } else {
         animateCountdown("ready", `grid:${vehicle.ready === true ? "ready" : "enter"}`);
         $("countdownValue").textContent = vehicle.ready === true ? "✓" : "SYNC";
-        $("countdownLabel").textContent = vehicle.ready === true ? "DRIVER LOCKED" : "BOARDING VEHICLE";
+        $("countdownLabel").textContent = vehicle.ready === true ? "ГОНЩИК НА МЕСТЕ" : "ПОСАДКА";
         $("countdownCourse").textContent = vehicle.ready === true
-          ? "WAITING FOR THE GRID"
-          : `${String(vehicle.label || "RACE VEHICLE")} · AUTOMATIC DRIVER ASSIGNMENT`.toUpperCase().slice(0, 64);
+          ? "ЖДЁМ СТАРТОВУЮ СЕТКУ"
+          : `${String(vehicle.label || "МАШИНА ДЛЯ ГОНКИ")} · AUTOMATIC DRIVER ASSIGNMENT`.toUpperCase().slice(0, 64);
       }
     } else {
       const count = Math.min(3, Math.max(1, Math.ceil(number(state.remainingMs) / 1000)));
       animateCountdown("tick", `countdown:${count}`);
       $("countdownValue").textContent = String(count);
-      $("countdownLabel").textContent = "START SEQUENCE";
-      $("countdownCourse").textContent = String(course.name || "PREPARE TO RACE").toUpperCase().slice(0, 64);
+      $("countdownLabel").textContent = "ОТСЧЁТ";
+      $("countdownCourse").textContent = String(course.name || "ПРИГОТОВЬСЯ").toUpperCase().slice(0, 64);
     }
 
     const result = state.result || {};
@@ -835,15 +835,15 @@
     $("resultBanner").classList.toggle("visible", showResult);
     if (showResult) {
       const won = String(result.winnerId) === String(state.playerId);
-      $("resultTitle").textContent = won ? "VICTORY" : position ? `P${position} FINISH` : "RACE OVER";
+      $("resultTitle").textContent = won ? "VICTORY" : position ? `P${position} FINISH` : "ГОНКА ОКОНЧЕНА";
       $("resultText").textContent = result.winnerName
         ? `${String(result.winnerName).slice(0, 48)} wins · ${integer(result.finishers)} classified finisher(s).`
-        : "No classified finisher.";
+        : "Никто не финишировал.";
     }
 
     if (state.onFoot && participant && phase === "grid") {
-      $("countdownLabel").textContent = "RUNNERS TO START";
-      $("countdownCourse").textContent = "DOUBLE JUMP + ADVANCED DASH · WAIT FOR GO";
+      $("countdownLabel").textContent = "БЕГУНЫ, НА СТАРТ";
+      $("countdownCourse").textContent = "ДВОЙНОЙ ПРЫЖОК + РЫВОК · ЖДИ СТАРТА";
     }
     if (panelOpen) renderLounge();
 

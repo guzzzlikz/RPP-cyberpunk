@@ -162,7 +162,7 @@
     // do literally nothing, with no log line and no visual state.
     if (unavailable(String(tokens[0]))) {
       if (String(tokens[0]).indexOf("admin.read.") === 0) return;
-      logLine(tokens.join(" "), false, "You do not have permission to run /" + tokens[0]);
+      logLine(tokens.join(" "), false, "Нет прав на команду /" + tokens[0]);
       return;
     }
     Open77.emit("admin:command", { tokens: tokens.map(String), tag: tag || null });
@@ -202,7 +202,7 @@
       var off = unavailable(name);
       button.disabled = off;
       button.classList.toggle("dead", off);
-      button.title = off ? "You do not have permission to run /" + name : "";
+      button.title = off ? "Нет прав на команду /" + name : "";
     });
   }
 
@@ -220,7 +220,7 @@
     button.type = "button";
     if (unavailable(tokens[0])) {
       button.classList.add("dead");
-      button.title = "You do not have permission to run /" + tokens[0];
+      button.title = "Нет прав на команду /" + tokens[0];
       button.disabled = true;
     }
     button.addEventListener("click", function () { run(tokens); });
@@ -236,7 +236,7 @@
     button.type = "button";
     if (unavailable(name)) {
       button.classList.add("dead");
-      button.title = "You do not have permission to run /" + name;
+      button.title = "Нет прав на команду /" + name;
       button.disabled = true;
     }
     button.addEventListener("click", function () {
@@ -271,7 +271,7 @@
       tr.appendChild(nameCell);
 
       var stateCell = el("td");
-      if (!p.incarnated) stateCell.appendChild(pill("not incarnated", "bad"));
+      if (!p.incarnated) stateCell.appendChild(pill("не в мире", "bad"));
       else if (p.dead) stateCell.appendChild(pill(p.phase || "down", "warn"));
       else stateCell.appendChild(pill("alive", "ok"));
       if (p.godMode) stateCell.appendChild(pill("god", "acc"));
@@ -296,7 +296,7 @@
 
       var actions = el("td");
       var id = String(p.playerId);
-      actions.appendChild(actionButton("Go to", ["admin.player.goto", id]));
+      actions.appendChild(actionButton("Перейти к", ["admin.player.goto", id]));
       actions.appendChild(actionButton("Bring", ["admin.player.bring", id]));
       actions.appendChild(actionButton("Observe", ["admin.player.observe", id]));
       actions.appendChild(actionButton("Heal", ["admin.player.heal", id]));
@@ -314,7 +314,7 @@
         var span = window.prompt(
           "Ban " + (p.name || id) + " for how long?\n30m · 12h · 7d · 3600s — or blank for permanent.", "");
         if (span === null) return;
-        var reason = window.prompt("Reason (shown to them):", "");
+        var reason = window.prompt("Причина (её увидит игрок):", "");
         if (reason === null) return;
         var tokens = ["admin.moderate.ban", id];
         tokens.push(span.trim() ? span.trim().split(/\s+/)[0] : "perm");
@@ -328,10 +328,10 @@
       // this resource cannot ask it -- server resources cannot talk to each
       // other. Disclosure is the honest answer: flag it before the click.
       if (p.bucket && p.bucket !== 0) {
-        tr.title = "In routing bucket " + p.bucket + " — they are in a match. Moving them may desync it.";
+        tr.title = "В бакете " + p.bucket + " — игрок в матче. Перемещение может его сломать.";
       }
       if (!p.incarnated) {
-        tr.title = "Not incarnated. Server-side actions on this session are refused: they crash the client.";
+        tr.title = "Игрок не в мире. Серверные действия отклоняются: они роняют клиент.";
       }
       body.appendChild(tr);
     });
@@ -345,7 +345,7 @@
   function noteForPlayers() {
     if (denied["admin.read.players"]) {
       return "Your role does not include admin.read.players, so the roster stays empty. "
-        + "Ask an owner for the 'moderator' role.";
+        + "Попроси у владельца роль 'moderator'.";
     }
     if (state.players.length === 0) {
       return "Nobody has announced yet. The roster rebuilds from each client within a second "
@@ -380,7 +380,7 @@
     clearNode(auditNode);
     var recent = state.audit.slice(-6).reverse();
     if (recent.length === 0) {
-      auditNode.appendChild(el("p", "empty", "Nothing yet this uptime."));
+      auditNode.appendChild(el("p", "empty", "С момента запуска ничего не было."));
     } else {
       recent.forEach(function (entry) { auditNode.appendChild(auditRow(entry)); });
     }
@@ -405,7 +405,7 @@
   function renderAudit() {
     var node = $("au-rows");
     clearNode(node);
-    if (state.audit.length === 0) { node.appendChild(el("p", "empty", "Nothing yet.")); return; }
+    if (state.audit.length === 0) { node.appendChild(el("p", "empty", "Пока ничего.")); return; }
     state.audit.slice().reverse().forEach(function (entry) { node.appendChild(auditRow(entry)); });
   }
 
@@ -444,7 +444,7 @@
     });
 
     var note = catalog.total === 0
-      ? "No record matches."
+      ? "Ничего не найдено."
       : "Showing " + catalog.rows.length + " of " + catalog.total +
         " matching records. Speeds are read from a live instance of that model, so a record "
         + "nobody has spawned this session shows a dash and sorts last.";
@@ -517,7 +517,7 @@
     // panes answer different questions and pretending one is the other is
     // exactly the confusion the two-tier layout exists to prevent.
     selection.vehicleId = null;
-    $("sel-name").textContent = name || "Nothing selected";
+    $("sel-name").textContent = name || "Ничего не выбрано";
     $("sel-record").textContent = record || "—";
     $("sel-spawn").disabled = !record;
     $("sel-give").disabled = !record;
@@ -551,7 +551,7 @@
       tr.appendChild(aboard);
 
       var cap = el("td");
-      if (v.governorTier === "instance") cap.appendChild(pill("this car", "acc"));
+      if (v.governorTier === "instance") cap.appendChild(pill("эта машина", "acc"));
       else if (v.governorTier === "record") cap.appendChild(pill("model", "bad"));
       else if (v.governorTier === "global") cap.appendChild(pill("global", "warn"));
       else cap.appendChild(el("span", "dim mono", "stock"));
@@ -569,7 +569,7 @@
       remove.type = "button";
       if (occupied) {
         remove.disabled = true;
-        remove.title = "Somebody is aboard. Removing an occupied vehicle is refused server-side.";
+        remove.title = "Внутри кто-то есть. Сервер не удаляет занятый транспорт.";
       } else {
         remove.addEventListener("click", function () { run(["admin.veh.remove", id]); });
       }
@@ -581,7 +581,7 @@
         selection.vehicleId = v.vehicleId;
         selection.record = v.record || selection.record;
         selection.name = v.name || selection.name;
-        $("sel-name").textContent = selection.name || "Nothing selected";
+        $("sel-name").textContent = selection.name || "Ничего не выбрано";
         $("sel-record").textContent = selection.record || "—";
         $("sel-spawn").disabled = !selection.record;
         $("sel-give").disabled = !selection.record;
@@ -667,8 +667,8 @@
     var hasRecord = !!selection.record;
 
     $("ti-title").textContent = hasVehicle
-      ? "Vehicle " + selection.vehicleId : "No vehicle selected";
-    $("tr-title").textContent = hasRecord ? selection.record : "No record selected";
+      ? "Vehicle " + selection.vehicleId : "Транспорт не выбран";
+    $("tr-title").textContent = hasRecord ? selection.record : "Модель не выбрана";
 
     if (hasVehicle) loadProfile("i", instance[String(selection.vehicleId)] || instance[selection.vehicleId]);
     if (hasRecord) loadProfile("r", klass[selection.record]);
@@ -680,10 +680,10 @@
       && (instance[String(selection.vehicleId)] || instance[selection.vehicleId])
       && klass[selection.record];
     $("ti-note").textContent = shadowed
-      ? "In force. It overrides the model cap below for this car."
-      : "Overrides the model cap below.";
+      ? "Действует. Для этой машины заменяет лимит модели."
+      : "Заменяет лимит модели ниже.";
 
-    // The instance sliders stay live without a selection: the "my car" pair
+    // The instance sliders stay live without a selection: the "моя машина" pair
     // below them sends the same profile to a server-resolved vehicle, so a
     // selection is only required by the id-addressed buttons.
     Array.prototype.forEach.call(
@@ -725,7 +725,7 @@
     }
     $("f-gov").textContent = available
       ? "governor · " + (state.governor.clients || 0) + " client(s)"
-      : "governor · unavailable";
+      : "ограничитель · недоступен";
   }
 
   /* ------------------------------------------------- hold-to-confirm, record */
@@ -802,7 +802,7 @@
       locations.appendChild(row);
     });
     if (list(world.locations).length === 0) {
-      locations.appendChild(el("p", "empty", "No destinations."));
+      locations.appendChild(el("p", "empty", "Мест нет."));
     }
   }
 
@@ -990,12 +990,12 @@
       var actions = el("td");
       if (row.ours) {
         // Move reuses the spawn coordinate box. The page never knows where the
-        // operator is standing — only the server does — so "move it to me" is
+        // operator is standing — only the server does — so "переместить ко мне" is
         // not offered here rather than being faked from a stale roster row.
         actions.appendChild(lateActionButton("Move", "admin.props.move", function () {
           var parts = ($("pr-at").value || "").trim().split(/\s+/).filter(Boolean);
           if (parts.length !== 3) {
-            logLine("admin.props.move", false, "type x y z in the coordinate box first");
+            logLine("admin.props.move", false, "сначала введи x y z в поле координат");
             return null;
           }
           var yaw = $("pr-yaw").value.trim();
@@ -1004,13 +1004,13 @@
         actions.appendChild(actionButton("Remove", ["admin.props.remove", row.id], "bad"));
         if (row.kind === "light") {
           var on = !row.light || row.light.enabled !== false;
-          actions.appendChild(actionButton(on ? "Switch off" : "Switch on",
+          actions.appendChild(actionButton(on ? "Выключить" : "Включить",
             ["admin.props.light.toggle", row.id, on ? "off" : "on"]));
         }
       } else {
         // Not ours: the registry refuses every mutation on it. Saying so beats
         // offering a button that always fails.
-        actions.appendChild(el("span", "sub", "owned by " + (row.resource || "another resource")));
+        actions.appendChild(el("span", "sub", "владелец: " + (row.resource || "другой ресурс")));
       }
       tr.appendChild(actions);
       body.appendChild(tr);
@@ -1020,11 +1020,11 @@
     if (denied["admin.read.props"]) {
       note.textContent = "You do not have permission to run /admin.read.props, so this list stays empty.";
     } else if (data.available === false) {
-      note.textContent = "This host does not expose the prop registry.";
+      note.textContent = "Этот сервер не даёт доступ к списку предметов.";
     } else if (rows.length === 0) {
       note.textContent = data.radius
         ? "No props within " + fmt(data.radius) + " m of you, in bucket " + (data.bucket || 0) + "."
-        : "No props.";
+        : "Предметов нет.";
     } else {
       note.textContent = "Distances are measured only inside your own routing bucket — "
         + "a prop in another bucket is counted in the total and cannot be shown as near you.";
@@ -1034,7 +1034,7 @@
     clearNode(fxNode);
     var effects = list(data.effects);
     if (effects.length === 0) {
-      fxNode.appendChild(el("p", "empty", "No looping effects."));
+      fxNode.appendChild(el("p", "empty", "Повторяющихся эффектов нет."));
     } else {
       effects.forEach(function (row) {
         var line = el("div", "row");
@@ -1047,7 +1047,7 @@
         line.appendChild(value);
         var right = el("span", "r");
         if (row.ours) right.appendChild(actionButton("Stop", ["admin.fx.stop", row.id], "bad"));
-        else right.appendChild(el("span", "sub", "owned elsewhere"));
+        else right.appendChild(el("span", "sub", "принадлежит другому"));
         line.appendChild(right);
         fxNode.appendChild(line);
       });
@@ -1151,7 +1151,7 @@
           if (!result || result.error) {
             referenceLoading[section] = false;
             report("error", "reference " + section + " refused: "
-              + ((result && result.error) || "empty answer"));
+              + ((result && result.error) || "пустой ответ"));
             return;
           }
           if (result.value !== undefined) {
@@ -1239,7 +1239,7 @@
     catalog.maker = key || null;
     var dropdown = $("cat-makers");
     dropdown.dataset.value = key || "";
-    $("cat-makers-trigger").querySelector("span").textContent = label || "every manufacturer";
+    $("cat-makers-trigger").querySelector("span").textContent = label || "все производители";
     Array.prototype.forEach.call(
       dropdown.querySelectorAll(".fac-dropdown-option"), function (option) {
         var selected = option.dataset.value === (key || "");
@@ -1257,11 +1257,11 @@
     var menu = $("cat-makers-menu");
     clearNode(menu);
 
-    var entries = [{ key: "", label: "every manufacturer", count: null }]
+    var entries = [{ key: "", label: "все производители", count: null }]
       .concat(list(reference.makers)
         .slice()
         .sort(function (a, b) { return b.count - a.count || (a.label < b.label ? -1 : 1); }));
-    var selectedLabel = "every manufacturer";
+    var selectedLabel = "все производители";
     entries.forEach(function (item, index) {
       var key = item.key || "";
       var label = item.count === null || item.count === undefined
@@ -1379,7 +1379,7 @@
     });
     $("sel-give").addEventListener("click", function () {
       if (!selection.record) return;
-      var target = window.prompt("Give " + selection.name + " to which player id?", "");
+      var target = window.prompt("Give " + selection.name + " какому игроку (id)?", "");
       if (target === null || !target.trim()) return;
       run(["admin.veh.give", target.trim(), selection.record]);
     });
@@ -1404,7 +1404,7 @@
       run(["admin.veh.speed", selection.record].concat(readProfileTokens("r")));
     });
 
-    // "My car" needs no selection at all: the SERVER resolves the vehicle the
+    // "Моя машина" needs no selection at all: the SERVER resolves the vehicle the
     // operator is aboard, or the nearest spawned one, at the moment of the
     // call. It reuses the instance sliders — the profile is the same shape and
     // the result is the same tier.
@@ -1435,13 +1435,13 @@
 
     $("self-tpgo").addEventListener("click", function () {
       var parts = $("self-tp").value.trim().split(/\s+/).filter(Boolean);
-      if (parts.length < 3) { logLine("admin.player.tp", false, "give x y z, and optionally a heading"); return; }
+      if (parts.length < 3) { logLine("admin.player.tp", false, "укажи x y z и, если нужно, направление"); return; }
       run(["admin.player.tp", "me"].concat(parts));
     });
 
     $("w-locadd").addEventListener("click", function () {
       var name = $("w-locname").value.trim();
-      if (!name) { logLine("admin.world.loc.add", false, "name the spot first"); return; }
+      if (!name) { logLine("admin.world.loc.add", false, "сначала назови место"); return; }
       run(["admin.world.loc.add", name]);
       $("w-locname").value = "";
     });
@@ -1460,13 +1460,13 @@
       // either. Splitting on whitespace here would turn a typo into a spawn
       // with four stray arguments and a usage line nobody can read.
       var model = $("pr-model").value.trim();
-      if (!model) { logLine("admin.props.here", false, "name a model first"); return null; }
+      if (!model) { logLine("admin.props.here", false, "сначала укажи модель"); return null; }
       return model;
     }
 
     function coordinateTokens(id, command) {
       var parts = ($(id).value || "").trim().split(/\s+/).filter(Boolean);
-      if (parts.length !== 3) { logLine(command, false, "give x y z — z is the ground"); return null; }
+      if (parts.length !== 3) { logLine(command, false, "укажи x y z — z это уровень земли"); return null; }
       return parts;
     }
 
@@ -1499,7 +1499,7 @@
       var rgb = ($("pr-lrgb").value || "").trim().split(/\s+/).filter(Boolean);
       if (rgb.length === 0) rgb = ["1", "1", "1"];
       if (rgb.length !== 3) {
-        logLine("admin.props.light", false, "colour is three channels, 0–1, e.g. 1 0.4 0.2");
+        logLine("admin.props.light", false, "цвет — три канала 0–1, например 1 0.4 0.2");
         return null;
       }
       return [intensity, radius].concat(rgb);
@@ -1525,13 +1525,13 @@
 
     $("pr-fxplay").addEventListener("click", function () {
       var effect = $("pr-fx").value.trim();
-      if (!effect) { logLine("admin.fx.play", false, "name an effect first"); return; }
+      if (!effect) { logLine("admin.fx.play", false, "сначала укажи эффект"); return; }
       run(["admin.fx.play", effect]);
     });
 
     $("pr-fxloop").addEventListener("click", function () {
       var effect = $("pr-fx").value.trim();
-      if (!effect) { logLine("admin.fx.loop", false, "name an effect first"); return; }
+      if (!effect) { logLine("admin.fx.loop", false, "сначала укажи эффект"); return; }
       run(["admin.fx.loop", effect]);
     });
 
@@ -1737,7 +1737,7 @@
     // so the panel renders optimistically and disables what comes back denied.
     if (payload.ok === false && message.indexOf("permission_denied:") === 0) {
       denied[name] = true;
-      message = "You do not have permission to run /" + name;
+      message = "Нет прав на команду /" + name;
       // A refused read leaves its screen permanently empty, so the reason has
       // to appear on that screen and not only in the log, where the operator
       // is not looking. Both notes recompute from `denied` on every render.

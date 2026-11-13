@@ -181,7 +181,7 @@ DeathmatchConfig = {
     zones = {
         -- The lobby is not part of the Kabuki survey; `lobby_pad` resolves from
         -- `Config.lobby.volume` unless kabuki.lua grows one.
-        lobby = { label = "Lobby", volumes = { "lobby_pad" }, combat = false },
+        lobby = { label = "Лобби", volumes = { "lobby_pad" }, combat = false },
         -- FFA and 3v3: the whole footprint. Vertical play and four stair chokes
         -- are what makes the space interesting at 8-12 players, and the full
         -- footprint gives 3v3 a real site fight with two approaches per team.
@@ -201,14 +201,14 @@ DeathmatchConfig = {
         -- wall off for that format. A stair also overlaps the decks at both
         -- ends, so "you are on the market floor" is the more useful answer.
         ffa = {
-            label = "Kabuki Market",
+            label = "Рынок Кабуки",
             volumes = { "market", "lower", "gallery" },
         },
         -- Narrowed for the same reason as FFA above: a zone naming a nil volume
         -- is not judged at all, so the six uncaptured ids were suspending the
         -- wall rather than widening it. Re-add them when the boxes are walked.
         ["3v3"] = {
-            label = "Kabuki Market",
+            label = "Рынок Кабуки",
             volumes = { "market", "lower", "gallery" },
         },
         -- 2v2: no gallery. Removes overwatch and shortens the fight.
@@ -218,9 +218,9 @@ DeathmatchConfig = {
         -- shaping them. Restore when `/dm.survey box lower` is walked:
         --   ["2v2"] volumes = { "market", "lower" }
         --   ["1v1"] volumes = { "lower" }
-        ["2v2"] = { label = "Market and lower", volumes = { "market", "lower" } },
+        ["2v2"] = { label = "Рынок и нижний уровень", volumes = { "market", "lower" } },
         -- 1v1: one room, no third angle -- provisionally the whole market.
-        ["1v1"] = { label = "Lower level", volumes = { "lower" } },
+        ["1v1"] = { label = "Нижний уровень", volumes = { "lower" } },
     },
     -- ======================================================================
     -- FORMATS
@@ -245,7 +245,7 @@ DeathmatchConfig = {
     formats = {
         ffa = {
             key = "ffa", order = 1,
-            label = "Free-for-all",
+            label = "Каждый сам за себя",
             queued = false,          -- decision 2: FFA never queues
             teams = 0, teamSize = 0,
             elimination = false,     -- respawn, same round
@@ -254,7 +254,7 @@ DeathmatchConfig = {
         },
         ["1v1"] = {
             key = "1v1", order = 2,
-            label = "Duel",
+            label = "Дуэль",
             queued = true,
             teams = 2, teamSize = 1,
             elimination = true,      -- decision 4
@@ -263,7 +263,7 @@ DeathmatchConfig = {
         },
         ["2v2"] = {
             key = "2v2", order = 3,
-            label = "Doubles",
+            label = "Двое на двое",
             queued = true,
             teams = 2, teamSize = 2,
             elimination = true,
@@ -272,7 +272,7 @@ DeathmatchConfig = {
         },
         ["3v3"] = {
             key = "3v3", order = 4,
-            label = "Squads",
+            label = "Отряды",
             queued = true,
             teams = 2, teamSize = 3,
             elimination = true,
@@ -402,13 +402,13 @@ DeathmatchConfig = {
         rotation = {
             { key = "lexington",  label = "M-10AF Lexington", category = "Pistol",        record = "Items.Preset_Lexington_Default",  reserve = 180 },
             { key = "saratoga",   label = "M221 Saratoga",    category = "SMG",           record = "Items.Preset_Saratoga_Default",   reserve = 240 },
-            { key = "ajax",       label = "M251s Ajax",       category = "Assault rifle", record = "Items.Preset_Ajax_Default",       reserve = 240 },
-            { key = "copperhead", label = "D5 Copperhead",    category = "Assault rifle", record = "Items.Preset_Copperhead_Default", reserve = 240 },
-            { key = "masamune",   label = "HJSH-18 Masamune", category = "Assault rifle", record = "Items.Preset_Masamune_Default",   reserve = 240 },
+            { key = "ajax",       label = "M251s Ajax",       category = "Штурмовая винтовка", record = "Items.Preset_Ajax_Default",       reserve = 240 },
+            { key = "copperhead", label = "D5 Copperhead",    category = "Штурмовая винтовка", record = "Items.Preset_Copperhead_Default", reserve = 240 },
+            { key = "masamune",   label = "HJSH-18 Masamune", category = "Штурмовая винтовка", record = "Items.Preset_Masamune_Default",   reserve = 240 },
             { key = "carnage",    label = "Carnage",          category = "Shotgun",       record = "Items.Preset_Carnage_Default",    reserve = 80 },
             { key = "satara",     label = "DB-2 Satara",      category = "Shotgun",       record = "Items.Preset_Satara_Default",     reserve = 80 },
-            { key = "grad",       label = "SPT32 Grad",       category = "Sniper rifle",  record = "Items.Preset_Grad_Default",       reserve = 60 },
-            { key = "nekomata",   label = "Nekomata",         category = "Sniper rifle",  record = "Items.Preset_Nekomata_Default",   reserve = 60 },
+            { key = "grad",       label = "SPT32 Grad",       category = "Снайперская винтовка",  record = "Items.Preset_Grad_Default",       reserve = 60 },
+            { key = "nekomata",   label = "Nekomata",         category = "Снайперская винтовка",  record = "Items.Preset_Nekomata_Default",   reserve = 60 },
             { key = "defender",   label = "M2067 Defender",   category = "LMG",           record = "Items.Preset_Defender_Default",   reserve = 360 },
         },
         -- Both records below are `canonical = True` in
@@ -432,7 +432,7 @@ DeathmatchConfig = {
     kits = {
         default = "rifle",
         list = {
-            { key = "rifle", label = "Rifle",
+            { key = "rifle", label = "Винтовка",
                 slots = {
                     { slot = 1, record = "Items.Preset_Ajax_Default", reserve = 240 },
                     { slot = 2, record = "Items.Preset_Unity_Default", reserve = 90 },
@@ -444,13 +444,13 @@ DeathmatchConfig = {
                     { slot = 2, record = "Items.Preset_Unity_Default", reserve = 90 },
                     { slot = 3, record = "Items.Preset_Katana_Default" },
                 } },
-            { key = "shotgun", label = "Shotgun",
+            { key = "shotgun", label = "Дробовик",
                 slots = {
                     { slot = 1, record = "Items.Preset_Carnage_Default", reserve = 80 },
                     { slot = 2, record = "Items.Preset_Unity_Default", reserve = 90 },
                     { slot = 3, record = "Items.Preset_Katana_Default" },
                 } },
-            { key = "sniper", label = "Sniper",
+            { key = "sniper", label = "Снайперка",
                 slots = {
                     { slot = 1, record = "Items.Preset_Grad_Default", reserve = 60 },
                     { slot = 2, record = "Items.Preset_Unity_Default", reserve = 90 },
@@ -579,23 +579,23 @@ DeathmatchConfig = {
             { key = "shingen",    label = "TKI-20 Shingen",   category = "SMG",             record = "Items.Preset_Shingen_Default",           reserve = 240 },
             { key = "warden",     label = "Warden",           category = "SMG",             record = "Items.Preset_Warden_Default",            reserve = 240 },
             -- Assault rifle
-            { key = "copperhead", label = "D5 Copperhead",    category = "Assault rifle",   record = "Items.Preset_Copperhead_Default",        reserve = 240 },
-            { key = "sidewinder", label = "D5 Sidewinder",    category = "Assault rifle",   record = "Items.Preset_Sidewinder_Default",        reserve = 240 },
-            { key = "umbra",      label = "DA8 Umbra",        category = "Assault rifle",   record = "Items.Preset_Umbra_Default",             reserve = 240 },
-            { key = "hercules",   label = "Hercules 3AX",     category = "Assault rifle",   record = "Items.Preset_Hercules_Default",          reserve = 240 },
-            { key = "masamune",   label = "HJSH-18 Masamune", category = "Assault rifle",   record = "Items.Preset_Masamune_Default",          reserve = 240 },
-            { key = "kyubi",      label = "Kyubi",            category = "Assault rifle",   record = "Items.Preset_Kyubi_Default",             reserve = 240 },
-            { key = "ajax",       label = "M251s Ajax",       category = "Assault rifle",   record = "Items.Preset_Ajax_Default",              reserve = 240 },
+            { key = "copperhead", label = "D5 Copperhead",    category = "Штурмовая винтовка",   record = "Items.Preset_Copperhead_Default",        reserve = 240 },
+            { key = "sidewinder", label = "D5 Sidewinder",    category = "Штурмовая винтовка",   record = "Items.Preset_Sidewinder_Default",        reserve = 240 },
+            { key = "umbra",      label = "DA8 Umbra",        category = "Штурмовая винтовка",   record = "Items.Preset_Umbra_Default",             reserve = 240 },
+            { key = "hercules",   label = "Hercules 3AX",     category = "Штурмовая винтовка",   record = "Items.Preset_Hercules_Default",          reserve = 240 },
+            { key = "masamune",   label = "HJSH-18 Masamune", category = "Штурмовая винтовка",   record = "Items.Preset_Masamune_Default",          reserve = 240 },
+            { key = "kyubi",      label = "Kyubi",            category = "Штурмовая винтовка",   record = "Items.Preset_Kyubi_Default",             reserve = 240 },
+            { key = "ajax",       label = "M251s Ajax",       category = "Штурмовая винтовка",   record = "Items.Preset_Ajax_Default",              reserve = 240 },
             -- Precision rifle
-            { key = "kolac",      label = "Kolac",            category = "Precision rifle", record = "Items.Preset_Kolac_Default",             reserve = 120 },
-            { key = "achilles",   label = "M-179e Achilles",  category = "Precision rifle", record = "Items.Preset_Achilles_Default",          reserve = 120 },
-            { key = "sor22",      label = "SOR-22",           category = "Precision rifle", record = "Items.Preset_Sor22_Default",             reserve = 120 },
+            { key = "kolac",      label = "Kolac",            category = "Точная винтовка", record = "Items.Preset_Kolac_Default",             reserve = 120 },
+            { key = "achilles",   label = "M-179e Achilles",  category = "Точная винтовка", record = "Items.Preset_Achilles_Default",          reserve = 120 },
+            { key = "sor22",      label = "SOR-22",           category = "Точная винтовка", record = "Items.Preset_Sor22_Default",             reserve = 120 },
             -- Sniper rifle
-            { key = "ashura",     label = "Ashura",           category = "Sniper rifle",    record = "Items.Preset_Ashura_Default",            reserve = 60 },
-            { key = "osprey",     label = "NDI Osprey",       category = "Sniper rifle",    record = "Items.Preset_Osprey_Default",            reserve = 60 },
-            { key = "nekomata",   label = "Nekomata",         category = "Sniper rifle",    record = "Items.Preset_Nekomata_Default",          reserve = 60 },
-            { key = "rasetsu",    label = "Rasetsu",          category = "Sniper rifle",    record = "Items.Preset_Tech_Sniper_Rifle_Default", reserve = 60 },
-            { key = "grad",       label = "SPT32 Grad",       category = "Sniper rifle",    record = "Items.Preset_Grad_Default",              reserve = 60 },
+            { key = "ashura",     label = "Ashura",           category = "Снайперская винтовка",    record = "Items.Preset_Ashura_Default",            reserve = 60 },
+            { key = "osprey",     label = "NDI Osprey",       category = "Снайперская винтовка",    record = "Items.Preset_Osprey_Default",            reserve = 60 },
+            { key = "nekomata",   label = "Nekomata",         category = "Снайперская винтовка",    record = "Items.Preset_Nekomata_Default",          reserve = 60 },
+            { key = "rasetsu",    label = "Rasetsu",          category = "Снайперская винтовка",    record = "Items.Preset_Tech_Sniper_Rifle_Default", reserve = 60 },
+            { key = "grad",       label = "SPT32 Grad",       category = "Снайперская винтовка",    record = "Items.Preset_Grad_Default",              reserve = 60 },
             -- Shotgun
             { key = "carnage",    label = "Carnage",          category = "Shotgun",         record = "Items.Preset_Carnage_Default",           reserve = 80 },
             { key = "crusher",    label = "Crusher",          category = "Shotgun",         record = "Items.Preset_Crusher_Default",           reserve = 80 },
@@ -1322,62 +1322,62 @@ DeathmatchConfig = {
     -- Server notices and HUD copy both read from here. Nothing player-facing is
     -- written inline anywhere else in the resource.
     strings = {
-        title = "KABUKI ARENA",
+        title = "АРЕНА КАБУКИ",
         notice = {
             -- Entry
-            joined            = { title = "IN THE FIGHT",     body = "You are in instance %s. Good hunting." },
-            notReady          = { title = "HOLD ON",          body = "Your character is not ready yet." },
-            instancesFull     = { title = "SERVER FULL",      body = "Every arena instance is full. That is a server capacity limit, not a queue -- try again shortly." },
-            leftMatch         = { title = "LEFT THE ARENA",   body = "You are back in the lobby." },
-            placementFailed   = { title = "PLACEMENT FAILED", body = "The arena could not place you. Try again." },
+            joined            = { title = "В БОЮ",     body = "You are in instance %s. Good hunting." },
+            notReady          = { title = "ПОДОЖДИ",          body = "Персонаж ещё не готов." },
+            instancesFull     = { title = "СЕРВЕР ЗАПОЛНЕН",      body = "Все арены заполнены. Это предел сервера, а не очередь — попробуй чуть позже." },
+            leftMatch         = { title = "ТЫ ПОКИНУЛ АРЕНУ",   body = "Ты снова в лобби." },
+            placementFailed   = { title = "НЕ УДАЛОСЬ РАЗМЕСТИТЬ", body = "Арена не смогла тебя разместить. Попробуй ещё раз." },
             -- Free-for-all round
-            roundStart        = { title = "FIGHT",            body = "GO!" },
-            roundWeapon       = { title = "THIS ROUND",       body = "%s -- same weapon for everyone." },
-            roundOver         = { title = "ROUND OVER",       body = "%s takes the round." },
-            roundDraw         = { title = "DRAW",             body = "The round ends with no clear winner." },
-            roundWon          = { title = "VICTORY",          body = "You finish top of the standings." },
-            nextRound         = { title = "NEXT ROUND",       body = "Starting in %d s." },
+            roundStart        = { title = "БОЙ",            body = "ВПЕРЁД!" },
+            roundWeapon       = { title = "ЭТОТ РАУНД",       body = "%s -- same weapon for everyone." },
+            roundOver         = { title = "РАУНД ОКОНЧЕН",       body = "%s takes the round." },
+            roundDraw         = { title = "НИЧЬЯ",             body = "Раунд закончился без победителя." },
+            roundWon          = { title = "ПОБЕДА",          body = "Ты первый в таблице." },
+            nextRound         = { title = "СЛЕДУЮЩИЙ РАУНД",       body = "Starting in %d s." },
             -- Arena
-            queued            = { title = "QUEUED",           body = "Position %d in the %s queue." },
-            queueLeft         = { title = "QUEUE",            body = "You left the queue." },
-            queueMatched      = { title = "MATCH FOUND",      body = "%s -- placing you now." },
-            buyWindow         = { title = "PICK YOUR KIT",    body = "%d s. Both teams get the same list." },
-            eliminated        = { title = "ELIMINATED",       body = "Spectating your team until the round ends." },
-            teamWon           = { title = "ROUND WON",        body = "%d - %d." },
-            teamLost          = { title = "ROUND LOST",       body = "%d - %d." },
-            sidesSwapped      = { title = "SIDES SWAPPED",    body = "You are now on the other side." },
-            matchWon          = { title = "MATCH WON",        body = "Returning to the lobby." },
-            matchLost         = { title = "MATCH LOST",       body = "Returning to the lobby." },
+            queued            = { title = "В ОЧЕРЕДИ",           body = "Position %d in the %s queue." },
+            queueLeft         = { title = "ОЧЕРЕДЬ",            body = "Ты вышел из очереди." },
+            queueMatched      = { title = "МАТЧ НАЙДЕН",      body = "%s -- placing you now." },
+            buyWindow         = { title = "ВЫБЕРИ СНАРЯЖЕНИЕ",    body = "%d s. Both teams get the same list." },
+            eliminated        = { title = "УСТРАНЁН",       body = "Наблюдаешь за командой до конца раунда." },
+            teamWon           = { title = "РАУНД ВЫИГРАН",        body = "%d - %d." },
+            teamLost          = { title = "РАУНД ПРОИГРАН",       body = "%d - %d." },
+            sidesSwapped      = { title = "СТОРОНЫ СМЕНИЛИСЬ",    body = "Теперь ты на другой стороне." },
+            matchWon          = { title = "МАТЧ ВЫИГРАН",        body = "Возвращаемся в лобби." },
+            matchLost         = { title = "МАТЧ ПРОИГРАН",       body = "Возвращаемся в лобби." },
             -- Bounds
-            boundsWarn        = { title = "OUT OF BOUNDS",    body = "Return to %s -- %d s." },
-            boundsReturned    = { title = "OUT OF BOUNDS",    body = "You were held outside the arena and have been placed back inside." },
-            lobbyReturned     = { title = "RESTRICTED AREA",  body = "You were returned to the lobby." },
+            boundsWarn        = { title = "ЗА ГРАНИЦЕЙ",    body = "Return to %s -- %d s." },
+            boundsReturned    = { title = "ЗА ГРАНИЦЕЙ",    body = "Ты оказался за пределами арены, тебя вернули внутрь." },
+            lobbyReturned     = { title = "ЗАПРЕТНАЯ ЗОНА",  body = "Тебя вернули в лобби." },
             -- Loadout
-            loadoutFailed     = { title = "LOADOUT",          body = "The round weapon could not be equipped." },
-            loadoutUnverified = { title = "LOADOUT",          body = "Your weapon is equipped but could not be verified; your shots stay blocked." },
-            resupplied        = { title = "RESUPPLIED",       body = "Ammunition restored." },
+            loadoutFailed     = { title = "СНАРЯЖЕНИЕ",          body = "Не удалось выдать оружие раунда." },
+            loadoutUnverified = { title = "СНАРЯЖЕНИЕ",          body = "Your weapon is equipped but could not be verified; your shots stay blocked." },
+            resupplied        = { title = "ПОПОЛНЕНО",       body = "Патроны пополнены." },
             -- Weapon choice (`/guns`). Three outcomes, because WHEN a pick
             -- lands is the only thing a player can get wrong about it: a
             -- weapon must never change in someone's hands mid-firefight, so a
             -- pick made while alive and unprotected waits for the respawn --
             -- and saying so is the difference between a rule and a bug.
-            gunsApplied       = { title = "LOADOUT",          body = "%s. It is in your hands now." },
-            gunsNextSpawn     = { title = "LOADOUT",          body = "%s. You pick it up on your next respawn -- weapons never change mid-fight." },
-            gunsReady         = { title = "LOADOUT",          body = "%s. You will carry it when you drop into a round." },
+            gunsApplied       = { title = "СНАРЯЖЕНИЕ",          body = "%s. It is in your hands now." },
+            gunsNextSpawn     = { title = "СНАРЯЖЕНИЕ",          body = "%s. You pick it up on your next respawn -- weapons never change mid-fight." },
+            gunsReady         = { title = "СНАРЯЖЕНИЕ",          body = "%s. You will carry it when you drop into a round." },
             -- The arsenal is 49 weapons and the arena's buy list is 4, so a
             -- pick can be one the arena does not sell. Saying "you will carry
             -- it" there would be a lie: the arena arms from its own list.
-            gunsArenaOnly     = { title = "LOADOUT",          body = "%s is your free-for-all weapon. This arena arms from its own buy list, so the round will not hand it to you." },
+            gunsArenaOnly     = { title = "СНАРЯЖЕНИЕ",          body = "%s is your free-for-all weapon. This arena arms from its own buy list, so the round will not hand it to you." },
             -- The catalogue is 49 weapons now, so this no longer recites it:
             -- a notification toast is not a list, and `/guns list` is.
-            gunsUnknown       = { title = "LOADOUT",          body = "No weapon called \"%s\". Type /guns list to see every one." },
-            gunsEqualizer     = { title = "LOADOUT",          body = "This server plays the equalizer -- one weapon for everyone, rotating every round. There is nothing to choose." },
+            gunsUnknown       = { title = "СНАРЯЖЕНИЕ",          body = "No weapon called \"%s\". Type /guns list to see every one." },
+            gunsEqualizer     = { title = "СНАРЯЖЕНИЕ",          body = "На сервере режим уравнителя: у всех одно оружие, оно меняется каждый раунд. Выбирать нечего." },
             -- Career (Phase 8). One line, once per session, when a returning
             -- player drops into their first round -- never after a Lua reload.
-            careerWelcome     = { title = "CAREER",           body = "%d kills / %d deaths (%.2f K/D) over %d rounds. Type /dm.stats for the full card." },
+            careerWelcome     = { title = "КАРЬЕРА",           body = "%d kills / %d deaths (%.2f K/D) over %d rounds. Type /dm.stats for the full card." },
             -- Spawn protection
-            protectionOn      = { title = "SPAWN PROTECTION", body = "%d s of protection." },
-            protectionBroken  = { title = "PROTECTION LOST",  body = "You fired -- protection dropped." },
+            protectionOn      = { title = "ЗАЩИТА ПОСЛЕ ПОЯВЛЕНИЯ", body = "%d s of protection." },
+            protectionBroken  = { title = "ЗАЩИТА СНЯТА",  body = "Ты выстрелил — защита снята." },
         },
         station = {
             enterLabel   = "ENTER THE ARENA",

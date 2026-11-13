@@ -28,7 +28,7 @@
         <div id="heard" data-class-on="heard > 0">
             <span class="hd-dot"></span>
             <span class="hd-count">{{heard}}</span>
-            <span class="hd-label">HEARD</span>
+            <span class="hd-label">СЛЫШНО</span>
         </div>
     </div>
 

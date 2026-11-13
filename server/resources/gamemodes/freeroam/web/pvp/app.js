@@ -7,7 +7,7 @@
   const emit = (action, data = {}) => Open77.emit('pvp:action', { action, ...data });
   let state = {}, weapons = [], chosen = '', anchor = performance.now(), board = false, noticeTimer, weaponSignature = '';
   let bladeWeapons = [], bladeChosen = '', loadoutMode = 'ffa';
-  const formatNames = { ffa:'FREE-FOR-ALL', blade:'BLADE FFA', '1v1':'DUEL', '2v2':'DOUBLES', '3v3':'SQUADS' };
+  const formatNames = { ffa:'FREE-FOR-ALL', blade:'КЛИНКИ FFA', '1v1':'DUEL', '2v2':'DOUBLES', '3v3':'SQUADS' };
   function open() {
     document.getElementById('freeroam-menu').dispatchEvent(new CustomEvent('freeroam:navigate', { detail: 'pvp' }));
   }
@@ -41,20 +41,20 @@
       const selected = item.key === (inArena ? state.arena.kit : selection);
       button.setAttribute('aria-pressed', String(selected));
       const name = document.createElement('span'); name.textContent = item.label || item.key;
-      const category = document.createElement('small'); category.textContent = selected ? 'SELECTED' : (item.category || 'ARENA KIT').toUpperCase();
+      const category = document.createElement('small'); category.textContent = selected ? 'SELECTED' : (item.category || 'СНАРЯЖЕНИЕ АРЕНЫ').toUpperCase();
       button.append(name,category);
       button.disabled = locked;
       button.addEventListener('click', () => { emit(inArena ? 'kit' : blade ? 'bladeWeapon' : 'weapon', {key:item.key}); });
       $('weapons').append(button);
     }
     if (!$('weapons').childElementCount) {
-      const empty = document.createElement('p'); empty.textContent = locked ? 'Kit locked for this round.' : query ? 'No matching weapons.' : 'Loading the server arsenal.';
+      const empty = document.createElement('p'); empty.textContent = locked ? 'Снаряжение закреплено на этот раунд.' : query ? 'Подходящего оружия нет.' : 'Загрузка арсенала сервера.';
       $('weapons').append(empty);
     }
     write('loadout-hint', blade ? 'Melee only. Choose before joining or during spawn protection; later changes apply on respawn.'
-      : locked ? 'Reopen /pvp during the next buy phase to change your arena kit.'
-      : inArena ? 'Buy phase. Both teams receive the same kit list. Choose before the timer ends.'
-      : 'Choose your free-for-all primary. Changes during a fight apply on respawn.');
+      : locked ? 'Открой /pvp в следующей фазе закупки, чтобы сменить снаряжение.'
+      : inArena ? 'Фаза закупки. У обеих команд одинаковый список. Выбери, пока идёт таймер.'
+      : 'Выбери основное оружие. Изменения во время боя применятся после возрождения.');
   }
   function renderRows() {
     $('rows').replaceChildren();
@@ -77,7 +77,7 @@
     const queueFormat = state.queueFormat || state.queuedFormat || state.queue?.format || 'ARENA';
     const current = participant ? `${formatNames[state.mode] || 'PVP'} · IN MATCH` : `${queueFormat.toUpperCase()} · QUEUED`;
     write('current-label', current); write('queue-label', current);
-    write('current-detail', participant ? 'Leaving returns you to your saved Freeroam position.' : 'You can close the menu and keep exploring.');
+    write('current-detail', participant ? 'После выхода вернёшься на сохранённое место во Freeroam.' : 'Можно закрыть меню и гулять дальше.');
     $('current').hidden = !participant && !queued;
     for (const button of document.querySelectorAll('[data-pvp-format]')) button.disabled = participant || queued;
     write('population', `${number(state.instancePlayers)} players · ${number(state.instanceCount)} live instances`);
@@ -91,7 +91,7 @@
     write('objective', arena ? `ROUND ${number(arena.round)} · FIRST TO ${number(arena.target)}` : `FIRST TO ${number(state.killLimit) || 25} ELIMINATIONS`);
     const alive = list(arena?.aliveByTeam), side = number(arena?.side) || 1;
     write('match-hint', arena ? (state.roundState === 'buy' ? '/PVP · CHOOSE YOUR KIT'
-      : `${number(alive[side-1])} ALLIES · ${number(alive[side===1 ? 1 : 0])} OPPONENTS ALIVE`) : state.mode === 'blade' ? 'MELEE ONLY · CTRL DASH · X OVERDRIVE' : '');
+      : `${number(alive[side-1])} ALLIES · ${number(alive[side===1 ? 1 : 0])} OPPONENTS ALIVE`) : state.mode === 'blade' ? 'ТОЛЬКО БЛИЖНИЙ БОЙ · CTRL РЫВОК · X ОВЕРДРАЙВ' : '');
     $('scoreline').replaceChildren();
     if (arena) {
       const side = number(arena.side) || 1, wins = list(arena.wins);
@@ -101,20 +101,20 @@
       $('scoreline').append(mine,separator,theirs);
     }
     write('rank', `P${number(me.rank) || '—'}`); write('kills',number(me.kills)); write('deaths',number(me.deaths)); write('assists',number(me.assists));
-    write('streak', number(me.streak) >= 2 ? `${number(me.streak)} ELIMINATION STREAK` : '/PVP · LOADOUT / LEAVE');
+    write('streak', number(me.streak) >= 2 ? `${number(me.streak)} ELIMINATION STREAK` : '/PVP · СНАРЯЖЕНИЕ / ВЫХОД');
     const result = state.phase === 'results' || state.roundState === 'resolved' || state.roundState === 'standings';
     const dead = !result && ['respawning','eliminated','dead'].includes(state.playerState);
     $('death').hidden = !participant || !dead || board;
-    write('death-title', state.playerState === 'eliminated' ? 'ROUND OVER FOR YOU' : 'ELIMINATED');
-    write('death-detail', state.death?.killerName ? `Eliminated by ${state.death.killerName}` : 'Your next opportunity is coming.');
+    write('death-title', state.playerState === 'eliminated' ? 'ДЛЯ ТЕБЯ РАУНД ОКОНЧЕН' : 'ELIMINATED');
+    write('death-detail', state.death?.killerName ? `Eliminated by ${state.death.killerName}` : 'Скоро следующий шанс.');
     $('board').hidden = !participant || (!board && !result);
     const outcome = state.result || {};
     const victory = arena ? number(outcome.winnerSide) === number(arena.side)
       : outcome.winnerId != null && String(outcome.winnerId) === String(state.playerId);
-    write('board-title', result ? (victory ? 'VICTORY' : 'MATCH COMPLETE') : 'LIVE STANDINGS');
+    write('board-title', result ? (victory ? 'VICTORY' : 'МАТЧ ОКОНЧЕН') : 'ТЕКУЩИЙ СЧЁТ');
     write('board-subtitle', result
-      ? (arena ? 'Server-confirmed results · Returning to Freeroam after the result timer.' : 'Server-confirmed results · The next round starts automatically.')
-      : state.mode === 'blade' ? 'Blade FFA · Unranked melee playtest.' : 'Bots are labelled. Only eligible human matches affect rating.');
+      ? (arena ? 'Итоги подтверждены сервером · после таймера возврат во Freeroam.' : 'Итоги подтверждены сервером · следующий раунд начнётся сам.')
+      : state.mode === 'blade' ? 'Клинки FFA · тест ближнего боя без рейтинга.' : 'Боты помечены. На рейтинг влияют только матчи с людьми.');
     renderRows(); tick();
   }
   function tick() {
@@ -135,12 +135,12 @@
       : cooldown > 0 ? 1-cooldown / Math.max(1,number(boost.rechargeMs)) : boost.available ? 1 : 0;
     $('overdrive-fill').style.width = `${Math.max(0,Math.min(1,fill))*100}%`;
     write('timer',formatTime(remaining));
-    write('phase', ({buy:'BUY PHASE',active:'LIVE',playing:'LIVE',between:'NEXT ROUND',results:'RESULTS',resolved:'RESULTS',standings:'RESULTS'})[state.roundState || state.phase] || 'PREPARING');
+    write('phase', ({buy:'ЗАКУПКА',active:'LIVE',playing:'LIVE',between:'СЛЕДУЮЩИЙ РАУНД',results:'RESULTS',resolved:'RESULTS',standings:'RESULTS'})[state.roundState || state.phase] || 'PREPARING');
     $('timer').parentElement.classList.toggle('urgent',remaining < 30000 && remaining > 0);
     const protection = Math.max(0,number(state.self?.protection?.remainingMs)-elapsed);
     $('protection').hidden = !state.participant || protection <= 0;
     write('protection-time',`${Math.ceil(protection/1000)}S`);
-    write('respawn', state.playerState === 'respawning' ? `RESPAWN IN ${Math.ceil(Math.max(0,number(state.death?.remainingMs)-elapsed)/1000)}` : 'WAITING FOR THE NEXT ROUND');
+    write('respawn', state.playerState === 'respawning' ? `RESPAWN IN ${Math.ceil(Math.max(0,number(state.death?.remainingMs)-elapsed)/1000)}` : 'ЖДЁМ СЛЕДУЮЩИЙ РАУНД');
   }
   for (const button of document.querySelectorAll('[data-pvp-format]')) button.addEventListener('click', () => {
     emit(['ffa','blade'].includes(button.dataset.pvpFormat) ? 'join' : 'queue', {format:button.dataset.pvpFormat,bots:$('bots').checked});

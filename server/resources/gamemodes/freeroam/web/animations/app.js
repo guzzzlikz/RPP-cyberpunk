@@ -50,10 +50,10 @@
   }
   function renderSelection() {
     const item = items.find(x => x.key === selected), siblings = item ? items.filter(x => x.profile === item.profile) : [];
-    $('selected').textContent = item ? item.label + ' · ' + item.variant : 'Choose an animation';
+    $('selected').textContent = item ? item.label + ' · ' + item.variant : 'Выбери анимацию';
     $('selected').title = $('selected').textContent;
     $('detail').textContent = model.describe(item);
-    $('tested').textContent = item?.tested ? 'Default cigarette: local male check recorded' : 'Asset-verified · Runtime coverage experimental';
+    $('tested').textContent = item?.tested ? 'Default cigarette: local male check recorded' : 'Файлы проверены · работа в игре экспериментальна';
     $('clip').textContent = item?.clip || '';
     $('play').disabled = !item || busy; $('play').textContent = busy ? 'Starting…' : '▶ Play';
     $('favorite').disabled = !item;
@@ -64,7 +64,7 @@
   }
   function renderFilters() {
     const fragment = document.createDocumentFragment();
-    const definitions = { all: 'All animations', favorites: 'Favourites', recent: 'Recent', ...model.categories };
+    const definitions = { all: 'Все анимации', favorites: 'Favourites', recent: 'Recent', ...model.categories };
     if (items.some(x => x.category === 'other')) definitions.other = 'Other';
     for (const [key, label] of Object.entries(definitions)) {
       const subset = model.filter(items, key, '', favorites, recents);
@@ -91,11 +91,11 @@
     $('page').textContent = (page + 1) + ' / ' + pages;
     $('prev').disabled = page === 0; $('next').disabled = page + 1 === pages;
     $('total').textContent = loaded ? items.length : '—';
-    $('count').textContent = loaded ? visible.length + (grouped ? ' animations' : ' variants') : 'Loading collection…';
+    $('count').textContent = loaded ? visible.length + (grouped ? ' animations' : ' variants') : 'Загрузка коллекции…';
     $('loading').hidden = loaded;
     $('empty').hidden = visible.length > 0 || !loaded; $('grid').hidden = !visible.length;
-    $('empty-title').textContent = category === 'favorites' ? 'YOUR FAVOURITES' : category === 'recent' ? 'RECENT ANIMATIONS' : 'NO MATCHES';
-    $('empty-text').textContent = category === 'favorites' ? 'Star a variant to find it here.' : category === 'recent' ? 'Successfully started animations appear here.' : 'Try another name or reset the filters.';
+    $('empty-title').textContent = category === 'favorites' ? 'ИЗБРАННОЕ' : category === 'recent' ? 'НЕДАВНИЕ' : 'НИЧЕГО НЕ НАЙДЕНО';
+    $('empty-text').textContent = category === 'favorites' ? 'Отметь вариант звёздочкой, и он появится здесь.' : category === 'recent' ? 'Здесь появятся запущенные анимации.' : 'Попробуй другое название или сбрось фильтры.';
     const fragment = document.createDocumentFragment();
     const pageItems = visible.slice(page * pageSize, (page + 1) * pageSize);
     const selectedProfile = items.find(x => x.key === selected)?.profile;
@@ -132,7 +132,7 @@
     const step = (Array.isArray(current?.steps) ? current.steps : [])[Number(current?.step) || 0];
     const action = items.find(x => x.profile === step?.profile && x.clip === step?.clip);
     $('status').textContent = busy ? 'STARTING' : current?.active ? 'PLAYING' : 'READY';
-    $('current').textContent = current?.active ? action?.label || step?.profile || 'Role-play action' : 'No active animation';
+    $('current').textContent = current?.active ? action?.label || step?.profile || 'Ролевое действие' : 'Нет активной анимации';
     $('stop').disabled = !busy && !current?.active;
     $('current').closest('.anim-current').classList.toggle('active', busy || !!current?.active);
     // History records authoritative acceptance, never a failed click.

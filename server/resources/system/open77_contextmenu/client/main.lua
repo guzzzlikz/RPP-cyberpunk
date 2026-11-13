@@ -188,7 +188,7 @@ local function selectAction(payload)
     -- Revalidate after a yielding predicate, not just before it.
     local fresh=contextAt(selection.screen.x,selection.screen.y)
     if not allowed or registry.get(action.token)~=action or not sameTarget(current,fresh) or not registry.matches(action,fresh) then
-        busy=false;send("context:error",{epoch=request,message="This action is no longer available."});return
+        busy=false;send("context:error",{epoch=request,message="Это действие больше недоступно."});return
     end
     -- Resolve the callback from the registered owner, never from the UI payload.
     fresh.action={id=action.id,owner=action.owner,token=action.token,data=action.data}

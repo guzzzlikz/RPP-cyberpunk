@@ -12,29 +12,29 @@
     <div id="panel">
         <div id="head">
             <span class="slash">//</span>
-            <span class="title">CHAT</span>
-            <span id="channel" class="channel">GLOBAL</span>
+            <span class="title">ЧАТ</span>
+            <span id="channel" class="channel">ОБЩИЙ</span>
             <span class="grow"></span>
-            <span class="live"><span class="live-dot"></span><span>LIVE</span></span>
+            <span class="live"><span class="live-dot"></span><span>В СЕТИ</span></span>
             <span id="count" class="count">00</span>
         </div>
         <div id="log">
             <div id="messages"></div>
-            <div id="empty">No messages yet</div>
+            <div id="empty">Сообщений пока нет</div>
         </div>
-        <div id="latest"><span id="unread">0</span><span> new below</span></div>
+        <div id="latest"><span id="unread">0</span><span> новых ниже</span></div>
         <div id="composer">
             <span class="prompt">›</span>
-            <input id="input" type="text" maxlength="256" placeholder="Message everyone, or type / for commands"/>
+            <input id="input" type="text" maxlength="256" placeholder="Сообщение всем или / для команд"/>
             <span id="chars" class="chars">0/256</span>
         </div>
         <div id="suggestions"></div>
         <div id="foot">
-            <span><span class="key">ENTER</span>Send</span>
-            <span><span class="key">TAB</span>Complete</span>
-            <span><span class="key">UP/DN</span>History</span>
+            <span><span class="key">ENTER</span>Отправить</span>
+            <span><span class="key">TAB</span>Дополнить</span>
+            <span><span class="key">ВВЕРХ/ВНИЗ</span>История</span>
             <span class="grow"></span>
-            <span><span class="key">ESC</span>Close</span>
+            <span><span class="key">ESC</span>Закрыть</span>
         </div>
     </div>
 </div>

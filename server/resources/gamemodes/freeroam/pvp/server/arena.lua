@@ -938,7 +938,7 @@ function Arena.tryForm(format)
             if failure then
                 table.remove(queue, index)
                 TriggerClientEvent("deathmatch:notice", id, {
-                    kind = "warning", title = "QUEUE CANCELLED", message = failure,
+                    kind = "warning", title = "ОЧЕРЕДЬ ОТМЕНЕНА", message = failure,
                 })
             end
         end

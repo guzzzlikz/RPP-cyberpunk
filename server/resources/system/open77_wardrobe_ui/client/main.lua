@@ -72,7 +72,7 @@ local function openMenu()
         return
     end
     if not playable() then
-        TriggerEvent("chat:addMessage", {author="WARDROBE",text="Enter the world and leave your vehicle before opening the wardrobe."})
+        TriggerEvent("chat:addMessage", {author="WARDROBE",text="Чтобы открыть гардероб, войди в мир и выйди из машины."})
         return
     end
     if Open77.input.isCaptured() then
@@ -93,16 +93,16 @@ RegisterNetEvent("open77:presentation:uiState", function(value)
     if not opening then return end
     if type(value) ~= "table" or value.available ~= true then
         opening = false
-        TriggerEvent("chat:addMessage", {author="WARDROBE",text="Wardrobe unavailable: " .. tostring(value and value.error or "no_response")})
+        TriggerEvent("chat:addMessage", {author="WARDROBE",text="Гардероб недоступен: " .. tostring(value and value.error or "no_response")})
         return
     end
     local token = generation
     local ok, reason = call("open77_appearance", "beginPreview")
-    if not ok then opening=false; notify("Your appearance is still settling. Try the wardrobe again in a moment."); return end
+    if not ok then opening=false; notify("Внешность ещё применяется. Открой гардероб чуть позже."); return end
     appearanceHeld=true
     if token ~= generation or not opening then release(); return end
     ok, reason = call("open77_equipment", "beginPreview")
-    if not ok then release(); notify("Your clothing is still loading. Try the wardrobe again in a moment."); return end
+    if not ok then release(); notify("Одежда ещё загружается. Открой гардероб чуть позже."); return end
     equipmentHeld = true
     if token ~= generation or not opening then release(); return end
     ok, reason = call("open77_wardrobe", "beginPreview")
@@ -252,7 +252,7 @@ AddEventHandler("onClientResourceStart", function(name)
             if settled then TriggerServerEvent("open77:command:execute",command);return end
             Wait(250)
         end
-        notify("Your clothing is still settling. Open the appearance editor again in a moment.")
+        notify("Одежда ещё применяется. Открой редактор внешности чуть позже.")
     end)
     if type(RegisterKeyMapping)=="function" then
         RegisterKeyMapping("wardrobe.open","Open wardrobe","F2",function() openMenu() end)
@@ -268,7 +268,7 @@ AddEventHandler("onClientResourceStart", function(name)
             if pendingOpen then
                 if ready then pendingOpen=false;openMenu()
                 elseif now()-pendingOpenAt>10 then
-                    pendingOpen=false;notify("The wardrobe page is still loading. Try again in a moment.")
+                    pendingOpen=false;notify("Гардероб ещё загружается. Попробуй чуть позже.")
                 end
             end
             if opened then
@@ -286,7 +286,7 @@ AddEventHandler("onClientResourceStart", function(name)
                 end
             elseif opening and now()-requestAt>10 then
                 opening=false
-                TriggerEvent("chat:addMessage",{author="WARDROBE",text="The wardrobe did not respond. Try opening it again."})
+                TriggerEvent("chat:addMessage",{author="WARDROBE",text="Гардероб не ответил. Попробуй открыть снова."})
             end
             Wait(250)
         end

@@ -23,8 +23,8 @@
     $('bank-prev').disabled=bankPage===0; $('bank-next').disabled=(bankPage+1)*size>=filtered.length;
   }
   function load() {
-    const bank=$('bank').value.trim(); if (!bank) { status('Choose a bank or paste its depot path.',true); return; }
-    request++; loadedBank=bank; $('clip-list').replaceChildren(); const p=document.createElement('p'); p.textContent='Reading clips from the game…'; $('clip-list').append(p);
+    const bank=$('bank').value.trim(); if (!bank) { status('Выбери набор или вставь путь к нему.',true); return; }
+    request++; loadedBank=bank; $('clip-list').replaceChildren(); const p=document.createElement('p'); p.textContent='Читаем клипы из игры…'; $('clip-list').append(p);
     $('clip-prev').disabled=$('clip-next').disabled=true;
     emit('clips',{request,bank,query:$('clip-search').value,offset:clipPage*size});
   }
@@ -37,11 +37,11 @@
   $('clip-prev').addEventListener('click',()=>{clipPage--;load();}); $('clip-next').addEventListener('click',()=>{clipPage++;load();});
   $('apply').addEventListener('click',()=>{
     const animset=$('bank').value.trim(), clip=$('clip').value.trim();
-    if (!animset || !clip) {status('Enter a bank path and a clip name first.',true);return;}
+    if (!animset || !clip) {status('Сначала введи путь к набору и имя клипа.',true);return;}
     if (!$('blend').reportValidity() || !$('delay').reportValidity()) return;
-    busy=true;buttons();status('Applying idle…');emit('apply',{animset,clip,blendMs:Number($('blend').value),delayMs:Number($('delay').value)});
+    busy=true;buttons();status('Применяем позу…');emit('apply',{animset,clip,blendMs:Number($('blend').value),delayMs:Number($('delay').value)});
   });
-  $('reset').addEventListener('click',()=>{busy=true;buttons();status('Restoring default idle…');emit('reset');});
+  $('reset').addEventListener('click',()=>{busy=true;buttons();status('Возвращаем стандартную позу…');emit('reset');});
   Open77.on('idle:clips',r=>{
     if (!r || r.request!==request || r.bank!==loadedBank) return;
     $('clip-list').replaceChildren(); total=r.total||0;
@@ -51,13 +51,13 @@
       name.textContent=clip.name;duration.textContent=Number(clip.duration).toFixed(2)+' s';button.append(name,duration);button.setAttribute('aria-pressed',String($('clip').value===clip.name));
       button.addEventListener('click',()=>{ $('clip').value=clip.name; for(const b of $('clip-list').children)b.setAttribute('aria-pressed',String(b===button)); });$('clip-list').append(button);
     }
-    if (!r.error && !total) {const p=document.createElement('p');p.textContent='No clips match this search.';$('clip-list').append(p);}
+    if (!r.error && !total) {const p=document.createElement('p');p.textContent='Клипов по запросу нет.';$('clip-list').append(p);}
     $('clip-count').textContent=`${total} clips · ${clipPage+1}/${Math.max(1,Math.ceil(total/size))}`;
     $('clip-prev').disabled=clipPage===0; $('clip-next').disabled=(clipPage+1)*size>=total;
   });
   Open77.on('idle:state',r=>{
     if (!r) return; busy=false;buttons(); if(r.error){status(r.error,true);return;}
-    const s=r.state; status(s?`${s.options.clip} · ${s.status||'selected'}`:'Default idle · No custom pose selected');
+    const s=r.state; status(s?`${s.options.clip} · ${s.status||'selected'}`:'Стандартная поза · своя не выбрана');
   });
   // Poll only while this panel is visible; a selected pose keeps working with the UI closed.
   setInterval(()=>{if (!$('panel').hidden && document.getElementById('freeroam-menu').classList.contains('open'))emit('state');},1500);

@@ -6,7 +6,7 @@ local configured = false
 local cycleKey = "F11"
 local modes = {}
 local modeByName = {}
-local current = { mode = "normal", label = "NORMAL", distance = 20.0, color = "#FCEE0A" }
+local current = { mode = "normal", label = "ОБЫЧНО", distance = 20.0, color = "#FCEE0A" }
 local errorText = ""
 local errorUntil = 0
 local lastPayload = ""

@@ -176,7 +176,7 @@ RegisterCommand("kick", function(source, args, raw)
     local target = tonumber(args[1])
     if target == nil then print("[freeroam-db] usage: kick <playerId> [reason]") return end
     local reason = table.concat(args, " ", 2)
-    if reason == "" then reason = "Kicked by an administrator." end
+    if reason == "" then reason = "Кикнут администратором." end
     DropPlayer(target, reason)
     print(string.format("[freeroam-db] kicked %d (%s)", target, reason))
 end, true)
@@ -186,7 +186,7 @@ RegisterCommand("ban", function(source, args, raw)
     local target = tonumber(args[1])
     if target == nil then print("[freeroam-db] usage: ban <playerId> [reason]") return end
     local reason = table.concat(args, " ", 2)
-    if reason == "" then reason = "Banned by an administrator." end
+    if reason == "" then reason = "Забанен администратором." end
     local session = findSessionByPlayerId(target)
     if session == nil then print("[freeroam-db] ban: player not found") return end
     dbThread("ban write", function()

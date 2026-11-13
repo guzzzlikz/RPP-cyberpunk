@@ -191,6 +191,7 @@ end
 function H.create()
     if type(Open77.ui) ~= "table" or type(Open77.ui.create) ~= "function" then return nil, "nativeui_unavailable" end
     local function makeModels() local t = {} for k, v in pairs(DEFAULTS) do t[k] = v end return t end
+    if type(Open77.ui.loadFont) == "function" then pcall(Open77.ui.loadFont, "ui/fonts/Play-Bold.ttf", "RppPlay", true) end -- RPP: Cyrillic fallback face (docs/ui-theme.md)
     local ui, why = Open77.ui.create({ document = "ui/hud.rml", layer = "hud", zIndex = 10, visible = true, models = { hud = makeModels() } })
     if not ui then return nil, why end
     -- the speedometer is its own document: it floats apart from the vitals and the weapons

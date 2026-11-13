@@ -11,29 +11,29 @@
     <div id="edge"></div>
     <div id="head">
         <div class="head-left">
-            <span class="kicker">// SESSION ROSTER</span>
-            <div class="title-line"><span class="title">PLAYERS</span><span id="count" class="count">0</span></div>
+            <span class="kicker">// ИГРОКИ НА СЕРВЕРЕ</span>
+            <div class="title-line"><span class="title">ИГРОКИ</span><span id="count" class="count">0</span></div>
         </div>
         <span class="grow"></span>
-        <div class="hold"><span class="key">TAB</span><span>HOLD</span></div>
+        <div class="hold"><span class="key">TAB</span><span>УДЕРЖИВАЙТЕ</span></div>
     </div>
     <div id="stats">
-        <div class="stat"><span class="stat-dot near"></span><span id="st-near" class="stat-num">0</span><span class="stat-label">NEARBY</span></div>
-        <div class="stat"><span class="stat-dot streamed"></span><span id="st-streamed" class="stat-num">0</span><span class="stat-label">IN RANGE</span></div>
-        <div class="stat"><span class="stat-dot far"></span><span id="st-far" class="stat-num">0</span><span class="stat-label">IN THE CITY</span></div>
+        <div class="stat"><span class="stat-dot near"></span><span id="st-near" class="stat-num">0</span><span class="stat-label">РЯДОМ</span></div>
+        <div class="stat"><span class="stat-dot streamed"></span><span id="st-streamed" class="stat-num">0</span><span class="stat-label">В ЗОНЕ</span></div>
+        <div class="stat"><span class="stat-dot far"></span><span id="st-far" class="stat-num">0</span><span class="stat-label">В ГОРОДЕ</span></div>
     </div>
     <div id="cols">
         <span class="c-rank">#</span>
-        <span class="c-name">PLAYER</span>
+        <span class="c-name">ИГРОК</span>
         <span class="c-id">ID</span>
-        <span class="c-dist">DISTANCE</span>
+        <span class="c-dist">ДИСТАНЦИЯ</span>
     </div>
     <div id="rows"></div>
-    <div id="empty"><span id="empty-text">WAITING FOR THE SERVER ROSTER</span></div>
+    <div id="empty"><span id="empty-text">ЖДЁМ СПИСОК ИГРОКОВ ОТ СЕРВЕРА</span></div>
     <div id="foot">
         <span id="more"></span>
         <span class="grow"></span>
-        <span class="sorted">SORTED BY DISTANCE</span>
+        <span class="sorted">ПО РАССТОЯНИЮ</span>
     </div>
 </div>
 </div>

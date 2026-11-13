@@ -16,8 +16,8 @@ RaceConfig = {
             offset = { x = 10.0, y = 0.0, z = 0.0 },
             radius = 3.0,
             style = "objective",
-            label = "Open Race",
-            description = "Join the next heat or choose a course.",
+            label = "Открыть гонки",
+            description = "Вступить в заезд или выбрать трассу.",
             key = "E",
             holdSeconds = 0.65,
             color = "#FCEE0A",
@@ -91,7 +91,7 @@ RaceConfig = {
         -- browser or an unvalidated course payload: the server resolves the ID
         -- through this allow-list before spawning a grid vehicle.
         vehicles = {
-            { id = "on_foot", label = "Foot Race · Cyberlab" },
+            { id = "on_foot", label = "Забег · Кибер-лаборатория" },
             { id = "archer_hella", label = "Archer Hella EC-D i360",
                 record = "Vehicle.v_standard2_archer_hella_player" },
             { id = "quadra_turbo_r", label = "Quadra Turbo-R V-Tech",

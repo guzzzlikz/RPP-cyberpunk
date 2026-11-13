@@ -8,31 +8,31 @@ DeathmatchConfig.instances.ffaCapacity = 0 -- zero denotes unlimited, not zero s
 DeathmatchConfig.instances.ffaUnlimited = true
 DeathmatchConfig.tunables.ffaCeiling.value = 1
 DeathmatchConfig.tunables.ffaCeiling.max = 1
-DeathmatchConfig.tunables.ffaCeiling.description = "Freeroam always uses one shared free-for-all."
+DeathmatchConfig.tunables.ffaCeiling.description = "Во Freeroam всегда одна общая арена «каждый сам за себя»."
 DeathmatchConfig.tunables.ffaCapacity.value = 0
 DeathmatchConfig.tunables.ffaCapacity.min = 0
 DeathmatchConfig.tunables.ffaCapacity.max = 0
-DeathmatchConfig.tunables.ffaCapacity.description = "Unlimited shared FFA. Only the server's global connection limit applies."
+DeathmatchConfig.tunables.ffaCapacity.description = "Общая FFA без лимита. Ограничение только по числу подключений к серверу."
 DeathmatchConfig.instances.adoptOnReload = false
 DeathmatchConfig.freeroam = true
 -- Separate ruleset, same FFA geometry and round engine.
 DeathmatchConfig.blade = {
     bucket = 4201,
-    label = "Blade FFA",
+    label = "Клинки FFA",
     default = "katana",
     weapons = {
         { key="katana", label="Katana", category="Katana", record="Items.Preset_Katana_Default" },
-        { key="mantis", label="Mantis Blades", category="Arm blades", record="Items.MantisBlades" },
-        { key="mantis_electric", label="Electric Mantis Blades", category="Arm blades", record="Items.AdvancedMantisBladesElectricLegendaryPlusPlus" },
+        { key="mantis", label="Клинки богомола", category="Клинки в руках", record="Items.MantisBlades" },
+        { key="mantis_electric", label="Электрические клинки богомола", category="Клинки в руках", record="Items.AdvancedMantisBladesElectricLegendaryPlusPlus" },
         { key="errata", label="Errata", category="Katana", record="Items.Preset_Katana_E3" },
         { key="byakko", label="Byakko", category="Katana", record="Items.Preset_Katana_Wakako" },
-        { key="knife", label="Knife", category="Knife", record="Items.Preset_Knife_Default" },
+        { key="knife", label="Нож", category="Knife", record="Items.Preset_Knife_Default" },
         { key="bluefang", label="Blue Fang", category="Knife", record="Items.Preset_Neurotoxin_Knife_Iconic" },
-        { key="machete", label="Machete", category="Long blade", record="Items.Preset_Machete_Default" },
-        { key="tomahawk", label="Tomahawk", category="Axe", record="Items.Preset_Tomahawk_Default" },
-        { key="hammer", label="Hammer", category="Blunt", record="Items.Preset_Hammer_Default" },
-        { key="bat", label="Baseball Bat", category="Blunt", record="Items.Preset_Baseball_Bat_Default" },
-        { key="baton", label="Electric Baton", category="Blunt", record="Items.Preset_Baton_Alpha" },
+        { key="machete", label="Мачете", category="Длинный клинок", record="Items.Preset_Machete_Default" },
+        { key="tomahawk", label="Томагавк", category="Axe", record="Items.Preset_Tomahawk_Default" },
+        { key="hammer", label="Молот", category="Blunt", record="Items.Preset_Hammer_Default" },
+        { key="bat", label="Бейсбольная бита", category="Blunt", record="Items.Preset_Baseball_Bat_Default" },
+        { key="baton", label="Электрическая дубинка", category="Blunt", record="Items.Preset_Baton_Alpha" },
         { key="chainsword", label="Cut-o-Matic", category="Chainsword", record="Items.Preset_Chainsword_Default" },
     },
 }
@@ -47,7 +47,7 @@ DeathmatchConfig.sfx = {
     result = "sq024_race_finish",
 }
 DeathmatchConfig.strings.notice.leftMatch = {
-    title = "FREEROAM", body = "Returning to your position in the city.",
+    title = "FREEROAM", body = "Возвращаем на твоё место в городе.",
 }
 
 -- Server owner's captured arena, 2026-09-21. Keep the legacy built-in map key
@@ -90,7 +90,7 @@ local teamA, teamB = { marks[10], marks[11], marks[12] }, { marks[14], marks[15]
 for _, format in ipairs({ "ffa", "1v1", "2v2", "3v3" }) do
     DeathmatchKabuki.formats[format].volumes = { "freeroam_arena" }
     DeathmatchConfig.zones[format].volumes = { "freeroam_arena" }
-    DeathmatchConfig.zones[format].label = "Freeroam Arena"
+    DeathmatchConfig.zones[format].label = "Арена Freeroam"
     if format ~= "ffa" then
         local count = tonumber(format:sub(1, 1))
         local teams = { a = {}, b = {} }
@@ -99,4 +99,4 @@ for _, format in ipairs({ "ffa", "1v1", "2v2", "3v3" }) do
     end
 end
 DeathmatchKabuki.set("ffa").limit = #marks
-DeathmatchConfig.strings.title = "FREEROAM ARENA"
+DeathmatchConfig.strings.title = "АРЕНА FREEROAM"

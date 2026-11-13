@@ -81,7 +81,7 @@ end)
 RegisterNetEvent("freeroam:pvp:returned", function()
     combatSpace(false)
     stopSounds()
-    send("pvp:notice", {title="FREEROAM",message="Back in the city. Your next activity is up to you."})
+    send("pvp:notice", {title="FREEROAM",message="Ты снова в городе. Чем заняться — решать тебе."})
 end)
 RegisterNetEvent("deathmatch:guns", function(payload)
     if type(payload) ~= "table" then return end
@@ -95,7 +95,7 @@ RegisterNetEvent("deathmatch:callout", function(payload)
     if not state or not state.participant or type(payload)~="table" then return end
     local labels = {double="DOUBLE ELIMINATION",triple="TRIPLE ELIMINATION",headshot="HEADSHOT",streak="ELIMINATION STREAK",lead="LEAD TAKEN"}
     local title = labels[payload.kind] or tostring(payload.kind or ""):gsub("_"," "):upper()
-    send("pvp:notice",{title=title,message=(tonumber(payload.count) or 0)>1 and tostring(payload.count).." eliminations" or "Confirmed by the server."})
+    send("pvp:notice",{title=title,message=(tonumber(payload.count) or 0)>1 and tostring(payload.count).." eliminations" or "Подтверждено сервером."})
 end)
 AddEventHandler("open77:scoreboardShow",function() if FreeroamPvpClient.ownsHud() then send("pvp:board",{open=true}) end end)
 AddEventHandler("open77:scoreboardHide",function() send("pvp:board",{open=false}) end)

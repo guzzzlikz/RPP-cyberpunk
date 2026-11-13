@@ -31,9 +31,9 @@ exports("contextSelect", function(context)
         local vehicle = Open77.vehicles.get(target.vehicleId)
         value = vehicle and vehicle.record
     end
-    if value == nil then notify("Target is no longer available.", false); return false end
+    if value == nil then notify("Цель больше недоступна.", false); return false end
     local ok, reason = Open77.clipboard.setText(tostring(value))
-    notify(ok and ("Copied: " .. tostring(value)) or ("Clipboard unavailable: " .. tostring(reason)), ok)
+    notify(ok and ("Скопировано: " .. tostring(value)) or ("Буфер обмена недоступен: " .. tostring(reason)), ok)
     return ok == true
 end)
 
@@ -47,11 +47,11 @@ local function register()
             canInteract = "contextAvailable", onSelect = "contextSelect", data = {action = id},
         }
     end
-    add("playerId", "Copy player ID", "player", "person")
-    add("vehicleId", "Copy vehicle ID", "vehicle", "vehicle")
-    add("vehicleModel", "Copy vehicle model", "vehicle", "info")
-    add("menu", "Freeroam menu", "player", "interact", true)
-    add("animations", "Animations", "player", "person", true)
+    add("playerId", "Скопировать ID игрока", "player", "person")
+    add("vehicleId", "Скопировать ID транспорта", "vehicle", "vehicle")
+    add("vehicleModel", "Скопировать модель транспорта", "vehicle", "info")
+    add("menu", "Меню freeroam", "player", "interact", true)
+    add("animations", "Анимации", "player", "person", true)
     local pending, reason = Open77.exports.call("open77_contextmenu", "registerMany", definitions)
     if pending then local tokens; tokens, reason = pending:await(); if tokens then return end end
     print("[freeroam] context registration failed: " .. tostring(reason))
