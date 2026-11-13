@@ -1,0 +1,3193 @@
+-- Traffic forwards counted contact observations, never native health prices.
+-- Public open77:npcDamage remains independent; forwarding it would double count.
+-- Bounds are per PLAYER, not target: 128 observations queued, 16 hits/second
+-- (one second of burst), at most 16 rows/hits in one packet per 100 ms.
+local pending, pendingCount = {}, 0
+local MAX_PENDING, MAX_AGE, MAX_HITS = 128, 30, 16
+local generation, stopped = nil, false
+local sequence, retrySequence, nextSend, nextSummary = 0, nil, 0, 0
+local tokens, tokenAt = MAX_HITS, 0
+local counts = { overflow = 0, stale = 0, reset = 0, backpressure = 0, invalid = 0 }
+
+local function reset()
+    counts.reset = counts.reset + pendingCount
+    pending, pendingCount, retrySequence = {}, 0, nil
+    nextSend, tokens, tokenAt = 0, MAX_HITS, Open77.time.monotonic()
+end
+
+local function session()
+    local net = Open77.network.status()
+    local current = net and net.phase == "active" and tostring(net.generation) or nil
+    if current ~= generation then reset(); generation = current end
+    return current
+end
+
+local function finite(n)
+    return type(n) == "number" and n == n and math.abs(n) < math.huge
+end
+
+AddEventHandler("open77_traffic:driverDamageClaim", function(npcId, observations, weapon, attackKind, incarnation, age, claimGeneration)
+    local count = math.tointeger(tonumber(observations))
+    if not count or count < 1 or count > MAX_HITS then counts.invalid = counts.invalid + 1; return end
+    local current = session()
+    if stopped or not current or tostring(claimGeneration) ~= current then
+        counts.reset = counts.reset + count
+        return
+    end
+    local npc, kind, elapsed = math.tointeger(tonumber(npcId)), math.tointeger(tonumber(attackKind)), tonumber(age)
+    if not npc or npc <= 0 or not kind or kind < 1 or kind > 3 or not tonumber(weapon)
+        or type(incarnation) ~= "string" or incarnation == "" or not finite(elapsed) or elapsed < 0 then
+        counts.invalid = counts.invalid + count; return
+    end
+    if elapsed > MAX_AGE then counts.stale = counts.stale + count; return end
+    if pendingCount + count > MAX_PENDING then counts.overflow = counts.overflow + count; return end
+    local at = Open77.time.monotonic() - elapsed
+    pendingCount = pendingCount + count
+    for _, row in ipairs(pending) do
+        if row.npc == npc and row.body == incarnation and row.weapon == weapon and row.kind == kind then
+            row.count = row.count + count
+            row.at = math.min(row.at, at)
+            return
+        end
+    end
+    pending[#pending + 1] = { npc = npc, count = count, weapon = weapon, kind = kind, body = incarnation, at = at }
+end)
+
+CreateThread(function()
+    while not stopped do
+        Wait(100)
+        local now = Open77.time.monotonic()
+        if session() and now >= nextSend then
+            nextSend = now + 0.1 -- no catch-up packet burst after a stall
+            tokens = math.min(MAX_HITS, tokens + math.max(0, now - tokenAt) * MAX_HITS)
+            tokenAt = now
+            for index = #pending, 1, -1 do
+                local row = pending[index]
+                if now - row.at > MAX_AGE then
+                    counts.stale = counts.stale + row.count
+                    pendingCount = pendingCount - row.count
+                    table.remove(pending, index)
+                end
+            end
+            local available = math.floor(tokens + 1e-9)
+            if pending[1] and available > 0 then
+                local batch, sentCount = {}, 0
+                for _, row in ipairs(pending) do
+                    local count = math.min(row.count, available - sentCount)
+                    batch[#batch + 1] = { npc = row.npc, count = count, weapon = row.weapon, kind = row.kind, age = now - row.at }
+                    sentCount = sentCount + count
+                    if sentCount == available or #batch == MAX_HITS then break end
+                end
+                -- A failed enqueue consumes neither count nor budget nor identity.
+                if not retrySequence then
+                    sequence = math.max(sequence + 1, math.floor(now * 1000000))
+                    retrySequence = sequence
+                end
+                if TriggerServerEvent("open77_traffic:driverDamage", batch, retrySequence) == true then
+                    tokens = math.max(0, tokens - sentCount)
+                    pendingCount = pendingCount - sentCount
+                    for _, row in ipairs(batch) do
+                        pending[1].count = pending[1].count - row.count
+                        if pending[1].count == 0 then table.remove(pending, 1) end
+                    end
+                    retrySequence = nil
+                else
+                    counts.backpressure = counts.backpressure + 1
+                end
+            end
+        end
+        if now >= nextSummary then
+            nextSummary = now + 10
+            local rows = {}
+            for reason, count in pairs(counts) do
+                if count > 0 then rows[#rows + 1] = reason .. "=" .. count; counts[reason] = 0 end
+            end
+            if #rows > 0 then table.sort(rows); print("[traffic] driver damage: " .. table.concat(rows, " ")) end
+        end
+    end
+end)
+
+AddEventHandler("open77:worldReady", reset)
+AddEventHandler("onClientResourceStop", function(name)
+    if name == GetCurrentResourceName() then stopped = true; reset() end
+end)
+-- /traffic.esp -- a debug overlay on the invoking client only: every nearby
+-- replicated car's server vehicle id and physics owner ("o-" when none),
+-- floated above the car. The client Lua host has no RegisterCommand, so the
+-- server's restricted `traffic.esp` only relays the toggle to its caller.
+--
+-- Labels are native `render = "card"` anchors that follow the car's entity, so
+-- the plugin moves them every frame; this loop only adds, relabels and removes
+-- them. Whether an AI driver job is attached is server-side state the client
+-- API does not expose, so the label does not claim it.
+local RESOURCE = GetCurrentResourceName()
+local ESP_TOGGLE = "open77_traffic:esp"
+local RADIUS = 150
+-- Open77.anchors' per-resource quota; `nearby` returns the nearest first.
+local MAX_LABELS = 32
+local REFRESH_MS = 250
+-- `vehicles.get` copies the whole replica set per call, so owners come from
+-- one `vehicles.all()` pass per second rather than one read per car per tick.
+local OWNER_EVERY = 4
+
+local enabled, loop = false, 0
+local labels = {} -- vehicleId -> {anchor, entity, text, seen}
+local query = { streamed = true, limit = MAX_LABELS }
+local offset = { x = 0, y = 0, z = 1.8 }
+
+local function report(text)
+    TriggerEvent("chat:addMessage", { type = "system", author = "TRAFFIC", text = text })
+end
+
+local function clear()
+    for id, label in pairs(labels) do
+        Open77.anchors.remove(label.anchor)
+        labels[id] = nil
+    end
+end
+
+local function relabel()
+    for _, car in ipairs(Open77.vehicles.all()) do
+        local label = labels[car.id]
+        if label then
+            local owner = car.physicsOwner
+            local text = owner ~= 0 and ("%d o%d"):format(car.id, owner) or ("%d o-"):format(car.id)
+            if text ~= label.text and Open77.anchors.update(label.anchor, { presentation = { label = text } }) then
+                label.text = text
+            end
+        end
+    end
+end
+
+local function tick(pass)
+    local cars, reason = Open77.vehicles.nearby(RADIUS, query)
+    if type(cars) ~= "table" then
+        clear()
+        return reason
+    end
+    for _, car in ipairs(cars) do
+        local label = labels[car.id]
+        if label and label.entity == car.entity then label.seen = pass end
+    end
+    -- Free the quota before creating, or a car entering range waits a tick
+    -- behind the one that left it.
+    for id, label in pairs(labels) do
+        if label.seen ~= pass then
+            Open77.anchors.remove(label.anchor)
+            labels[id] = nil
+        end
+    end
+    local added, refusal = false, nil
+    for _, car in ipairs(cars) do
+        if not labels[car.id] and car.entity ~= 0 then
+            local text = tostring(car.id)
+            local anchor, why = Open77.anchors.create({
+                entity = car.entity, offset = offset, render = "card", tag = "traffic.esp",
+                maxDistance = RADIUS, presentation = { label = text },
+            })
+            if anchor then
+                labels[car.id] = { anchor = anchor, entity = car.entity, text = text, seen = pass }
+                added = true
+            else
+                refusal = why
+            end
+        end
+    end
+    if added or pass % OWNER_EVERY == 0 then relabel() end
+    return refusal
+end
+
+local function stop()
+    enabled = false
+    loop = loop + 1
+    clear()
+end
+
+RegisterNetEvent(ESP_TOGGLE, function()
+    if enabled then
+        stop()
+        return report("traffic esp off")
+    end
+    enabled = true
+    loop = loop + 1
+    local mine = loop
+    report(("traffic esp on: car id and owner within %d m, nearest %d"):format(RADIUS, MAX_LABELS))
+    CreateThread(function()
+        local pass, reported = 0, nil
+        while loop == mine do
+            pass = pass + 1
+            local refusal = tick(pass)
+            -- Once per distinct reason, not once per tick.
+            if refusal and refusal ~= reported then
+                reported = refusal
+                report("traffic esp: " .. tostring(refusal))
+            end
+            Wait(REFRESH_MS)
+        end
+    end)
+end)
+
+AddEventHandler("onClientResourceStop", function(name)
+    if name == RESOURCE then stop() end
+end)
+-- /traffic -- the operator's panel for the server-owned ambient traffic.
+--
+-- This file owns a surface and a transport, and nothing else: there is no
+-- setting, no car and no reset in it. Every control the page offers becomes one
+-- line of the restricted `traffic` command, submitted through
+-- `open77:command:execute` -- the same path the chat box uses -- so the same
+-- ACL check guards both, and this half cannot grant itself anything.
+--
+-- The command line is rebuilt here from a whitelist rather than forwarded, so
+-- nothing the page typed reaches the command line. The page is corrected by
+-- snapshots rather than by its own optimism: the server pushes
+-- `open77_traffic:panel:data` for every state request, and this file asks for
+-- one every two seconds while the panel is open. That cadence is also the
+-- recovery path -- a dropped result cannot wedge a control, because the next
+-- snapshot shows the truth, which is why there is no client-side timeout here.
+--
+-- A snapshot carries only the values in force. The setting declarations are
+-- shared/config.lua, which this half loads too, so they reach the page once per
+-- opening (`traffic:settings`) and every push after that is the server's
+-- snapshot, forwarded as received.
+local RESOURCE = GetCurrentResourceName()
+-- The server's own channel, name and all: the panel is one transport in front
+-- of one resource, and `open77_traffic:panel:open|data|result` is what the
+-- server half pushes. There is no second spelling of it anywhere.
+local CHANNEL = "open77_traffic:panel:"
+
+local page, snapshot
+local ready, open = false, false
+-- The radius the operator last asked for: the panel's memory of a viewport, not
+-- a generator setting. The server clamps it and echoes back the value it
+-- actually used in `nearby.radius`, which is what this tracks.
+local radius = 100
+local openedAt, lastPollAt = 0, 0
+local pollRefusals = 0
+-- raw command line -> {operation, poll}, so an `open77:command:result` is only
+-- ever read as the answer to a line this panel sent.
+local inflight, refused = {}, {}
+
+local POLL_SECONDS = 2
+local WATCHDOG_SECONDS = 15 * 60
+local MIN_RADIUS, MAX_RADIUS = 1, 500
+
+local function now() return Open77.time.monotonic() end
+
+-- The server's own order: group first, then the key's order inside it, so the
+-- form reads the same as before the declarations stopped travelling.
+local SETTING_KEYS = {}
+for key in pairs(TrafficSettings) do SETTING_KEYS[#SETTING_KEYS + 1] = key end
+table.sort(SETTING_KEYS, function(left, right)
+    local a, b = TrafficSettings[left], TrafficSettings[right]
+    if a.group ~= b.group then return a.group < b.group end
+    if a.order ~= b.order then return a.order < b.order end
+    return left < right
+end)
+
+-- What the page needs to render every control, minus the value. `defaults`
+-- holds the declarations the server rewrote at start-up, which this copy of
+-- config.lua cannot know; a default may be `false`, so it is not `and/or`-ed.
+local function declarations(defaults)
+    defaults = type(defaults) == "table" and defaults or {}
+    local list = {}
+    for index = 1, #SETTING_KEYS do
+        local key = SETTING_KEYS[index]
+        local spec = TrafficSettings[key]
+        local default = defaults[key]
+        if default == nil then default = spec.value end
+        list[index] = {
+            key = key,
+            label = spec.label,
+            description = spec.description,
+            type = spec.type,
+            min = spec.min,
+            max = spec.max,
+            unit = spec.unit,
+            group = spec.group,
+            default = default,
+        }
+    end
+    return list
+end
+
+local function send(event, payload)
+    if not page or not ready then return false, "not_ready" end
+    -- Once per event name: a page that cannot receive is one bug, not a line of
+    -- log per poll.
+    local ok, reason = page:send("traffic:" .. event, payload or {})
+    if ok == false and not refused[event] then
+        refused[event] = true
+        Open77.log.warn("traffic panel: " .. event .. " refused: " .. tostring(reason))
+    end
+    return ok, reason
+end
+
+-- `send` on its own never reaches the page, so the answer to a refused
+-- submission is a result push. The page treats a missing answer as "still
+-- working" and keeps polling, so this costs it nothing when it is wrong.
+local function report(operation, message)
+    send("result", {ok = false, operation = operation, message = tostring(message)})
+end
+
+local function close()
+    open = false
+    inflight = {}
+    pollRefusals = 0
+    if page then page:setFocus(false, false) end
+    send("close")
+end
+
+-- ---------------------------------------------------------------------------
+-- The command line
+--
+-- The whitelist IS the transport rule: the page may only ever produce these
+-- lines, and a token that is not exactly one of them is refused here rather
+-- than handed to a command parser that would have to be strict about
+-- everything forever.
+-- ---------------------------------------------------------------------------
+local function token(value, limit)
+    if type(value) ~= "string" then return nil end
+    if #value == 0 or #value > limit then return nil end
+    -- A token is one command-line word. Whitespace would silently become two
+    -- words on the way in, so it is a refusal, not a trimming.
+    if value:find("[%s%c]") then return nil end
+    return value
+end
+
+local function radiusToken(value)
+    local metres = tonumber(token(value, 8) or "")
+    if not metres then return nil end
+    if metres % 1 ~= 0 or metres < MIN_RADIUS or metres > MAX_RADIUS then return nil end
+    return ("%d"):format(metres)
+end
+
+-- The keys are the server's, not this file's: a setting the panel was not told
+-- about is not a setting it may write. The snapshot is the authority, and the
+-- syntactic form is the fallback for the moment before one has arrived.
+local function knownKey(key)
+    local settings = snapshot and snapshot.settings
+    if type(settings) ~= "table" then return true end
+    return settings[key] ~= nil
+end
+
+local function normalise(payload)
+    if type(payload) ~= "table" or type(payload.tokens) ~= "table" then return nil end
+    local tokens = payload.tokens
+    local count = #tokens
+    if count < 1 or count > 4 then return nil end
+    if token(tokens[1], 32) ~= "traffic" then return nil end
+
+    local sub = tokens[2]
+    if sub == nil then return {"traffic"} end
+    sub = token(sub, 16)
+
+    if sub == "open" and count == 2 then
+        return {"traffic", "open"}
+    end
+    if sub == "state" and count == 3 then
+        local metres = radiusToken(tokens[3])
+        if not metres then return nil end
+        return {"traffic", "state", metres}
+    end
+    if sub == "set" and count == 4 then
+        local key = token(tokens[3], 48)
+        local value = token(tokens[4], 32)
+        if not key or not key:match("^[A-Za-z_][A-Za-z0-9_]*$") then return nil end
+        -- Numbers in any notation the page may print, and words: the domain of
+        -- a value (a range, a bound, true/false) belongs to the server's
+        -- validation, not to this pattern.
+        if not value or not value:match("^[%w%._%+%-]+$") then return nil end
+        if not knownKey(key) then return nil end
+        return {"traffic", "set", key, value}
+    end
+    if sub == "pattern" and count == 4 then
+        local pattern = token(tokens[3], 8)
+        if pattern ~= "default" and pattern ~= "stop" then return nil end
+        local metres = radiusToken(tokens[4])
+        if not metres then return nil end
+        return {"traffic", "pattern", pattern, metres}
+    end
+    if sub == "panic" and count == 3 then
+        local metres = radiusToken(tokens[3])
+        if not metres then return nil end
+        return {"traffic", "panic", metres}
+    end
+    if sub == "reset" and count == 3 and tokens[3] == "confirm" then
+        return {"traffic", "reset", "confirm"}
+    end
+    return nil
+end
+
+local function submit(tokens, poll)
+    local raw = table.concat(tokens, " ")
+    inflight[raw] = {operation = tokens[2] or "open", poll = poll == true}
+    local sent, reason = TriggerServerEvent("open77:command:execute", table.unpack(tokens))
+    if sent == false then
+        inflight[raw] = nil
+        return false, tostring(reason or "not_sent")
+    end
+    return true
+end
+
+local function poll()
+    if not open then return end
+    lastPollAt = now()
+    local sent, reason = submit({"traffic", "state", ("%d"):format(radius)}, true)
+    -- A poll the transport refuses is worth saying once: if it persists the
+    -- panel is showing stale numbers, and silence would make them look live.
+    if not sent and pollRefusals < 1 then
+        pollRefusals = pollRefusals + 1
+        report("state", reason)
+    end
+end
+
+local function show()
+    if not open or not ready then return end
+    -- A refused push leaves an empty full-screen surface behind; focusing it
+    -- locked mouse and keyboard with nothing on screen to close it. Said every
+    -- time, because each one is an operator left without a panel.
+    local sent, reason = send("settings", declarations(snapshot and snapshot.defaults))
+    if sent == true then sent, reason = send("open", snapshot) end
+    if sent ~= true then
+        Open77.log.warn("traffic panel: not opened, the page refused the snapshot: " .. tostring(reason))
+        close()
+        return
+    end
+    local ok, focusReason = page:setFocus(true, true)
+    if ok == false then
+        Open77.log.warn("traffic panel: focus refused: " .. tostring(focusReason))
+        close()
+    end
+end
+
+local function createPage()
+    if page then return true end
+    local reason
+    -- Native hidden surfaces currently fail to upload their first frame after
+    -- being shown, so this one is created visible and CSS is the only
+    -- visibility authority (same convention as /admin and the cyberlab panel).
+    page, reason = WebUI.create({entry = "web/index.html", layer = "menu", width = 1920,
+        height = 1080, fps = 30, zIndex = 722, transparent = true, visible = true})
+    if not page then
+        Open77.log.error("traffic panel: WebUI failed: " .. tostring(reason))
+        return false
+    end
+
+    page:on("traffic:ready", function()
+        ready = true
+        show()
+    end)
+    page:on("traffic:close", close)
+    page:on("traffic:refresh", poll)
+    page:on("traffic:command", function(payload)
+        if not open then return end
+        local tokens = normalise(payload)
+        if not tokens then
+            report("command", "invalid_command")
+            return
+        end
+        -- A bare `/traffic` from the page is a refresh; only the chat box has a
+        -- reason to send one.
+        if tokens[2] == nil then tokens = {"traffic", "state", ("%d"):format(radius)} end
+        if tokens[2] == "state" then
+            radius = tonumber(tokens[3])
+            lastPollAt = now()
+        elseif tokens[2] == "pattern" or tokens[2] == "panic" then
+            -- A sweep is asked for at the radius it is aimed at, which is also
+            -- the viewport the table below it will describe next.
+            radius = tonumber(tokens[#tokens])
+        end
+        local sent, reason = submit(tokens, false)
+        if not sent then report(tokens[2], reason) end
+    end)
+    -- The page's own failure channel. It carries log lines, never commands: a
+    -- page that dies mid-render reports nothing at all otherwise.
+    page:on("traffic:diag", function(payload)
+        if type(payload) == "table" then
+            Open77.log.warn("traffic panel: " .. tostring(payload.message or "unknown page error"):sub(1, 500))
+        end
+    end)
+
+    CreateThread(function()
+        while page do
+            Wait(500)
+            if open then
+                if now() - openedAt > WATCHDOG_SECONDS then
+                    close()
+                elseif now() - lastPollAt >= POLL_SECONDS then
+                    poll()
+                end
+            end
+        end
+    end)
+    return true
+end
+
+-- ---------------------------------------------------------------------------
+-- The server's half
+-- ---------------------------------------------------------------------------
+RegisterNetEvent(CHANNEL .. "open", function(payload)
+    if type(payload) ~= "table" then return end
+    snapshot = payload
+    open, openedAt, lastPollAt = true, now(), 0
+    inflight, pollRefusals = {}, 0
+    if not createPage() then
+        close()
+        return
+    end
+    show()
+    poll()
+end)
+RegisterNetEvent(CHANNEL .. "data", function(payload)
+    if not open or type(payload) ~= "table" then return end
+    snapshot = payload
+    -- The server clamps the radius and reports what it used; following it here
+    -- keeps the poll asking for the viewport the table is actually showing.
+    local metres = type(payload.nearby) == "table" and payload.nearby.radius
+    if type(metres) == "number" and metres % 1 == 0
+        and metres >= MIN_RADIUS and metres <= MAX_RADIUS then
+        radius = metres
+    end
+    send("data", payload)
+end)
+RegisterNetEvent(CHANNEL .. "result", function(payload)
+    if type(payload) ~= "table" then return end
+    send("result", payload)
+end)
+RegisterNetEvent(CHANNEL .. "close", close)
+
+-- Every command result reaches every client resource, including chat's own
+-- commands. Only a line this panel sent is interesting here, and only a refusal
+-- is worth repeating to the page: an accepted line is answered by the resource
+-- itself, with a result and a fresh snapshot.
+RegisterNetEvent("open77:command:result", function(raw, accepted, message)
+    raw, message = tostring(raw or ""), tostring(message or "")
+    -- The dispatcher acknowledges queueing immediately; the useful answer is a
+    -- second result. Showing both would double every line in the panel.
+    if accepted and message:match("^queued by ") then return end
+    local entry = inflight[raw]
+    if not entry then return end
+    inflight[raw] = nil
+    if accepted == true then return end
+    if entry.poll then
+        if pollRefusals < 1 then
+            pollRefusals = pollRefusals + 1
+            report("state", message)
+        end
+        return
+    end
+    report(entry.operation, message)
+end)
+
+-- Escape: the plugin consumes Escape before the focused page's own handler can
+-- run, so this event -- not the page -- is the path that actually closes a
+-- focused surface in a live session. The page still handles Escape for the
+-- cases where it does receive the key.
+AddEventHandler("open77:pauseKey", function()
+    if open then close() end
+end)
+
+AddEventHandler("onClientResourceStop", function(name)
+    if name ~= RESOURCE then return end
+    close()
+    page, snapshot, ready, open = nil, nil, false, false
+    inflight, refused = {}, {}
+end)
+resource "open77_traffic"
+version "0.2.0"
+-- Server-owned population policy, plus one operator panel in front of it.
+--
+-- The span catalog, the population catalog and the controller itself
+-- stay server-side: they never enter the signed client package. What the
+-- client receives is three small Lua files that hold no settings and can change
+-- nothing on their own: the panel owns a WebUI surface whose every control is
+-- routed back through the restricted `traffic` command on the same
+-- `open77:command:execute` path the chat box uses, the hit forwarder hands
+-- the server the engine's own reports of this player's hits on NPCs, which the
+-- server validates before any ambient driver takes damage, and the
+-- `/traffic.esp` overlay only reads replicated cars.
+auto_start true
+
+-- Replacing a live CEF surface while the game is running has historically
+-- caused unstable transitions, so every resource that owns one declares
+-- "reconnect" (same rule as /admin and the cyberware lab).
+reload_policy "reconnect"
+
+-- The generator settings are declared here and read by both halves: the server
+-- half declares them as tunables, and the client half builds the panel's
+-- controls from these declarations, receiving only the values in a snapshot.
+shared_scripts {
+    "shared/config.lua",
+}
+
+server_scripts {
+    "server/population-data.lua",
+    "server/spans-generated.lua",
+    "server.lua",
+}
+
+client_scripts {
+    "client/panel.lua",
+    "client/driver-hits.lua",
+    "client/esp.lua",
+}
+
+-- The panel. `web_ui_auto_create false` because the surface is created lazily
+-- on the first `/traffic`; a page nobody opened must not cost a CEF surface.
+web_ui_page "web/index.html"
+web_ui_auto_create false
+web_files { "web/**" }
+
+permissions { "world.vehicles", "world.npcs", "world.query", "players.life.read", "player.weapons.read",
+    -- Both halves: the panel's event channel to the client, the
+    -- `open77:command:execute` transport on the way back, and the forwarded
+    -- driver hit reports.
+    "network.events", "network.client",
+    -- Client: `open77:pauseKey`, so Escape closes the panel with everything
+    -- else rather than leaving a focused surface holding the mouse.
+    "local.events",
+    -- Client: `/traffic.esp` reads replicated cars with `Open77.vehicles.nearby/all`.
+    "vehicles.read" }
+-- The generator settings of open77_traffic, declared once here and read by
+-- both halves: `server.lua` hands this table to `Open77.tunables.declare`, and
+-- the in-game client panel reads these declarations directly.
+--
+-- These are DEFAULTS, not the live configuration. The host owns the values, so
+-- an operator's change from the panel, from Warden or from the console
+-- (`tunable.set open77_traffic <key> <value>`) is validated against the bounds
+-- below, stored and persisted to `server/tunables.json`: it survives a reload,
+-- a stop and a server restart, and it comes back with its stored value even if
+-- the key leaves this declaration and rejoins it later. `tunable.reset
+-- open77_traffic <key>` is what forgets an override. The panel's Reset button
+-- is not a settings reset: it clears the fleet, and the one setting it does
+-- write is `enabled = true`, because a reset is meant to resume spawning.
+--
+-- `enabled` is overwritten by server.lua before the declaration: false unless
+-- the server profile sets the convar `open77_traffic_enabled`.
+--
+-- Every bound is a safety bound rather than a taste bound:
+--   * `min` on a distance is the point below which a spawn gate stops being
+--     conservative (the create-point exclusion in particular never drops below
+--     20 m, whatever `minimumSpawnSeparation` says), and `min` on a cadence or
+--     a limit is the point below which the controller would spin or admit
+--     nothing at all;
+--   * `max` on a fleet budget is this resource's own documented admission
+--     budget -- the server's driving service caps independent of it -- and
+--     `max` on `playerAreaRadius` is what bounds the span-cell sweep it
+--     drives each spawn pass.
+-- `step` is presentation only: the host never enforces it.
+--
+-- Two relations between keys cannot be expressed as per-key bounds, because a
+-- candidate has to be inside the spawn band around its player and inside that
+-- player's area:
+--   minimumPlayerSpawnDistance <= groundProbeRadius
+--   playerAreaRadius > minimumPlayerSpawnDistance
+-- The server refuses either pair from the panel (naming it) and logs a warning
+-- when an external write makes it hold. `minimumSpawnSeparation` has no such
+-- relation to the probe radius: it is a distance between two cars, so a
+-- separation wider than the band is a legitimate way to admit fewer cars.
+
+TrafficSettings = {
+    -- Density: how many cars may exist, and where around each player they are
+    -- filled -- by the game's authored crowd density per lane
+    -- (docs/research/traffic-native-spawning-design.md). The keys of the
+    -- removed anchor generator's per-area limit (`carsPerArea`, `areaRadius`)
+    -- are not reused, so a stored override of them cannot return with a new
+    -- meaning.
+    enabled = {
+        value = false,
+        type = "boolean",
+        apply = "live",
+        order = 1,
+        label = "Traffic generation",
+        description = "Off stops new cars from spawning. Cars already on the road keep driving until they are removed.",
+        group = "Density",
+    },
+    carsGlobal = {
+        value = 20000,
+        type = "integer",
+        min = 0,
+        max = 20000,
+        step = 1,
+        unit = "cars",
+        apply = "live",
+        order = 2,
+        label = "Max cars (server)",
+        description = "Hard limit on this resource's cars across the whole server. Each car still needs a free simulator slot, so fewer may be on the road. 0 spawns none.",
+        group = "Density",
+    },
+    maxCarsPerArea = {
+        value = 60,
+        type = "integer",
+        min = 1,
+        max = 1000,
+        step = 1,
+        unit = "cars",
+        apply = "live",
+        order = 3,
+        label = "Max cars per area",
+        description = "No car spawns in a player's area that already holds this many.",
+        group = "Density",
+    },
+    playerAreaRadius = {
+        value = 250,
+        type = "number",
+        min = 50,
+        max = 350,
+        step = 10,
+        unit = "m",
+        apply = "live",
+        order = 4,
+        label = "Area size",
+        description = "Radius of the area around each player whose density is filled. It grows by a fifth and moves ahead at speed. Must stay above the min spawn distance; cars still only spawn inside the spawn distances.",
+        group = "Density",
+    },
+    densityScale = {
+        value = 1,
+        type = "number",
+        min = 0,
+        max = 10,
+        step = 0.1,
+        apply = "live",
+        order = 5,
+        label = "Density scale",
+        description = "Multiplies the game's density. 1 is the authored density; 0 spawns none.",
+        group = "Density",
+    },
+    densityFloor = {
+        value = 0,
+        type = "number",
+        min = 0,
+        max = 1,
+        step = 0.01,
+        apply = "live",
+        order = 6,
+        label = "Density floor on foot",
+        description = "Lowest density coefficient a road gets while the player is on foot. 0 keeps the authored values.",
+        group = "Density",
+    },
+    densityFloorDriving = {
+        value = 0,
+        type = "number",
+        min = 0,
+        max = 1,
+        step = 0.01,
+        apply = "live",
+        order = 7,
+        label = "Density floor driving",
+        description = "Lowest density coefficient a road gets while the player is in a vehicle. 0 keeps the authored values.",
+        group = "Density",
+    },
+    timePeriod = {
+        value = 0,
+        type = "integer",
+        min = 0,
+        max = 3,
+        step = 1,
+        apply = "live",
+        order = 8,
+        label = "Time period",
+        description = "Which of the game's four authored density periods to use. The server has no time of day yet.",
+        group = "Density",
+    },
+    retireDistance = {
+        value = 250,
+        type = "number",
+        min = 100,
+        max = 425,
+        step = 10,
+        unit = "m",
+        apply = "live",
+        order = 9,
+        label = "Removal distance",
+        description = "Cleanup distance. Removal also waits until nobody has the car streamed and a 10 s absence has elapsed, except for a timed-out car no player is near enough to run and a car left behind a fast driver. 425 m is the streaming edge.",
+        group = "Density",
+    },
+
+    -- Spawning: where a car may appear, and how hard the controller looks.
+    spawnEveryMs = {
+        value = 10,
+        type = "integer",
+        min = 10,
+        max = 60000,
+        step = 10,
+        unit = "ms",
+        apply = "live",
+        order = 1,
+        label = "Spawn interval",
+        description = "Pause between two spawn attempts. Lower fills the streets faster.",
+        group = "Spawning",
+    },
+    groundProbeRadius = {
+        value = 180,
+        type = "number",
+        min = 20,
+        max = 500,
+        step = 5,
+        unit = "m",
+        apply = "live",
+        order = 2,
+        label = "Max spawn distance",
+        description = "Farthest a new car can appear from a player. Past 350 m no player runs it, so it is removed.",
+        group = "Spawning",
+    },
+    minimumPlayerSpawnDistance = {
+        value = 60,
+        type = "number",
+        min = 0,
+        max = 500,
+        step = 1,
+        unit = "m",
+        apply = "live",
+        order = 3,
+        label = "Min spawn distance",
+        description = "Closest a new car can appear to a player. Must stay below the max spawn distance.",
+        group = "Spawning",
+    },
+    minimumSpawnSeparation = {
+        value = 5,
+        type = "number",
+        min = 5,
+        max = 200,
+        step = 1,
+        unit = "m",
+        apply = "live",
+        order = 4,
+        label = "Gap between cars",
+        description = "Minimum space between a new car and other cars. At least 20 m is always kept.",
+        group = "Spawning",
+    },
+    spawnLiftMetres = {
+        value = 0.35,
+        type = "number",
+        min = 0,
+        max = 20,
+        step = 0.05,
+        unit = "m",
+        apply = "live",
+        order = 5,
+        label = "Spawn height",
+        description = "How far above the road a new car is dropped, so it clears the kerb.",
+        group = "Spawning",
+    },
+    launchSpeed = {
+        value = 10,
+        type = "number",
+        min = 0,
+        max = 25,
+        step = 1,
+        unit = "m/s",
+        apply = "live",
+        order = 6,
+        label = "Spawn speed",
+        description = "Speed a new car already has when its first player takes it over, along its lane. Lowered automatically when another car is close ahead. 0 spawns cars standing still.",
+        group = "Spawning",
+    },
+    clearanceAttempts = {
+        value = 3,
+        type = "integer",
+        min = 1,
+        max = 10,
+        step = 1,
+        unit = "tries",
+        apply = "live",
+        order = 7,
+        label = "Spawn retries",
+        description = "Other spots tried in one attempt when the best spot is blocked.",
+        group = "Spawning",
+    },
+    groundFailureLimit = {
+        value = 2,
+        type = "integer",
+        min = 1,
+        max = 100,
+        step = 1,
+        unit = "misses",
+        apply = "live",
+        order = 8,
+        label = "Bad spot limit",
+        description = "Failed ground checks in a row before a spawn spot is skipped for five minutes.",
+        group = "Spawning",
+    },
+
+    -- Timeouts: how a car that cannot run is noticed and released. Both floors
+    -- are 10 s because of platform timing: the server holds a car's previous
+    -- simulator off for 8 s after its lease expires, so a shorter orphan window
+    -- deletes cars that were about to recover, and a new car needs ~5-6 s
+    -- before its first owner sample arrives.
+    orphanSeconds = {
+        value = 10,
+        type = "integer",
+        min = 10,
+        max = 3600,
+        step = 1,
+        unit = "s",
+        apply = "live",
+        order = 1,
+        label = "Abandoned car timeout",
+        description = "Requests cleanup after the car loses its simulator for this long. The car and driver stay while observed and can recover, unless no player is near enough to run it; otherwise removal requires continuous absence.",
+        group = "Timeouts",
+    },
+    neverOwnedSeconds = {
+        value = 10,
+        type = "integer",
+        min = 10,
+        max = 3600,
+        step = 1,
+        unit = "s",
+        apply = "live",
+        order = 2,
+        label = "Unclaimed car timeout",
+        description = "Requests cleanup if no simulator takes the new car within this time. An observed car and its driver stay until nobody can see them, unless no player is near enough to run it.",
+        group = "Timeouts",
+    },
+    timeoutMilliseconds = {
+        value = 3600000,
+        type = "integer",
+        min = 1000,
+        max = 3600000,
+        step = 1000,
+        unit = "ms",
+        apply = "live",
+        order = 3,
+        label = "Max car lifetime",
+        description = "Maximum driving task duration. Once it ends, the car and driver remain while observed, then cleanup frees their place in the fleet.",
+        group = "Timeouts",
+    },
+
+    -- Reactions: which other server resources may make these cars panic.
+    -- The driving service refuses every command for a car from any resource
+    -- but the one that drives it, so this list is this resource's explicit
+    -- approval of named callers of its `panic` export. It is a tunable rather
+    -- than a convar because any resource may override a convar at runtime.
+    panicResources = {
+        value = "",
+        type = "text",
+        apply = "live",
+        order = 1,
+        label = "Panic callers",
+        description = "Server resources allowed to call this resource's panic export, by exact name, separated by + (at most 32 characters in the panel). Empty or none allows no other resource; the panel's own Panic button is unaffected.",
+        group = "Reactions",
+    },
+
+    -- Players: what a player may do to these drivers and cars. Both default to
+    -- on and both reach the cars and drivers already in the world, not only
+    -- the next spawn.
+    driversKillable = {
+        value = true,
+        type = "boolean",
+        apply = "live",
+        order = 1,
+        label = "Killable drivers",
+        description = "Off makes every driver unkillable: player hits no longer hurt them. Living drivers change at once; drivers already killed stay dead.",
+        group = "Players",
+    },
+    carsStealable = {
+        value = true,
+        type = "boolean",
+        apply = "live",
+        order = 2,
+        label = "Stealable cars",
+        description = "Off locks every car this resource made, including released and stolen ones, for everyone: no seat can be entered and no door action opens it, so a killed driver stays at the wheel. On unlocks them.",
+        group = "Players",
+    },
+    driverDamageScale = {
+        value = 1.0, type = "number", min = 0.01, max = 10, step = 0.05, apply = "live",
+        order = 3, label = "Driver damage scale", group = "Players",
+        description = "Scales server class prices, not native damage. Perks, native headshots and instant-kill flags do not multiply driver damage.",
+    },
+    driverHitsPerSecond = {
+        value = 16, type = "integer", min = 1, max = 16, step = 1, apply = "live",
+        order = 4, label = "Driver hit budget", group = "Players",
+        description = "Player-wide contact observations per second, with one second of burst. Folded hits spend their full count; melee is additionally capped at ten.",
+    },
+    driverDamagePerSecond = {
+        value = 220, type = "number", min = 1, max = 1000, step = 10, apply = "live",
+        order = 5, label = "Driver damage budget", group = "Players",
+        description = "Player-wide server-priced HP per second with one second of burst, shared across drivers. Must cover at least one scaled class price for that class to hurt drivers.",
+    },
+}
+/* open77_traffic -- the /traffic admin panel.
+ *
+ * The same drawer as /freeroam, on the same kit-native roles from
+ * design-system.css: a left drawer over a gradient scrim, so the street the
+ * operator is tuning stays in view on the right. Chamfers instead of radii,
+ * labels on the UI face, mono only for machine values (docs/ui-design-system.md,
+ * section 4, "Where the kit and section 2 disagree"). Glows that must survive a
+ * clip-path are inset, including the focus ring.
+ *
+ * Visibility belongs to `body` ALONE. `html { opacity: 0 }` would composite the
+ * whole document into one transparent layer that `body.open` cannot undo, so
+ * the page could lay out perfectly and still paint nothing. The surface is
+ * created visible and never hidden (a surface created hidden never uploads its
+ * first frame on the current client), which makes this class the only
+ * visibility authority.
+ */
+
+h1, h2, h3, p { margin: 0; }
+
+html, body { overflow: hidden; }
+
+body {
+  pointer-events: none;
+  opacity: 0;
+  user-select: none;
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+body.open { pointer-events: auto; opacity: 1; }
+
+[hidden] { display: none !important; }
+
+::selection { background: rgba(34, 216, 226, 0.28); color: var(--text-primary); }
+input { caret-color: var(--o-cyan-500); user-select: text; }
+
+/* The kit's outer focus ring is clipped away by every chamfer on this page. */
+button:focus-visible { box-shadow: inset 0 0 0 2px var(--o-cyan-500); }
+
+/* ---------------------------------------------------------------- the drawer */
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(5, 7, 11, 0.9) 0 30%, rgba(5, 7, 11, 0.42) 58%, rgba(5, 7, 11, 0.06) 100%);
+}
+
+.drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(700px, 56vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid rgba(34, 216, 226, 0.38);
+  background: rgba(11, 14, 20, 0.97);
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+  transform: translateX(-24px);
+  transition: transform var(--dur-3) var(--ease-out);
+}
+body.open .drawer { transform: none; }
+
+.drawer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--scanline);
+  opacity: 0.3;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.drawer-edge {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  width: 3px;
+  height: 42%;
+  background: linear-gradient(var(--o-cyan-500), transparent);
+}
+
+/* ------------------------------------------------------------------ the head */
+.head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: var(--space-7);
+  padding: var(--space-7) var(--space-8) var(--space-6);
+  border-bottom: 1px solid var(--line-hairline);
+}
+
+.head-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.head h1 {
+  display: flex;
+  align-items: flex-end;
+  color: var(--text-primary);
+  font: var(--fw-black) 44px / 0.88 var(--font-display);
+  letter-spacing: var(--ls-display);
+}
+.head h1 span { color: var(--o-cyan-500); }
+.head h1 i {
+  width: 10px;
+  height: 10px;
+  margin: 0 0 2px 8px;
+  background: var(--o-cyan-500);
+}
+
+.head-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--size-data-sm);
+}
+
+/* The kit's badge is mint; the generator has three states and an unknown. */
+.ds-badge.is-off {
+  border-color: rgba(255, 59, 78, 0.45);
+  background: rgba(255, 59, 78, 0.12);
+  color: var(--o-red-500);
+}
+.ds-badge.is-busy {
+  border-color: rgba(255, 176, 32, 0.45);
+  background: rgba(255, 176, 32, 0.12);
+  color: var(--o-amber-500);
+}
+.ds-badge.is-idle {
+  border-color: var(--line-strong);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.ds-badge.is-idle::before { box-shadow: none; }
+
+.close {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid var(--line-hairline);
+  background: transparent;
+  color: var(--text-secondary);
+  clip-path: var(--cut-sm);
+  cursor: pointer;
+  transition: var(--t-hover);
+}
+.close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; }
+.close:hover { border-color: var(--o-red-500); color: var(--o-red-500); background: rgba(255, 59, 78, 0.08); }
+.close:active { transform: translateY(1px); }
+
+/* ------------------------------------------------------------------ the tabs */
+.tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 44px;
+  padding: 0 var(--space-8);
+  border-bottom: 1px solid var(--line-hairline);
+}
+
+.tab {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 96px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  clip-path: var(--cut-tr);
+  font: var(--fw-semibold) var(--size-label-sm) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  cursor: pointer;
+  transition: var(--t-hover);
+}
+.tab:hover { color: var(--text-primary); background: rgba(138, 148, 162, 0.08); }
+.tab.active { border-bottom-color: var(--o-cyan-500); background: rgba(34, 216, 226, 0.1); color: var(--o-cyan-500); }
+
+/* Unsaved edits, visible from any tab. */
+.tab-dot { width: 6px; height: 6px; background: var(--o-amber-500); }
+
+.blocked {
+  position: relative;
+  z-index: 1;
+  margin: var(--space-5) var(--space-8) 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid rgba(255, 59, 78, 0.45);
+  background: rgba(255, 59, 78, 0.1);
+  color: var(--o-red-500);
+  clip-path: var(--cut-sm);
+  font: var(--fw-semibold) var(--size-body-sm) / 1.35 var(--font-body);
+}
+
+/* ----------------------------------------------------------------- the pages */
+.pages {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-7) var(--space-8) var(--space-8);
+  scrollbar-color: var(--o-cyan-700) transparent;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.pages::-webkit-scrollbar { width: 8px; }
+.pages::-webkit-scrollbar-track { background: transparent; }
+.pages::-webkit-scrollbar-thumb { background: var(--o-cyan-700); }
+
+.page { display: none; flex-direction: column; gap: var(--space-5); }
+.page.active { display: flex; animation: ds-rise var(--dur-2) var(--ease-out); }
+
+.section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line-hairline);
+}
+.section-head.compact { margin-top: var(--space-6); padding-bottom: var(--space-3); }
+
+h2 {
+  color: var(--text-primary);
+  font: var(--fw-bold) 20px / 1.1 var(--font-display);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+h2::before {
+  content: "//";
+  margin-right: var(--space-3);
+  color: var(--o-cyan-500);
+  font-family: var(--font-ui);
+  letter-spacing: -0.08em;
+}
+
+.hint {
+  max-width: 60ch;
+  color: var(--text-secondary);
+  font: var(--fw-medium) var(--size-body-sm) / 1.4 var(--font-body);
+}
+
+.field-label {
+  color: var(--text-secondary);
+  font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+}
+
+/* ------------------------------------------------------------------ controls */
+.btn {
+  min-height: var(--control-h);
+  padding: 0 var(--control-px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-primary);
+  clip-path: var(--cut-md);
+  font: var(--fw-semibold) var(--size-label-sm) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--t-hover), transform var(--dur-1) var(--ease-out);
+}
+.btn:hover:not(:disabled) { border-color: var(--o-cyan-500); background: rgba(34, 216, 226, 0.1); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primary { border-color: transparent; background: var(--o-cyan-500); color: var(--text-on-accent); }
+.btn.primary:hover:not(:disabled) { background: var(--o-cyan-400); }
+.btn.primary:focus-visible { box-shadow: inset 0 0 0 2px var(--o-ink-900); }
+.btn.danger:hover:not(:disabled) { border-color: var(--o-red-500); background: rgba(255, 59, 78, 0.1); color: var(--o-red-500); }
+.btn.danger.solid { border-color: transparent; background: var(--o-red-500); color: var(--text-primary); }
+.btn.danger.solid:hover:not(:disabled) { background: var(--o-red-700); color: var(--text-primary); }
+
+.row { display: flex; gap: var(--space-3); }
+
+/* A number field: the unit sits inside the well, right-aligned. */
+.field {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 var(--space-5) 0 0;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-inset);
+  clip-path: var(--cut-sm);
+  box-shadow: var(--shadow-inset-well);
+  transition: var(--t-hover);
+}
+.field:focus-within { border-color: var(--o-cyan-500); }
+.field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-3) 0 var(--space-5);
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: var(--fw-medium) var(--size-data) / 1 var(--font-mono);
+  letter-spacing: var(--ls-data);
+  font-variant-numeric: tabular-nums;
+}
+.field input:focus-visible { box-shadow: none; }
+.field input[readonly] { color: var(--text-secondary); }
+.field .unit {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font: var(--fw-medium) var(--size-data-sm) / 1 var(--font-mono);
+  letter-spacing: var(--ls-data);
+  text-transform: uppercase;
+}
+
+/* Two or three chamfered choices side by side: ON/OFF and the driving modes. */
+.seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: minmax(76px, auto); gap: var(--space-2); }
+.seg button {
+  min-height: 36px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-secondary);
+  clip-path: var(--cut-sm);
+  font: var(--fw-semibold) var(--size-label-sm) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  cursor: pointer;
+  transition: var(--t-hover);
+}
+.seg button:hover:not(:disabled) { border-color: rgba(34, 216, 226, 0.45); color: var(--o-cyan-500); }
+.seg button:disabled { cursor: default; }
+.seg button[aria-pressed="true"] { border-color: rgba(34, 216, 226, 0.45); background: rgba(34, 216, 226, 0.12); color: var(--o-cyan-500); }
+.seg button[data-value="true"][aria-pressed="true"] { border-color: rgba(43, 229, 139, 0.45); background: rgba(43, 229, 139, 0.13); color: var(--o-mint-500); }
+.seg button[data-value="false"][aria-pressed="true"] { border-color: rgba(255, 59, 78, 0.45); background: rgba(255, 59, 78, 0.12); color: var(--o-red-500); }
+.seg button.danger:hover:not(:disabled) { border-color: rgba(255, 59, 78, 0.45); color: var(--o-red-500); }
+.seg button.working { border-color: rgba(255, 176, 32, 0.45); color: var(--o-amber-500); }
+
+/* ------------------------------------------------------------------ overview */
+.master .set {
+  padding: var(--space-6);
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-panel);
+  clip-path: var(--cut-md);
+  align-items: center;
+}
+.master .set-label { font: var(--fw-bold) 20px / 1.1 var(--font-display); letter-spacing: 0.01em; }
+.master .set-control { width: auto; }
+.master .seg { grid-auto-columns: 88px; }
+.master .seg button { min-height: var(--control-h); }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-inset);
+  clip-path: var(--cut-sm);
+}
+.stat strong {
+  color: var(--text-primary);
+  font: var(--fw-black) 32px / 1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.stat span {
+  color: var(--text-secondary);
+  font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+}
+
+.reset { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-5);
+  border: 1px solid rgba(255, 59, 78, 0.45);
+  background: rgba(255, 59, 78, 0.06);
+  clip-path: var(--cut-md);
+}
+.confirm p { color: var(--text-secondary); font: var(--fw-medium) var(--size-body-sm) / 1.4 var(--font-body); }
+.confirm strong { display: block; margin-bottom: var(--space-2); color: var(--text-primary); font: var(--fw-bold) var(--size-body) / 1.2 var(--font-body); }
+
+/* ------------------------------------------------------------------ settings */
+.groups { display: flex; flex-direction: column; gap: var(--space-8); }
+.group { display: flex; flex-direction: column; }
+
+/* One row: what it is on the left, the value on the right, the allowed range
+   under the value. The help line is one sentence; nothing else is prose. */
+.set {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-7);
+  align-items: start;
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--line-hairline);
+}
+.set:last-child { border-bottom: 0; }
+
+.set-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text-primary);
+  font: var(--fw-semibold) var(--size-body-sm) / 1.2 var(--font-ui);
+  letter-spacing: var(--ls-label-tight);
+  text-transform: uppercase;
+}
+.set.edited .set-label::after { content: ""; width: 6px; height: 6px; background: var(--o-amber-500); }
+
+.set-help {
+  margin-top: 6px;
+  max-width: 52ch;
+  color: var(--text-secondary);
+  font: var(--fw-medium) var(--size-body-sm) / 1.35 var(--font-body);
+}
+.set-error {
+  margin-top: 6px;
+  color: var(--o-red-500);
+  font: var(--fw-semibold) var(--size-body-sm) / 1.35 var(--font-body);
+  user-select: text;
+}
+
+.set-control { width: 208px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.set-meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  color: var(--text-secondary);
+  font: var(--fw-medium) var(--size-data-sm) / 1.3 var(--font-mono);
+  letter-spacing: var(--ls-data);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-transform: uppercase;
+}
+.set-meta:empty { display: none; }
+.set.edited .set-meta { color: var(--o-amber-500); }
+.set.saving .set-meta { color: var(--o-cyan-500); }
+
+.set.edited .field { border-color: rgba(255, 176, 32, 0.6); }
+.set.invalid .field { border-color: var(--o-red-500); }
+.set.saving .field { border-color: rgba(34, 216, 226, 0.45); }
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--o-cyan-500);
+  font: var(--fw-semibold) var(--size-label-xs) / 1.3 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  cursor: pointer;
+}
+.link:hover { color: var(--o-cyan-400); text-decoration: underline; text-underline-offset: 3px; }
+
+.savebar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-8);
+  border-top: 1px solid rgba(255, 176, 32, 0.4);
+  background: rgba(255, 176, 32, 0.07);
+  animation: ds-rise var(--dur-2) var(--ease-out);
+}
+.savebar-count {
+  margin-right: auto;
+  color: var(--o-amber-500);
+  font: var(--fw-semibold) var(--size-label-sm) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+}
+.savebar .btn { min-width: 116px; }
+
+/* -------------------------------------------------------------------- nearby */
+.scan { display: flex; align-items: center; gap: var(--space-4); }
+.scan .field { width: 108px; }
+.scan .btn { min-height: 40px; }
+.scan-count {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font: var(--fw-medium) var(--size-data-sm) / 1.3 var(--font-mono);
+  letter-spacing: var(--ls-data);
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.modes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-panel);
+  clip-path: var(--cut-md);
+}
+.modes-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+
+.counts {
+  margin-top: calc(var(--space-3) * -1);
+  color: var(--text-muted);
+  font: var(--fw-medium) var(--size-data-sm) / 1.3 var(--font-mono);
+  letter-spacing: var(--ls-data);
+  text-transform: uppercase;
+}
+.counts .ok { color: var(--o-mint-500); }
+.counts .warn { color: var(--o-amber-500); }
+.counts .bad { color: var(--o-red-500); }
+
+table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+table.grid th {
+  padding: 0 var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--text-secondary);
+  font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  text-align: left;
+  white-space: nowrap;
+}
+table.grid th small { color: var(--text-muted); font-size: inherit; }
+table.grid th:nth-child(2) { width: 84px; }
+table.grid th:nth-child(3) { width: 124px; }
+table.grid th:nth-child(4) { width: 72px; }
+table.grid th:nth-child(5) { width: 92px; }
+table.grid th:first-child, table.grid td:first-child { padding-left: 0; }
+table.grid th:last-child, table.grid td:last-child { padding-right: 0; }
+table.grid .n { text-align: right; }
+table.grid td {
+  padding: var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--line-hairline);
+  color: var(--text-primary);
+  font: var(--fw-medium) var(--size-body-sm) / 1.25 var(--font-body);
+  vertical-align: top;
+}
+table.grid td.n { font: var(--fw-medium) var(--size-data) / 1.4 var(--font-mono); font-variant-numeric: tabular-nums; }
+table.grid td .rec { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-transform: capitalize; }
+table.grid td .sub {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font: var(--fw-medium) var(--size-data-sm) / 1.3 var(--font-mono);
+  letter-spacing: var(--ls-data);
+}
+table.grid td.empty { padding: var(--space-6) 0; color: var(--text-secondary); text-align: center; }
+
+.st {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font: var(--fw-semibold) var(--size-label-xs) / 1.3 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+.st::before { content: ""; width: 6px; height: 6px; background: currentColor; }
+.st.applied { color: var(--o-mint-500); }
+.st.pending { color: var(--o-amber-500); }
+.st.failed { color: var(--o-red-500); }
+
+/* -------------------------------------------------------------------- footer */
+.foot {
+  position: relative;
+  z-index: 1;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-8);
+  border-top: 1px solid var(--line-hairline);
+  background: rgba(5, 7, 11, 0.42);
+  color: var(--text-muted);
+  font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+}
+.foot i { width: 1px; height: 18px; margin: 0 var(--space-2); background: var(--line-strong); }
+.foot .ds-data { color: var(--o-cyan-500); font-size: var(--size-data-sm); }
+.keycap { padding: 5px 7px; border: 1px solid rgba(34, 216, 226, 0.45); background: rgba(34, 216, 226, 0.1); color: var(--o-cyan-500); clip-path: var(--cut-sm); }
+
+.live { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-muted); }
+.live::before { content: ""; width: 6px; height: 6px; background: currentColor; }
+.live.ok { color: var(--o-mint-500); }
+.live.busy { color: var(--o-amber-500); }
+.live.bad { color: var(--o-red-500); }
+
+/* --------------------------------------------------------------------- toast */
+.toast {
+  position: fixed;
+  left: min(730px, calc(56vw + 28px));
+  bottom: var(--space-8);
+  max-width: min(420px, 38vw);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line-hud);
+  background: rgba(11, 14, 20, 0.96);
+  color: var(--text-primary);
+  clip-path: var(--cut-md);
+  font: var(--fw-medium) var(--size-body-sm) / 1.35 var(--font-body);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-12px);
+  transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-3) var(--ease-out);
+}
+.toast::before { content: "SYSTEM"; display: block; margin-bottom: 5px; color: var(--o-cyan-500); font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui); letter-spacing: var(--ls-label); }
+.toast.show { opacity: 1; transform: none; }
+.toast.good::before { content: "DONE"; color: var(--o-mint-500); }
+.toast.error { border-color: rgba(255, 59, 78, 0.45); }
+.toast.error::before { content: "ALERT"; color: var(--o-red-500); }
+
+/* A refused command takes every mutation with it, so the controls say so
+   instead of looking live and doing nothing. */
+body.blocked .seg button,
+body.blocked #reset-ask,
+body.blocked #radius-go,
+body.blocked #apply-all { opacity: 0.4; pointer-events: none; }
+/* open77_traffic -- the /traffic admin panel.
+ *
+ * This page holds no authority. It renders the server's snapshots and turns
+ * operator intent into exactly one outbound verb:
+ *
+ *     Open77.emit("traffic:command", { tokens: ["traffic", "set", "key", "value"] })
+ *
+ * which the client resource rebuilds from a whitelist and submits as the
+ * restricted `traffic` command -- the same ACL-checked path the chat box uses.
+ * There is no second path, and adding one would be adding a hole.
+ *
+ * Behaviours that are deliberate rather than accidental:
+ *
+ *   * A number edit is a draft until APPLY, and the two-second refresh never
+ *     overwrites it. APPLY sends every draft at once (one `set` line each);
+ *     an on/off switch is sent the moment it is pressed.
+ *   * Nothing is shown that the server did not say. An empty table means the
+ *     server reported no cars, not that the page failed to ask, and a control
+ *     whose command the server refused says so instead of looking live.
+ */
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------- failure reporting */
+  // CEF console output does not reach the game log, and the WebUI bridge
+  // swallows an exception thrown inside an `Open77.on` handler, so a broken
+  // page on this surface is otherwise completely invisible. Those, plus
+  // anything thrown while rendering, go to the client resource's log through
+  // `traffic:diag`: a log line, never a command.
+  var diagnostics = 0;
+  var reporting = false;
+
+  function describe(value) {
+    try {
+      if (value instanceof Error) {
+        return (value.name || "Error") + ": " + value.message + (value.stack
+          ? " | " + String(value.stack).split(String.fromCharCode(10)).join(" <- ").slice(0, 300)
+          : "");
+      }
+      if (value === null || value === undefined) return String(value);
+      if (typeof value === "object") return Object.prototype.toString.call(value);
+      return String(value);
+    } catch (ignored) {
+      return "<undescribable>";
+    }
+  }
+
+  var bridge = window.Open77 || null;
+
+  function emit(event, payload) {
+    if (!bridge || typeof bridge.emit !== "function") {
+      setStatus("No UI bridge on this page: nothing can reach the game.", "bad");
+      return false;
+    }
+    try {
+      bridge.emit("traffic:" + event, payload || {});
+      return true;
+    } catch (error) {
+      setStatus("Could not send " + event + ": " + describe(error), "bad");
+      return false;
+    }
+  }
+
+  function report(text) {
+    // Re-entrancy matters: emitting reports its own failures through this path.
+    if (reporting || diagnostics >= 40) return;
+    reporting = true;
+    diagnostics += 1;
+    try {
+      if (bridge && typeof bridge.emit === "function") {
+        bridge.emit("traffic:diag", { message: String(text).slice(0, 500) });
+      }
+    } catch (ignored) { /* nowhere left to complain to */ }
+    reporting = false;
+  }
+
+  function on(event, handler) {
+    if (!bridge || typeof bridge.on !== "function") return;
+    bridge.on("traffic:" + event, function (payload) {
+      try {
+        handler(payload || {});
+      } catch (error) {
+        report(error && (error.stack || error.message) || String(error));
+      }
+    });
+  }
+
+  window.addEventListener("error", function (event) { report(event.message); });
+  window.addEventListener("unhandledrejection", function (event) {
+    report("unhandled rejection: " + describe(event.reason));
+  });
+
+  /* ------------------------------------------------------------------ helpers */
+  // Lua sends `{}` for an empty list as well as an empty map, and `{}` is truthy,
+  // so every list crossing the bridge goes through here or `.length` reads
+  // undefined and the render aborts.
+  function list(value) { return Array.isArray(value) ? value : []; }
+
+  function num(value) {
+    var n = typeof value === "number" ? value : Number(value);
+    return isFinite(n) ? n : null;
+  }
+
+  function truthy(value) { return value === true || value === 1 || value === "true"; }
+
+  function shown(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    return String(value);
+  }
+
+  function fmt(value) {
+    var n = num(value);
+    if (n === null) return "—";
+    if (n % 1 === 0 && Math.abs(n) < 1e15) return n.toLocaleString("en-US");
+    return String(Math.round(n * 100) / 100);
+  }
+
+  function whole(value) {
+    var n = num(value);
+    return n === null ? "—" : Math.round(n).toLocaleString("en-US");
+  }
+
+  function plural(count, one, many) { return fmt(count) + " " + (count === 1 ? one : many); }
+
+  // Durations are declared in ms or s, and 3600000 ms is not a number anybody
+  // reads at a glance, so ranges, defaults and drafts are also said in the
+  // largest unit that keeps them short. The field itself keeps the raw unit:
+  // that is what the server takes.
+  function duration(value, unit) {
+    var n = num(value);
+    if (n === null || (unit !== "ms" && unit !== "s")) return null;
+    var ms = unit === "s" ? n * 1000 : n;
+    if (ms < 1000) return fmt(ms) + " ms";
+    var s = ms / 1000;
+    if (s < 60) return fmt(Math.round(s * 10) / 10) + " s";
+    if (s < 3600) return fmt(Math.round(s / 6) / 10) + " min";
+    return fmt(Math.round(s / 360) / 10) + " h";
+  }
+
+  // Reasons and failures cross the bridge as short snake_case codes. Only the
+  // ones this panel can say something true about are expanded; everything else
+  // is shown exactly as the server wrote it.
+  var EXPLAINED = {
+    invalid_command: "the client refused that command: it was outside the panel's whitelist.",
+    not_sent: "the command was not sent — the client has no transport to the server.",
+    unsupported_pattern: "the car's record does not support that mode.",
+    component_unavailable: "the car has no crowd member to change.",
+    native_rejected: "the game refused the change for that car.",
+    no_driver: "the car has no driver to change.",
+    unknown_pattern: "that mode is not one this generator knows.",
+    panic_unsupported_task: "the car is not enrolled in traffic, so it cannot panic.",
+    traffic_panic_inactive: "the car's traffic task is not running."
+  };
+
+  function explain(message) {
+    if (!message) return "no reason given";
+    return EXPLAINED[message] || message;
+  }
+
+  // The same reasons again, in two or three words for a table cell.
+  var REASONS = {
+    unsupported_pattern: "mode unsupported",
+    component_unavailable: "no crowd member",
+    native_rejected: "game refused",
+    no_driver: "no driver",
+    unknown_pattern: "unknown mode",
+    // Panic outcomes: why a request did not (or no longer does) run.
+    join_unreleased: "lane not released",
+    command_unreleased: "command not released",
+    not_executing: "never started",
+    application_timeout: "not applied in time",
+    duration_elapsed: "finished",
+    pattern_changed: "mode changed",
+    unsupported_vehicle: "vehicle unsupported"
+  };
+
+  function reasonText(token) {
+    var key = String(token);
+    return REASONS[key] || key.replace(/_/g, " ").slice(0, 40);
+  }
+
+  var MODE_NAMES = { "default": "normal", stop: "stop", panic: "panic" };
+  function modeName(pattern) { return MODE_NAMES[pattern] || String(pattern || "—"); }
+
+  // A server message on the reset path stands alone: the server's own words
+  // already name the case, and a prefix from this page would say "reset" a
+  // second time. Only a bare transport token needs a subject.
+  function resetFailureText(message) {
+    var text = explain(message);
+    if (/^[a-z0-9_]+$/.test(text)) return "Reset failed — " + text.replace(/_/g, " ");
+    return text;
+  }
+
+  function el(tag, className, value) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (value !== undefined) node.textContent = value;
+    return node;
+  }
+
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  /* -------------------------------------------------------------------- state */
+  var POLL_HINT_MS = 10000;    // past this a pending command is described as unanswered
+  var PENDING_GIVE_UP_MS = 30000;
+  var APPLIED_HOLD_MS = 3000;  // how long an applied value outranks a stale snapshot
+  var LIVE_MS = 6000;          // a snapshot younger than this is "live" (the poll is 2 s)
+  var MASTER_KEY = "enabled";  // mounted on the overview rather than in its group
+
+  function byId(id) { return document.getElementById(id); }
+
+  var els = {
+    badge: byId("badge-state"),
+    close: byId("close"),
+    scrim: byId("scrim"),
+    tabs: document.querySelectorAll(".tab"),
+    settingsDot: byId("settings-dot"),
+    blocked: byId("blocked"),
+    master: byId("master"),
+    statActive: byId("stat-active"),
+    statNear: byId("stat-near"),
+    statNearLabel: byId("stat-near-label"),
+    statDrivers: byId("stat-drivers"),
+    statsNote: byId("stats-note"),
+    settingsNote: byId("settings-note"),
+    groups: byId("groups"),
+    radiusForm: byId("radius-form"),
+    radius: byId("radius"),
+    radiusGo: byId("radius-go"),
+    nearbyCount: byId("nearby-count"),
+    patterns: byId("patterns"),
+    patternCounts: byId("pattern-counts"),
+    table: document.querySelector("#nearby tbody"),
+    resetAsk: byId("reset-ask"),
+    resetConfirm: byId("reset-confirm"),
+    resetGo: byId("reset-go"),
+    resetCancel: byId("reset-cancel"),
+    savebar: byId("savebar"),
+    savebarCount: byId("savebar-count"),
+    discard: byId("discard"),
+    applyAll: byId("apply-all"),
+    live: byId("live"),
+    toast: byId("toast")
+  };
+
+  var open = false;
+  var rows = {};            // setting key -> row record, in the server's order
+  var order = [];           // setting keys, in the server's order
+  var groups = {};          // group label -> { box, body }
+  var radius = 100;
+  var radiusDirty = false;
+  var pending = null;       // { operation, at } for state, pattern and reset
+  var batch = null;         // { keys, saved, failed } for the `set` lines in flight
+  var blocked = null;       // transport refusal, e.g. permission_denied
+  var dataAt = 0;
+  var confirmReset = false;
+  var lastPattern = null;   // what the last mode request asked for
+  var toastTimer = 0;
+
+  /* ------------------------------------------------------------------ status  */
+  // Results and errors are a toast beside the drawer, as on /freeroam; the
+  // footer carries the one thing that is always true: how live the panel is.
+  function setStatus(value, tone) {
+    els.toast.textContent = String(value);
+    els.toast.className = "toast show" + (tone === "bad" ? " error" : tone === "good" ? " good" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { els.toast.classList.remove("show"); },
+      tone === "bad" ? 9000 : 5000);
+  }
+
+  function savingCount() {
+    var count = 0;
+    order.forEach(function (key) { if (rows[key].saving) count += 1; });
+    return count;
+  }
+
+  function renderLive() {
+    var text, tone = "";
+    if (blocked) {
+      text = "NO ACCESS"; tone = "bad";
+    } else if (pending || savingCount()) {
+      tone = "busy";
+      text = pending && Date.now() - pending.at > POLL_HINT_MS ? "NO ANSWER YET" : "WORKING…";
+    } else if (!dataAt) {
+      text = "WAITING FOR SERVER";
+    } else {
+      var age = Math.max(0, Math.round((Date.now() - dataAt) / 1000));
+      if (age * 1000 < LIVE_MS) { text = "LIVE"; tone = "ok"; }
+      else { text = "LAST UPDATE " + age + "S AGO"; tone = "busy"; }
+    }
+    els.live.className = "live" + (tone ? " " + tone : "");
+    els.live.textContent = text;
+  }
+
+  // A refused command takes every mutation with it, so the controls say so
+  // instead of looking live and doing nothing.
+  function setBlocked(message) {
+    if (blocked) return;
+    blocked = message;
+    document.body.classList.add("blocked");
+    els.blocked.textContent = message;
+    els.blocked.hidden = false;
+    order.forEach(function (key) { releaseSaving(rows[key]); });
+    batch = null;
+    cancelReset();
+    pending = null;
+    renderLive();
+  }
+
+  /* --------------------------------------------------------------------- tabs */
+  function selectTab(name, focus) {
+    for (var index = 0; index < els.tabs.length; index += 1) {
+      var tab = els.tabs[index];
+      var active = tab.dataset.tab === name;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+      tab.tabIndex = active ? 0 : -1;
+      byId("page-" + tab.dataset.tab).classList.toggle("active", active);
+      if (active && focus) tab.focus();
+    }
+  }
+
+  /* ---------------------------------------------------------------- settings  */
+  function controlKind(entry) {
+    var type = String(entry.type || "").toLowerCase();
+    if (type === "boolean" || type === "bool") return "boolean";
+    if (type === "number" || type === "integer" || type === "int"
+      || type === "float" || type === "decimal") return "number";
+    // An unknown type is rendered from the shape of its own default rather than
+    // guessed into a numeric box it may not be. The server is the only
+    // validator that counts.
+    if (typeof entry.default === "boolean") return "boolean";
+    if (typeof entry.default === "number") return "number";
+    return "text";
+  }
+
+  function label(row) { return String(row.entry.label || row.key); }
+
+  // The field already shows the unit, so the meta line under it does not.
+  function shortValue(entry, value) {
+    if (controlKind(entry) === "boolean") return truthy(value) ? "on" : "off";
+    return duration(value, entry.unit) || fmt(value);
+  }
+
+  function valueText(entry, value) {
+    var short = shortValue(entry, value);
+    return duration(value, entry.unit) || !entry.unit || controlKind(entry) === "boolean"
+      ? short : short + " " + entry.unit;
+  }
+
+  function rangeText(entry) {
+    var min = num(entry.min), max = num(entry.max);
+    var say = function (value) { return shortValue(entry, value); };
+    if (min === null && max === null) return null;
+    if (min === null) return "up to " + say(max);
+    if (max === null) return "from " + say(min);
+    return say(min) + "–" + say(max);
+  }
+
+  function serverText(row) {
+    return row.server === null || row.server === undefined ? "" : String(row.server);
+  }
+
+  function metaText(row) {
+    var entry = row.entry;
+    if (row.saving) return "saving…";
+    if (row.kind === "boolean") return "";
+    if (row.edited) {
+      var draft = row.kind === "number" ? duration(desiredText(row), entry.unit) : null;
+      return (draft ? "= " + draft + " · " : "") + "was " + shortValue(entry, row.server);
+    }
+    var range = rangeText(entry);
+    return (range ? range + " · " : "") + "default " + shortValue(entry, entry.default);
+  }
+
+  function ensureGroup(name) {
+    if (groups[name]) return groups[name];
+    var box = el("section", "group");
+    var head = el("div", "section-head");
+    head.appendChild(el("h2", null, name));
+    box.appendChild(head);
+    var body = el("div", "group-body");
+    box.appendChild(body);
+    els.groups.appendChild(box);
+    groups[name] = { box: box, body: body };
+    return groups[name];
+  }
+
+  function markClean(row) {
+    row.error = null;
+    row.root.classList.remove("invalid");
+    row.errorNode.hidden = true;
+  }
+
+  function buildSwitch(row) {
+    var wrap = el("div", "seg");
+    wrap.setAttribute("role", "group");
+    wrap.setAttribute("aria-labelledby", "set-label-" + row.key);
+    row.buttons = {};
+    [["true", "ON"], ["false", "OFF"]].forEach(function (pair) {
+      var button = el("button", null, pair[1]);
+      button.type = "button";
+      button.dataset.value = pair[0];
+      // A switch has nothing to draft: pressing it is the whole intent, so it
+      // is sent at once and shows "saving" until the server answers.
+      button.addEventListener("click", function () {
+        var wanted = pair[0] === "true";
+        if (blocked || row.saving || wanted === truthy(row.server)) return;
+        row.value = wanted;
+        row.touched = true;
+        markClean(row);
+        applyRows([row]);
+      });
+      row.buttons[pair[0]] = button;
+      wrap.appendChild(button);
+    });
+    return wrap;
+  }
+
+  function buildInput(row) {
+    var entry = row.entry;
+    var field = el("span", "field");
+    var input = el("input");
+    // A text box, not type=number: a number box turns "12a" into "" before
+    // this page can say what is wrong with it, and grows spinner arrows the
+    // rest of the house does not have.
+    input.type = "text";
+    input.inputMode = row.kind === "number" ? "decimal" : "text";
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.maxLength = 32;
+    input.id = "set-" + row.key;
+    input.setAttribute("aria-labelledby", "set-label-" + row.key);
+    input.setAttribute("aria-describedby",
+      (entry.description ? "set-help-" + row.key + " " : "") + "set-meta-" + row.key + " set-error-" + row.key);
+    input.addEventListener("input", function () {
+      row.touched = true;
+      markClean(row);
+      refreshDirty(row);
+    });
+    input.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      applyAll();
+    });
+    field.appendChild(input);
+    if (entry.unit) field.appendChild(el("span", "unit", String(entry.unit)));
+    row.input = input;
+    return field;
+  }
+
+  function ensureRow(entry) {
+    var key = String(entry.key);
+    var row = rows[key];
+    if (row) return row;
+    var kind = controlKind(entry);
+    row = {
+      key: key,
+      entry: entry,
+      kind: kind,
+      edited: false,
+      // `touched` is the operator's own mark, set by typing in the field or
+      // pressing a switch, and cleared by Revert, Discard or a successful
+      // apply. Only a touched row is a draft; every other row belongs to the
+      // server, which is what stops a remote write from arriving as somebody's
+      // unsaved edit.
+      touched: false,
+      saving: false,
+      savingAt: 0,
+      appliedAt: 0,
+      server: entry.value === null || entry.value === undefined ? entry.default : entry.value,
+      value: kind === "boolean" ? truthy(entry.value === undefined ? entry.default : entry.value) : null
+    };
+
+    var root = el("article", "set");
+    root.dataset.key = key;
+    row.root = root;
+
+    var text = el("div", "set-text");
+    var name = el("h3", "set-label", label(row));
+    name.id = "set-label-" + key;
+    text.appendChild(name);
+    if (entry.description) {
+      var help = el("p", "set-help", String(entry.description));
+      help.id = "set-help-" + key;
+      text.appendChild(help);
+    }
+    row.errorNode = el("p", "set-error");
+    row.errorNode.id = "set-error-" + key;
+    row.errorNode.setAttribute("role", "alert");
+    row.errorNode.hidden = true;
+    text.appendChild(row.errorNode);
+    root.appendChild(text);
+
+    var control = el("div", "set-control");
+    control.appendChild(kind === "boolean" ? buildSwitch(row) : buildInput(row));
+    row.meta = el("div", "set-meta");
+    row.meta.id = "set-meta-" + key;
+    control.appendChild(row.meta);
+    root.appendChild(control);
+
+    row.revert = el("button", "link", "REVERT");
+    row.revert.type = "button";
+    row.revert.setAttribute("aria-label", "Revert " + label(row));
+    row.revert.addEventListener("click", function () { revert(row); });
+
+    if (key === MASTER_KEY) els.master.appendChild(root);
+    else ensureGroup(String(entry.group || "Settings")).body.appendChild(root);
+    rows[key] = row;
+    order.push(key);
+    refreshDirty(row);
+    return row;
+  }
+
+  function desiredText(row) {
+    if (row.kind === "boolean") return row.value ? "true" : "false";
+    return String(row.input.value).trim();
+  }
+
+  function isDirty(row) {
+    var raw = desiredText(row);
+    if (row.kind === "boolean") return truthy(raw) !== truthy(row.server);
+    // An empty box is a draft for the operator who erased it -- the poll must not
+    // write the server's value back under them -- and is not a draft for a row
+    // nobody has touched, which is simply not filled in yet.
+    if (raw === "") return row.touched === true;
+    if (row.kind === "number") {
+      var server = num(row.server);
+      return !(server !== null && Number(raw) === server);
+    }
+    return raw !== serverText(row);
+  }
+
+  function isDraft(row) { return row.kind !== "boolean" && row.edited && !row.saving; }
+
+  function refreshDirty(row) {
+    row.edited = isDirty(row);
+    row.root.classList.toggle("edited", isDraft(row));
+    row.root.classList.toggle("saving", row.saving);
+    row.meta.textContent = metaText(row);
+    if (isDraft(row)) row.meta.appendChild(row.revert);
+    if (row.kind === "boolean") {
+      row.buttons.true.setAttribute("aria-pressed", row.value ? "true" : "false");
+      row.buttons.false.setAttribute("aria-pressed", row.value ? "false" : "true");
+      row.buttons.true.disabled = row.buttons.false.disabled = row.saving;
+    } else {
+      row.input.readOnly = row.saving;
+    }
+    renderSavebar();
+  }
+
+  function renderSavebar() {
+    var drafts = 0, saving = 0;
+    order.forEach(function (key) {
+      if (isDraft(rows[key])) drafts += 1;
+      if (rows[key].saving && rows[key].kind !== "boolean") saving += 1;
+    });
+    els.savebar.hidden = drafts === 0 && saving === 0;
+    els.savebarCount.textContent = drafts
+      ? plural(drafts, "UNSAVED CHANGE", "UNSAVED CHANGES")
+      : "SAVING " + plural(saving, "CHANGE", "CHANGES") + "…";
+    els.applyAll.disabled = drafts === 0 || !!blocked;
+    els.discard.disabled = drafts === 0;
+    els.settingsDot.hidden = drafts === 0;
+  }
+
+  function revert(row) {
+    if (row.kind === "boolean") row.value = truthy(row.server);
+    else row.input.value = serverText(row);
+    row.touched = false;
+    markClean(row);
+    refreshDirty(row);
+  }
+
+  function fieldError(row, message) {
+    row.error = message;
+    // Server reasons are written lower-case to be spliced into a sentence;
+    // standing alone under a field they read as one.
+    row.errorNode.textContent = message.charAt(0).toUpperCase() + message.slice(1);
+    row.errorNode.hidden = false;
+    row.root.classList.add("invalid");
+  }
+
+  function validateNumber(row) {
+    var entry = row.entry;
+    var raw = desiredText(row);
+    if (raw === "") return "Enter a value.";
+    if (!/^[-+]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][-+]?[0-9]+)?$/.test(raw)) return "Not a number.";
+    var value = Number(raw);
+    if (!isFinite(value)) return "Not a finite number.";
+    var min = num(entry.min), max = num(entry.max);
+    if (min !== null && value < min) return "The lowest allowed is " + fmt(min) + ".";
+    if (max !== null && value > max) return "The highest allowed is " + fmt(max) + ".";
+    // Admission is type, finiteness and the declared bounds -- nothing else.
+    // `step` is presentation only in the declaration and is never enforced by
+    // the host, so it must not be enforced here either.
+    var integer = String(entry.type || "").toLowerCase().indexOf("int") === 0;
+    if (integer && value % 1 !== 0) return "Must be a whole number.";
+    return null;
+  }
+
+  function validateText(row) {
+    var raw = desiredText(row);
+    if (raw === "") return "Enter a value.";
+    if (/\s/.test(raw)) return "No spaces: the command line takes one word.";
+    if (raw.length > 32) return "At most 32 characters.";
+    return null;
+  }
+
+  function validate(row) {
+    if (row.kind === "number") return validateNumber(row);
+    if (row.kind === "text") return validateText(row);
+    return null;
+  }
+
+  // Every row in `list` is validated before any is sent, so a batch with one
+  // bad value sends nothing and says which one. The lines go out in the
+  // server's own order.
+  function applyRows(list) {
+    if (blocked || !list.length) return;
+    var invalid = list.filter(function (row) {
+      var message = validate(row);
+      if (message) fieldError(row, message);
+      return !!message;
+    });
+    if (invalid.length) {
+      setStatus(invalid.length === 1
+        ? label(invalid[0]) + ": " + invalid[0].error
+        : invalid.length + " values need fixing before anything is saved.", "bad");
+      selectTab("settings");
+      if (invalid[0].input) invalid[0].input.focus();
+      return;
+    }
+    list.forEach(function (row) {
+      var value = desiredText(row);
+      if (!emit("command", { tokens: ["traffic", "set", row.key, value] })) return;
+      if (!batch) batch = { keys: {}, saved: [], failed: [] };
+      batch.keys[row.key] = true;
+      row.saving = true;
+      row.savingAt = Date.now();
+      markClean(row);
+      refreshDirty(row);
+    });
+    renderLive();
+  }
+
+  function applyAll() {
+    applyRows(order.map(function (key) { return rows[key]; }).filter(isDraft));
+  }
+
+  function releaseSaving(row) {
+    if (!row.saving) return;
+    row.saving = false;
+    refreshDirty(row);
+  }
+
+  // One toast per APPLY, not one per line: it is sent when the last line of the
+  // batch has answered.
+  function settle(row, ok, message) {
+    if (!batch || !batch.keys[row.key]) return false;
+    delete batch.keys[row.key];
+    if (ok) batch.saved.push(row);
+    else batch.failed.push({ row: row, message: message });
+    if (Object.keys(batch.keys).length) return true;
+    var done = batch;
+    batch = null;
+    var total = done.saved.length + done.failed.length;
+    if (!done.failed.length) {
+      setStatus(total === 1
+        ? label(done.saved[0]) + " is now " + valueText(done.saved[0].entry, done.saved[0].server) + "."
+        : "Saved " + total + " settings. New cars use them from the next spawn.", "good");
+    } else {
+      var first = done.failed[0];
+      setStatus((done.saved.length ? "Saved " + done.saved.length + " of " + total + ". " : "")
+        + label(first.row) + ": " + first.message, "bad");
+    }
+    return true;
+  }
+
+  function renderSettings(entries) {
+    var seen = {};
+    entries.forEach(function (entry) {
+      if (!entry || typeof entry.key !== "string") return;
+      if (entry.key !== MASTER_KEY) seen[String(entry.group || "Settings")] = true;
+      var row = ensureRow(entry);
+      row.entry = entry;
+      if (entry.value !== null && entry.value !== undefined) row.server = entry.value;
+
+      // `touched` is the operator's own mark, so a row they have not touched is
+      // never a draft: it takes the server's value on every snapshot, however
+      // its flags were left. A touched row keeps its text, marker and error
+      // until it is applied or reverted.
+      var drafting = row.touched && (row.edited || row.saving);
+      if (!drafting) {
+        row.touched = false;
+        if (row.saving) releaseSaving(row);
+        // `appliedAt` is the short grace period in which an already-answered
+        // apply outranks a snapshot that was still in flight when it was sent.
+        if (Date.now() - row.appliedAt > APPLIED_HOLD_MS) {
+          if (row.kind === "boolean") row.value = truthy(row.server);
+          else row.input.value = serverText(row);
+        }
+      }
+      refreshDirty(row);
+    });
+
+    Object.keys(groups).forEach(function (name) {
+      groups[name].box.hidden = !seen[name];
+    });
+
+    els.settingsNote.textContent = entries.length
+      ? "Server-wide and kept across restarts. New values apply from the next car that spawns."
+      : "The server declared no settings for this generator.";
+  }
+
+  /* ----------------------------------------------------------------- snapshot */
+  function renderStats(data) {
+    var active = num(data.active), owned = num(data.totalOwned);
+    var desired = num(data.desired), budget = num(data.admittedBudget);
+    var capacity = data.capacity || {}, phases = data.phases || {};
+    els.statActive.textContent = active === null ? "—" : fmt(active);
+    els.statDrivers.textContent = whole(data.drivers);
+    var leaving = owned !== null && active !== null ? owned - active : 0;
+    els.statsNote.textContent = "Max " + whole(desired) + " · current admission " + whole(budget)
+      + " · core jobs " + whole(capacity.globalUsed)
+      + " · " + whole(capacity.perSimulatorLimit) + " slots per simulator. "
+      + whole(phases.enrolling) + " enrolling · " + whole(phases.moving) + " moving · "
+      + whole(phases.healthy_waiting) + " healthy waiting · " + whole(phases.recovering)
+      + " recovering · " + whole(phases.failed_retiring) + " failed/retiring."
+      + (leaving > 0 ? " " + plural(leaving, "more is", "more are") + " being cleaned up." : "");
+
+    var resetting = truthy(data.resetting);
+    var generating = truthy(data.enabled);
+    var limited = generating && budget !== null && desired !== null && active !== null
+      && budget < desired && active >= budget;
+    els.badge.textContent = resetting ? "RESETTING" : limited ? "AT CAPACITY" : generating ? "GENERATING" : "PAUSED";
+    els.badge.className = "ds-badge " + (resetting || limited ? "is-busy" : generating ? "is-on" : "is-off");
+  }
+
+  function renderNearby(nearby) {
+    var cars = list(nearby.vehicles);
+    var total = num(nearby.total);
+    var limit = num(nearby.shown);
+
+    if (!radiusDirty && document.activeElement !== els.radius && num(nearby.radius) !== null) {
+      radius = nearby.radius;
+      els.radius.value = String(radius);
+    }
+
+    els.statNear.textContent = total === null ? "—" : fmt(total);
+    els.statNearLabel.textContent = "WITHIN " + fmt(radius) + " M";
+    els.nearbyCount.textContent = total === null
+      ? "No data"
+      : (total === 0 ? "No cars"
+        : limit !== null && limit < total ? "Nearest " + fmt(limit) + " of " + fmt(total)
+          : plural(total, "car", "cars"))
+        + " · bucket " + shown(nearby.bucket);
+
+    var applied = num(nearby.applied), waiting = num(nearby.pending), failed = num(nearby.failed);
+    if (!total || (applied === null && waiting === null && failed === null)) {
+      els.patternCounts.hidden = true;
+    } else {
+      els.patternCounts.hidden = false;
+      clear(els.patternCounts);
+      els.patternCounts.appendChild(document.createTextNode("Mode status · "));
+      els.patternCounts.appendChild(el("span", "ok", fmt(applied || 0) + " applied"));
+      els.patternCounts.appendChild(document.createTextNode(" · "));
+      els.patternCounts.appendChild(el("span", "warn", fmt(waiting || 0) + " pending"));
+      els.patternCounts.appendChild(document.createTextNode(" · "));
+      els.patternCounts.appendChild(el("span", failed ? "bad" : null, fmt(failed || 0) + " failed"));
+      // Panic is its own timed request, so its outcomes are counted apart from
+      // the mode's, and only while any car has one to show.
+      var panic = nearby.panic || {};
+      var panicking = num(panic.active) || 0, panicWaiting = num(panic.pending) || 0,
+        panicMissed = num(panic.notApplied) || 0;
+      if (panicking || panicWaiting || panicMissed) {
+        els.patternCounts.appendChild(document.createTextNode(" · Panic · "));
+        els.patternCounts.appendChild(el("span", "ok", fmt(panicking) + " active"));
+        els.patternCounts.appendChild(document.createTextNode(" · "));
+        els.patternCounts.appendChild(el("span", "warn", fmt(panicWaiting) + " pending"));
+        els.patternCounts.appendChild(document.createTextNode(" · "));
+        els.patternCounts.appendChild(el("span", panicMissed ? "bad" : null, fmt(panicMissed) + " not applied"));
+      }
+    }
+
+    clear(els.table);
+    if (!cars.length) {
+      var emptyRow = el("tr");
+      var cell = el("td", "empty", total === null
+        ? "No fleet data in the last snapshot."
+        : total === 0
+          ? "No traffic cars within " + fmt(radius) + " m."
+          : "The server counted cars but sent no rows for them.");
+      cell.colSpan = 5;
+      emptyRow.appendChild(cell);
+      els.table.appendChild(emptyRow);
+      return;
+    }
+    cars.forEach(function (car) {
+      // A live panic outranks the mode for as long as it runs: the Mode column
+      // says panic and the Status column its own pending/active state. Once it
+      // is over the row shows the mode again, and a panic that never applied
+      // says why underneath.
+      var panicStatus = String(car.panicStatus || "inactive");
+      var panicLive = panicStatus === "pending" || panicStatus === "active";
+      var native = panicLive ? panicStatus : String(car.patternStatus || "inactive");
+      var tr = el("tr");
+
+      var vehicle = el("td");
+      vehicle.appendChild(el("span", "rec",
+        shown(car.record).replace(/^Vehicle\.v_[^_]+_/, "").replace(/_/g, " ")));
+      var sub = "#" + shown(car.id);
+      if (car.owner !== null && car.owner !== undefined && car.owner !== "") sub += " · run by " + car.owner;
+      vehicle.appendChild(el("span", "sub", sub));
+      vehicle.appendChild(el("span", "sub", String(car.phase || "unknown").replace(/_/g, " ")
+        + (car.reason ? " · " + reasonText(car.reason) : "")));
+      tr.appendChild(vehicle);
+
+      tr.appendChild(el("td", null, panicLive ? "panic" : modeName(car.pattern)));
+
+      var status = el("td");
+      var tone = native === "applied" || native === "active" ? "applied"
+        : native === "pending" ? "pending" : native === "failed" ? "failed" : "";
+      status.appendChild(el("span", "st" + (tone ? " " + tone : ""), native));
+      if (!panicLive && car.patternReason) status.appendChild(el("span", "sub", reasonText(car.patternReason)));
+      if (panicStatus === "blocked" || panicStatus === "refused") {
+        status.appendChild(el("span", "sub", "panic " + panicStatus
+          + (car.panicReason ? " · " + reasonText(car.panicReason) : "")));
+      }
+      tr.appendChild(status);
+
+      tr.appendChild(el("td", "n", whole(car.distance)));
+      var speed = num(car.speed);
+      tr.appendChild(el("td", "n", speed === null ? "—" : whole(speed * 3.6)));
+      els.table.appendChild(tr);
+    });
+  }
+
+  // The setting declarations arrive once per opening (`traffic:settings`); a
+  // snapshot carries only the values in force, keyed by setting.
+  var declarations = [];
+
+  function settingEntries(values) {
+    values = values && typeof values === "object" ? values : {};
+    return declarations.map(function (declaration) {
+      var entry = {};
+      Object.keys(declaration || {}).forEach(function (field) { entry[field] = declaration[field]; });
+      entry.value = declaration ? values[declaration.key] : undefined;
+      return entry;
+    });
+  }
+
+  function receive(payload) {
+    dataAt = Date.now();
+    // The snapshot IS the answer to a state request. Pending MUTATIONS
+    // (pattern, panic, reset) are left alone: their answer is a result.
+    if (pending && pending.operation === "state") pending = null;
+    renderStats(payload.stats || {});
+    // Before the declarations have arrived there is nothing to render a value
+    // into; the next push will.
+    if (declarations.length) renderSettings(settingEntries(payload.settings));
+    renderNearby(payload.nearby || {});
+    renderLive();
+  }
+
+  /* ---------------------------------------------------------------- transport */
+  function command(tokens) {
+    if (blocked) {
+      setStatus(blocked, "bad");
+      return false;
+    }
+    if (!emit("command", { tokens: tokens })) return false;
+    pending = { operation: tokens[1], at: Date.now() };
+    renderLive();
+    return true;
+  }
+
+  function resetIdle() {
+    els.resetGo.disabled = false;
+    els.resetGo.textContent = "DELETE AND RESTART";
+  }
+
+  function clearWorking() {
+    var buttons = els.patterns.querySelectorAll("button[data-pattern]");
+    for (var index = 0; index < buttons.length; index += 1) buttons[index].classList.remove("working");
+  }
+
+  // Backing out of the confirmation is a UI act, not a cancellation: while a
+  // reset is still unanswered the button keeps reading "DELETING…" and stays
+  // disabled, so re-arming the destructive path cannot send a second reset into
+  // a first one that has not answered.
+  function cancelReset() {
+    confirmReset = false;
+    els.resetConfirm.hidden = true;
+    els.resetAsk.hidden = false;
+    if (!pending || pending.operation !== "reset") resetIdle();
+  }
+
+  function applyResult(result) {
+    var operation = String(result.operation || "");
+    var ok = result.ok === true;
+    var message = String(result.message || "");
+
+    if (/permission_denied/.test(message)) {
+      setBlocked("The server refused /traffic for this session (" + message
+        + "). Ask an operator to grant command.traffic.");
+      return;
+    }
+
+    if (operation === "set") {
+      // Per-row state belongs only to a row with a line in flight. A `set`
+      // result also arrives for lines this page never sent -- an external write
+      // from the same player -- and mutating an idle row from one of those
+      // would make the next snapshot look like a draft nobody made.
+      var row = result.key ? rows[result.key] : null;
+      if (row && row.saving) {
+        row.saving = false;
+        if (ok) {
+          // The next snapshot carries what the server stored, and this row is
+          // no longer the operator's draft, so it follows the server again.
+          row.appliedAt = Date.now();
+          row.touched = false;
+          row.server = row.kind === "boolean" ? row.value
+            : row.kind === "number" ? Number(desiredText(row)) : desiredText(row);
+        } else {
+          // A refused switch goes back to where the server has it; a refused
+          // number keeps its text so the operator can correct it.
+          if (row.kind === "boolean") { row.value = truthy(row.server); row.touched = false; }
+          fieldError(row, explain(message));
+        }
+        refreshDirty(row);
+        if (settle(row, ok, explain(message))) { renderLive(); return; }
+      }
+      setStatus(ok ? (message || "Setting saved.") : explain(message), ok ? "good" : "bad");
+      renderLive();
+      return;
+    }
+
+    if (pending && pending.operation === operation) pending = null;
+
+    if (operation === "pattern") {
+      clearWorking();
+      if (ok) {
+        var mode = lastPattern ? modeName(lastPattern.pattern).toUpperCase() : "Mode";
+        setStatus(mode + " sent to " + fmt(result.requested || 0) + " of "
+          + plural(num(result.matched) || 0, "car", "cars") + " in range."
+          + (num(result.failed) ? " " + fmt(result.failed) + " refused." : "")
+          + " The Status column shows when each car applies it.", num(result.failed) ? "bad" : "good");
+      } else {
+        setStatus("Mode change refused: " + explain(message), "bad");
+      }
+    } else if (operation === "panic") {
+      clearWorking();
+      if (ok) {
+        setStatus("PANIC requested for " + fmt(result.requested || 0) + " of "
+          + plural(num(result.matched) || 0, "car", "cars") + " in range."
+          + (num(result.failed) ? " " + fmt(result.failed) + " refused." : "")
+          + (num(result.durationSeconds) ? " Each panics for " + fmt(result.durationSeconds)
+            + " s once its game confirms it, then rejoins traffic." : "")
+          + " The Status column shows pending, then active.", num(result.failed) ? "bad" : "good");
+      } else {
+        setStatus("Panic refused: " + explain(message), "bad");
+      }
+    } else if (operation === "reset") {
+      // Three outcomes, and they are not interchangeable:
+      //   counts present  -> the reset ran (it may have failed on some cars);
+      //   no counts       -> it never ran, and nothing was deleted or changed;
+      //   ok              -> it ran clean.
+      var ran = num(result.removedVehicles) !== null || num(result.removedDrivers) !== null;
+      if (ok) {
+        cancelReset();
+        setStatus("Reset: removed " + plural(num(result.removedVehicles) || 0, "car", "cars") + " and "
+          + plural(num(result.removedDrivers) || 0, "driver", "drivers") + ". Traffic is spawning again.",
+        "good");
+      } else if (ran) {
+        cancelReset();
+        setStatus("The reset ran but did not finish cleanly — " + message, "bad");
+      } else {
+        resetIdle();
+        setStatus(resetFailureText(message), "bad");
+      }
+    } else if (!ok) {
+      // `state` and `open`: the snapshot is the answer, so only a refusal talks.
+      setStatus(explain(message), "bad");
+    }
+    renderLive();
+  }
+
+  /* ------------------------------------------------------------------ actions */
+  function radiusValue() {
+    var raw = String(els.radius.value).trim();
+    if (!/^[0-9]+$/.test(raw)) return null;
+    var value = Number(raw);
+    if (value < 1 || value > 500) return null;
+    return value;
+  }
+
+  function look() {
+    var value = radiusValue();
+    if (value === null) {
+      setStatus("The radius must be a whole number of metres from 1 to 500.", "bad");
+      els.radius.focus();
+      return;
+    }
+    radius = value;
+    radiusDirty = false;
+    command(["traffic", "state", String(value)]);
+  }
+
+  function applyPattern(pattern, button) {
+    var value = radiusValue();
+    if (value === null) {
+      setStatus("Set a radius from 1 to 500 m first: the mode is sent to the cars inside it.", "bad");
+      els.radius.focus();
+      return;
+    }
+    radius = value;
+    radiusDirty = false;
+    lastPattern = { pattern: pattern, radius: value };
+    // Panic is not a mode but a timed reaction with its own command; Normal
+    // and Stop are modes, and either one also ends a running panic.
+    var tokens = pattern === "panic" ? ["traffic", "panic", String(value)]
+      : ["traffic", "pattern", pattern, String(value)];
+    if (!command(tokens)) return;
+    clearWorking();
+    button.classList.add("working");
+  }
+
+  function close() {
+    open = false;
+    pending = null;
+    cancelReset();
+    document.body.classList.remove("open");
+    emit("close", {});
+    renderLive();
+  }
+
+  els.close.addEventListener("click", close);
+  els.scrim.addEventListener("click", close);
+
+  Array.prototype.forEach.call(els.tabs, function (tab, index) {
+    tab.addEventListener("click", function () { selectTab(tab.dataset.tab); });
+    tab.addEventListener("keydown", function (event) {
+      var step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      event.preventDefault();
+      var next = els.tabs[(index + step + els.tabs.length) % els.tabs.length];
+      selectTab(next.dataset.tab, true);
+    });
+  });
+
+  els.applyAll.addEventListener("click", applyAll);
+  els.discard.addEventListener("click", function () {
+    order.forEach(function (key) { if (isDraft(rows[key])) revert(rows[key]); });
+  });
+
+  els.radiusForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    if (blocked) return;
+    look();
+  });
+  els.radius.addEventListener("input", function () { radiusDirty = true; });
+  els.patterns.addEventListener("click", function (event) {
+    var button = event.target.closest("button[data-pattern]");
+    if (!button || blocked) return;
+    applyPattern(button.dataset.pattern, button);
+  });
+
+  els.resetAsk.addEventListener("click", function () {
+    if (blocked) return;
+    confirmReset = true;
+    // The confirmation line is static on purpose. A reset is all-owned --
+    // registry-enumerated, released wrecks and handed-over cars included -- so
+    // a count of what is still tracked would understate what the button does.
+    els.resetConfirm.hidden = false;
+    els.resetAsk.hidden = true;
+    els.resetGo.focus();
+  });
+  els.resetCancel.addEventListener("click", function () {
+    cancelReset();
+    els.resetAsk.focus();
+  });
+  els.resetGo.addEventListener("click", function () {
+    if (blocked) return;
+    if (!command(["traffic", "reset", "confirm"])) return;
+    els.resetGo.disabled = true;
+    els.resetGo.textContent = "DELETING…";
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape" || !open) return;
+    event.preventDefault();
+    // Escape backs out of the destructive confirmation first: a keystroke that
+    // closed the whole panel while a delete was armed would be a trap.
+    if (confirmReset) {
+      cancelReset();
+      els.resetAsk.focus();
+      return;
+    }
+    close();
+  });
+
+  on("settings", function (payload) { declarations = list(payload); });
+  on("open", function (payload) {
+    open = true;
+    document.body.classList.add("open");
+    receive(payload);
+  });
+  on("data", function (payload) { if (open) receive(payload); });
+  on("result", applyResult);
+  on("close", function () {
+    open = false;
+    pending = null;
+    cancelReset();
+    document.body.classList.remove("open");
+    renderLive();
+  });
+
+  setInterval(function () {
+    var now = Date.now();
+    if (pending && now - pending.at > PENDING_GIVE_UP_MS) {
+      // A command that never answered must not leave a control dead forever:
+      // after the give-up the operator may try again.
+      if (pending.operation === "reset") resetIdle();
+      if (pending.operation === "pattern" || pending.operation === "panic") clearWorking();
+      pending = null;
+    }
+    order.forEach(function (key) {
+      var row = rows[key];
+      if (!row.saving || now - row.savingAt <= PENDING_GIVE_UP_MS) return;
+      var reason = "No answer from the server; the value may not have changed.";
+      row.saving = false;
+      if (row.kind === "boolean") { row.value = truthy(row.server); row.touched = false; }
+      fieldError(row, reason);
+      refreshDirty(row);
+      settle(row, false, reason);
+    });
+    renderLive();
+  }, 1000);
+
+  // Ready is TWO calls, and they are not the same call. `Open77.ready()` is the
+  // BRIDGE handshake -- the WebHost raises its own `ui:ready` for the surface --
+  // while the client resource is waiting for this resource's own
+  // `traffic:ready`. Calling only the first is a page that loads perfectly and
+  // is never shown, because `page:on("traffic:ready")` never fires and every
+  // `page:send` before it is dropped in silence.
+  //
+  // It is emitted LAST, and that is load order rather than tidiness: Lua pushes
+  // the open snapshot the moment `traffic:ready` lands, so every handler above
+  // has to exist before that emit reaches the client.
+  try {
+    if (bridge && typeof bridge.ready === "function") bridge.ready();
+  } catch (error) {
+    report("bridge ready failed: " + describe(error));
+  }
+  emit("ready", {});
+
+  // A page with no bridge still renders -- that is how it is previewed outside
+  // the game -- it just cannot talk to anything, and says so rather than looking
+  // live.
+  if (!bridge) {
+    document.body.classList.add("open");
+    setStatus("No UI bridge: this page is not running inside the game.", "bad");
+  }
+})();
+/* OPEN//77 Design System — freeroam production theme.
+ *
+ * This is the offline/Cef-safe transcription of `Open77 Design System/tokens`.
+ * The reference kit loads substitute fonts and icons from public CDNs; a game
+ * resource cannot depend on either, so the same roles resolve to Windows faces
+ * and all graphics below are CSS geometry. No gameplay surface reaches the
+ * network to render its UI.
+ */
+
+:root {
+  /* Night / chrome ramps. */
+  --o-black: #05070b;
+  --o-ink-900: #0b0e14;
+  --o-ink-800: #0d131d;
+  --o-ink-700: #12161f;
+  --o-ink-600: #171c26;
+  --o-ink-500: #1e242f;
+  --o-ink-400: #2a313e;
+  --o-ink-300: #3a4250;
+  --o-ink-200: #5a6472;
+  --o-ink-100: #8a94a2;
+  --o-chrome-000: #ffffff;
+  --o-chrome-050: #f7f9fb;
+  --o-chrome-100: #f0f3f6;
+  --o-chrome-200: #dde3e9;
+  --o-chrome-300: #bcc5ce;
+
+  /* Brand and functional accents. */
+  --o-cyan-400: #4ee6ee;
+  --o-cyan-500: #22d8e2;
+  --o-cyan-600: #12b4be;
+  --o-cyan-700: #0b7f87;
+  --o-cyan-900: #0a2a2e;
+  --o-teal-muted: #3d7f85;
+  --o-red-500: #ff3b4e;
+  --o-red-700: #8e1420;
+  --o-amber-500: #ffb020;
+  --o-amber-700: #8a5a00;
+  --o-mint-500: #2be58b;
+  --o-mint-700: #0e6b41;
+  --o-magenta-500: #ff2e88;
+  --o-violet-500: #7c5cff;
+
+  /* Surfaces and text. */
+  --surface-app: var(--o-ink-900);
+  --surface-panel: var(--o-ink-800);
+  --surface-panel-raised: var(--o-ink-700);
+  --surface-panel-hover: var(--o-ink-600);
+  --surface-inset: var(--o-black);
+  --surface-scrim: rgba(5, 7, 11, 0.78);
+  --surface-hud: rgba(11, 14, 20, 0.82);
+  --text-primary: #e6eaec;
+  --text-secondary: #8a94a2;
+  --text-muted: #5a6472;
+  --text-accent: var(--o-cyan-500);
+  --text-on-accent: #05262a;
+  --text-on-chrome: #141d29;
+  --text-eyebrow: var(--o-teal-muted);
+  --line-hairline: rgba(138, 148, 162, 0.18);
+  --line-strong: rgba(138, 148, 162, 0.34);
+  --line-hud: rgba(230, 234, 236, 0.16);
+
+  /* Vitals. */
+  --vital-health: var(--o-red-500);
+  --vital-health-empty: rgba(255, 59, 78, 0.16);
+  --vital-armor: var(--o-cyan-500);
+  --vital-stamina: var(--o-amber-500);
+  --vital-ram: var(--o-violet-500);
+  --vital-xp: var(--o-mint-500);
+
+  /* Offline font substitutions for the four design roles. */
+  --font-display: "Saira", "Bahnschrift SemiCondensed", "Arial Narrow", "Segoe UI", sans-serif;
+  --font-ui: "Chakra Petch", "Bahnschrift", "Segoe UI", sans-serif;
+  --font-body: "Rajdhani", "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
+  --size-label-lg: 15px;
+  --size-label: 13px;
+  --size-label-sm: 11px;
+  --size-label-xs: 10px;
+  --size-body: 17px;
+  --size-body-sm: 15px;
+  --size-data: 13px;
+  --size-data-sm: 11px;
+  --ls-display: -0.01em;
+  --ls-label: 0.14em;
+  --ls-label-tight: 0.08em;
+  --ls-data: 0.04em;
+
+  /* Spacing / controls. */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 40px;
+  --space-10: 56px;
+  --control-h-sm: 32px;
+  --control-h: 44px;
+  --control-h-lg: 54px;
+  --control-px: 20px;
+  --panel-pad: 24px;
+  --panel-pad-sm: 16px;
+  --hud-gap: 10px;
+  --gutter-page: 32px;
+
+  /* Shape / depth / motion. */
+  --chamfer-sm: 6px;
+  --chamfer: 10px;
+  --chamfer-lg: 16px;
+  --chamfer-xl: 24px;
+  --cut-sm: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+  --cut-md: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  --cut-lg: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  --cut-tr: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  --cut-tl: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+  --shadow-panel: 0 18px 48px -18px rgba(0, 0, 0, 0.85);
+  --shadow-overlay: 0 40px 90px -20px rgba(0, 0, 0, 0.9);
+  --shadow-inset-well: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  --glow-accent: 0 0 0 1px rgba(34, 216, 226, 0.5), 0 0 18px -2px rgba(34, 216, 226, 0.45);
+  --glow-accent-soft: 0 0 24px -6px rgba(34, 216, 226, 0.35);
+  --glow-danger: 0 0 18px -2px rgba(255, 59, 78, 0.5);
+  --scanline: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+  --grid-fine: linear-gradient(rgba(138, 148, 162, 0.06) 1px, transparent 1px) 0 0 / 100% 8px,
+    linear-gradient(90deg, rgba(138, 148, 162, 0.06) 1px, transparent 1px) 0 0 / 8px 100%;
+  --blur-hud: blur(10px) saturate(1.1);
+  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --ease-snap: cubic-bezier(0.2, 0, 0, 1);
+  --dur-1: 90ms;
+  --dur-2: 140ms;
+  --dur-3: 220ms;
+  --dur-4: 340ms;
+  --t-hover: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input { font: inherit; }
+button:focus-visible, input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--o-ink-900), 0 0 0 4px var(--o-cyan-500);
+}
+
+.ds-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--text-eyebrow);
+  font: var(--fw-semibold) var(--size-label-sm) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+.ds-section-label::before {
+  content: "//";
+  color: var(--o-cyan-500);
+  font-weight: var(--fw-black);
+  letter-spacing: -0.08em;
+}
+
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid rgba(43, 229, 139, 0.4);
+  background: rgba(43, 229, 139, 0.13);
+  color: var(--o-mint-500);
+  clip-path: var(--cut-sm);
+  font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+.ds-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.ds-panel {
+  position: relative;
+  border: 1px solid var(--line-hairline);
+  background: var(--surface-panel);
+  clip-path: var(--cut-lg);
+}
+.ds-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--scanline);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.ds-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ls-data);
+}
+
+.ds-label {
+  color: var(--text-secondary);
+  font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+}
+
+@keyframes ds-slide-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ds-slide-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ds-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ds-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open//77 — Traffic</title>
+<!-- design-system.css is a byte-identical copy of freeroam's production
+     transcription (docs/ui-design-system.md, section 3): never edit this copy
+     on its own. It is linked first; app.css only composes its roles. -->
+<link rel="stylesheet" href="design-system.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="scrim" id="scrim" aria-hidden="true"></div>
+
+<aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="title">
+  <span class="drawer-edge" aria-hidden="true"></span>
+
+  <header class="head">
+    <div class="head-copy">
+      <h1 id="title">TRAF<span>FIC</span><i aria-hidden="true"></i></h1>
+      <div class="head-meta">
+        <span class="ds-badge is-idle" id="badge-state">WAITING</span>
+        <span class="ds-data">OPEN//77 · ADMIN</span>
+      </div>
+    </div>
+    <button class="close" id="close" type="button" aria-label="Close the traffic panel">
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9"/></svg>
+    </button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Traffic sections">
+    <button class="tab active" type="button" role="tab" id="tab-overview" data-tab="overview"
+            aria-controls="page-overview" aria-selected="true">OVERVIEW</button>
+    <button class="tab" type="button" role="tab" id="tab-settings" data-tab="settings"
+            aria-controls="page-settings" aria-selected="false" tabindex="-1">SETTINGS<span class="tab-dot" id="settings-dot" hidden></span></button>
+    <button class="tab" type="button" role="tab" id="tab-nearby" data-tab="nearby"
+            aria-controls="page-nearby" aria-selected="false" tabindex="-1">NEARBY</button>
+  </nav>
+
+  <p class="blocked" id="blocked" role="alert" hidden></p>
+
+  <div class="pages">
+
+    <section class="page active" id="page-overview" role="tabpanel" aria-labelledby="tab-overview">
+      <!-- The `enabled` setting is mounted here rather than in its group: it is
+           the one control an operator reaches for first. -->
+      <div class="master" id="master"></div>
+
+      <div class="stats">
+        <div class="stat"><strong id="stat-active">—</strong><span>FLEET CARS</span></div>
+        <div class="stat"><strong id="stat-near">—</strong><span id="stat-near-label">NEAR YOU</span></div>
+        <div class="stat"><strong id="stat-drivers">—</strong><span>NPC DRIVERS</span></div>
+      </div>
+      <p class="hint" id="stats-note">Counts only the cars this resource spawned.</p>
+
+      <div class="section-head compact">
+        <h2>RESET</h2>
+        <p class="hint">Deletes every car and driver this resource spawned, then starts spawning again. Settings are kept.</p>
+      </div>
+      <div class="reset">
+        <button class="btn danger" id="reset-ask" type="button">RESET TRAFFIC</button>
+        <div class="confirm" id="reset-confirm" role="group" aria-labelledby="reset-question" hidden>
+          <p id="reset-question"><strong>Delete all traffic cars and drivers?</strong>
+            Anyone sitting in one is put back on foot first.</p>
+          <div class="row">
+            <button class="btn danger solid" id="reset-go" type="button">DELETE AND RESTART</button>
+            <button class="btn" id="reset-cancel" type="button">CANCEL</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-settings" role="tabpanel" aria-labelledby="tab-settings">
+      <p class="hint" id="settings-note">Waiting for the server&rsquo;s settings&hellip;</p>
+      <div class="groups" id="groups"></div>
+    </section>
+
+    <section class="page" id="page-nearby" role="tabpanel" aria-labelledby="tab-nearby">
+      <form class="scan" id="radius-form" autocomplete="off" novalidate>
+        <label class="field-label" for="radius">RADIUS</label>
+        <span class="field">
+          <input id="radius" name="radius" type="text" inputmode="numeric" maxlength="3"
+                 spellcheck="false" value="100">
+          <span class="unit">m</span>
+        </span>
+        <button class="btn" id="radius-go" type="submit">SCAN</button>
+        <span class="scan-count" id="nearby-count" role="status">&mdash;</span>
+      </form>
+
+      <div class="modes" id="patterns" role="group" aria-labelledby="modes-label">
+        <div class="modes-copy">
+          <span class="field-label" id="modes-label">DRIVING MODE</span>
+          <p class="hint">Sent to every traffic car inside the radius, not only the listed ones. Panic is a timed reaction that starts once each car's game confirms it, then the cars rejoin traffic; Normal or Stop ends it early.</p>
+        </div>
+        <div class="seg">
+          <button type="button" data-pattern="default">NORMAL</button>
+          <button type="button" data-pattern="stop">STOP</button>
+          <button type="button" class="danger" data-pattern="panic">PANIC</button>
+        </div>
+      </div>
+      <p class="counts" id="pattern-counts" hidden></p>
+
+      <table class="grid" id="nearby">
+        <thead>
+          <tr>
+            <th scope="col">VEHICLE</th>
+            <th scope="col">MODE</th>
+            <th scope="col">STATUS</th>
+            <th scope="col" class="n">DIST <small>M</small></th>
+            <th scope="col" class="n">SPEED <small>KM/H</small></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+  </div>
+
+  <div class="savebar" id="savebar" hidden>
+    <span class="savebar-count" id="savebar-count" role="status"></span>
+    <button class="btn" id="discard" type="button">DISCARD</button>
+    <button class="btn primary" id="apply-all" type="button">APPLY</button>
+  </div>
+
+  <footer class="foot">
+    <span class="keycap">ESC</span><span>CLOSE</span>
+    <i></i>
+    <span class="ds-data">/traffic</span><span>REOPEN</span>
+    <span class="live" id="live">WAITING FOR SERVER</span>
+  </footer>
+</aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

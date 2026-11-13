@@ -1,0 +1,141 @@
+<rml>
+<head>
+    <title>OPEN//77 connection</title>
+    <link type="text/rcss" href="shell.rcss"/>
+</head>
+<body>
+<!-- Structure only: client/ui.lua writes every state. The October identity: Night City
+     behind glass, Druk headlines, Nippo labels, Satoshi copy, yellow / pink / blue. -->
+<div id="root" class="v-idle">
+    <div id="bg"><div id="art1" class="art on"></div><div id="art2" class="art"></div><div id="art3" class="art"></div><div id="art4" class="art"></div></div>
+    <div id="bg-shade"></div>
+    <div id="bg-floor"></div>
+    <div id="bg-sweep"></div>
+
+    <div id="ws">
+        <div id="mast">
+            <div id="wordmark">
+                <path class="wm-y" view-box="0 0 1219 149" d="M808.033 0l-57 147.875h22L829.533 0h-21.5zM171.042 41.375L146.558 106.5h22.039l24.911-65.125h-22.466zM843.533 0l-57 147.875h22L865.033 0h-21.5z M1218.1 28.625L1138.91 27l-5.13 5 84.32-3.375zm-71.82-4.812l4.25-4.625.75 2.375 57.63 3.75-62.63-1.5zm42.5 23.062h-68.87l-4.63 5.25 73.5-5.25zM969.658 124.75l-51.25-1.125-3.25 3.625 54.5-2.5zm-287.875 12.625h-385.75l2.25 4.25h381l2.5-4.25zm-395.25 0h-23.75l2.25 4.25h23.875l-2.375-4.25zM49.406 79.199H82.06l-4.923 12.142-68.589-1.969 36.471-2.575 4.387-7.599zM0 94.967h75.317l-1.969 4.266L0 94.967zm53.196-23.168l-1.477 2.626H79.45l1.146-2.626h-27.4z"/>
+                <path class="wm-w" view-box="0 0 1219 149" d="M612.533 16.625l-41 111.5h49.75L606.158 121l26.375-71.125 53.5 78.25h28.25l39.75-107 28.75-4.5h-60l-24.5 66.625-1.5 4.25-1.09-7.651-48.16-63.224h-35zm-201.5.25l21.5 16.75-10.5 28-38 26-82.62.049-14.38 39.451h-22.5l-54 21.25 44-35.75 35-95.75h121.5zM310.156 63.5h67.877l11.875-9.125 4.875-13h-76.625L310.156 63.5zM255.033 6.188l17 20.5-30 82.001-41 33h-114.5l-18.5-26.5 30-79.5 43-29.5h114zm-129.541 44.75l-24 64.501h88l24.5-18.501 24.582-64.5h-90.082l-23 18.5zm284.791 76.937l40.75-111h134.75l-16.669 20.487 24.669 4.4h-28.25-89.195l-6.464 17.737h71.909l-8.625 23.751h-71.939l-7.061 19.375h98.875l9.5 25.25h-152.25zm577.75-111.5h-112l-9.25 24.966h97.991l-25.241 9.784-75.5 84.375h43.625l98.752-106.75-18.377-12.375zm160.627 0h-143.38l14.69 11.438-11.69 13.529h85.74l-25.24 9.784-75.497 84.375h43.627l111.75-119.125z"/>
+            </div>
+            <div class="grow"></div>
+            <div id="edition"><span>CYBERPUNK 2077</span><span class="slash">/</span><span>MULTIPLAYER</span></div>
+            <div class="grow"></div>
+            <div id="buildbox">
+                <div id="alpha"><span class="sq"></span><span>OPEN//77 ALPHA</span></div>
+                <div id="build"></div>
+            </div>
+        </div>
+
+        <div id="layout">
+            <div id="hero">
+                <div id="tilehead">
+                    <div id="statelabel"><span class="mark">//</span><span id="statetext">WELCOME TO THE CITY</span></div>
+                    <div id="signal"><span class="sq"></span><span id="signaltext">STANDBY</span></div>
+                </div>
+                <div id="herocopy">
+                    <div id="h1a">Your city.</div>
+                    <div id="h1b">Your rules.</div>
+                    <div id="message">A new story starts with your next server.</div>
+                    <div id="nextstep">Choose your community in the launcher. We'll take you there.</div>
+                </div>
+                <div id="herobottom">
+                    <span id="elapsed">READY WHEN YOU ARE</span>
+                    <div id="cancel" class="tbtn act off"><span>Cancel connection</span></div>
+                </div>
+            </div>
+
+            <div id="aside">
+                <div id="dest" class="glass">
+                    <div id="dest-edge"></div>
+                    <div id="dest-notch"></div>
+                    <div class="eyebrow y"><span>YOUR DESTINATION</span></div>
+                    <div id="servername">Where to next?</div>
+                    <div id="endpoint">Choose a server in the launcher.</div>
+                    <div id="privacy" class="act"><div id="privacy-box"><div id="privacy-tick"></div></div><span>SHOW IP ADDRESSES</span></div>
+                    <div id="destfoot"><span id="master">LAUNCHER MANAGED</span><span class="grow"></span><span id="connstatus">OFFLINE</span></div>
+                </div>
+                <div id="controls">
+                    <div id="retry" class="sbtn act"><div class="sk"><span>RETRY CONNECTION</span></div><path class="arr" view-box="0 0 24 24" d="M7 17L17 7 M8 7h9v9"/></div>
+                    <div id="retryhint">No connection to retry yet.</div>
+                    <div id="launcher" class="sbtn primary act"><div class="sk"><span>BACK TO LAUNCHER</span></div><path class="arr" view-box="0 0 24 24" d="M7 17L17 7 M8 7h9v9"/></div>
+                    <div id="launcherfoot"><span>Opens the launcher &amp; closes the game</span><span class="grow"></span><div id="quit" class="tbtn act"><span>Quit game</span></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="rail">
+            <div id="rail-edge"></div>
+            <div id="railhead">
+                <div class="grow">
+                    <div class="eyebrow"><span class="mark">//</span><span>THE ROAD TO NIGHT CITY</span></div>
+                    <div id="phase">Standing by</div>
+                    <div id="progdetail">Choose a server in the launcher.</div>
+                </div>
+                <div id="readout">
+                    <div id="pctline"><span id="percent">00</span><span id="pctsign">%</span></div>
+                    <div id="checkpoint">-- / 05</div>
+                </div>
+            </div>
+            <div id="bar"><div id="g0" class="grp"><div id="s0_0" class="seg"><div id="f0_0" class="segfill"></div></div><div id="s0_1" class="seg"><div id="f0_1" class="segfill"></div></div><div id="s0_2" class="seg"><div id="f0_2" class="segfill"></div></div><div id="s0_3" class="seg"><div id="f0_3" class="segfill"></div></div><div id="s0_4" class="seg"><div id="f0_4" class="segfill"></div></div><div id="s0_5" class="seg"><div id="f0_5" class="segfill"></div></div><div id="s0_6" class="seg"><div id="f0_6" class="segfill"></div></div><div id="s0_7" class="seg"><div id="f0_7" class="segfill"></div></div><div id="s0_8" class="seg"><div id="f0_8" class="segfill"></div></div><div id="s0_9" class="seg"><div id="f0_9" class="segfill"></div></div></div><div id="g1" class="grp"><div id="s1_0" class="seg"><div id="f1_0" class="segfill"></div></div><div id="s1_1" class="seg"><div id="f1_1" class="segfill"></div></div><div id="s1_2" class="seg"><div id="f1_2" class="segfill"></div></div><div id="s1_3" class="seg"><div id="f1_3" class="segfill"></div></div><div id="s1_4" class="seg"><div id="f1_4" class="segfill"></div></div><div id="s1_5" class="seg"><div id="f1_5" class="segfill"></div></div><div id="s1_6" class="seg"><div id="f1_6" class="segfill"></div></div><div id="s1_7" class="seg"><div id="f1_7" class="segfill"></div></div><div id="s1_8" class="seg"><div id="f1_8" class="segfill"></div></div><div id="s1_9" class="seg"><div id="f1_9" class="segfill"></div></div></div><div id="g2" class="grp"><div id="s2_0" class="seg"><div id="f2_0" class="segfill"></div></div><div id="s2_1" class="seg"><div id="f2_1" class="segfill"></div></div><div id="s2_2" class="seg"><div id="f2_2" class="segfill"></div></div><div id="s2_3" class="seg"><div id="f2_3" class="segfill"></div></div><div id="s2_4" class="seg"><div id="f2_4" class="segfill"></div></div><div id="s2_5" class="seg"><div id="f2_5" class="segfill"></div></div><div id="s2_6" class="seg"><div id="f2_6" class="segfill"></div></div><div id="s2_7" class="seg"><div id="f2_7" class="segfill"></div></div><div id="s2_8" class="seg"><div id="f2_8" class="segfill"></div></div><div id="s2_9" class="seg"><div id="f2_9" class="segfill"></div></div></div><div id="g3" class="grp"><div id="s3_0" class="seg"><div id="f3_0" class="segfill"></div></div><div id="s3_1" class="seg"><div id="f3_1" class="segfill"></div></div><div id="s3_2" class="seg"><div id="f3_2" class="segfill"></div></div><div id="s3_3" class="seg"><div id="f3_3" class="segfill"></div></div><div id="s3_4" class="seg"><div id="f3_4" class="segfill"></div></div><div id="s3_5" class="seg"><div id="f3_5" class="segfill"></div></div><div id="s3_6" class="seg"><div id="f3_6" class="segfill"></div></div><div id="s3_7" class="seg"><div id="f3_7" class="segfill"></div></div><div id="s3_8" class="seg"><div id="f3_8" class="segfill"></div></div><div id="s3_9" class="seg"><div id="f3_9" class="segfill"></div></div></div><div id="g4" class="grp"><div id="s4_0" class="seg"><div id="f4_0" class="segfill"></div></div><div id="s4_1" class="seg"><div id="f4_1" class="segfill"></div></div><div id="s4_2" class="seg"><div id="f4_2" class="segfill"></div></div><div id="s4_3" class="seg"><div id="f4_3" class="segfill"></div></div><div id="s4_4" class="seg"><div id="f4_4" class="segfill"></div></div><div id="s4_5" class="seg"><div id="f4_5" class="segfill"></div></div><div id="s4_6" class="seg"><div id="f4_6" class="segfill"></div></div><div id="s4_7" class="seg"><div id="f4_7" class="segfill"></div></div><div id="s4_8" class="seg"><div id="f4_8" class="segfill"></div></div><div id="s4_9" class="seg"><div id="f4_9" class="segfill"></div></div></div></div>
+            <div id="labels"><div id="st0" class="lab"><span class="snum">01</span><div class="ltext"><div class="sname">Identity</div><div class="ssub">Verify your session</div></div></div><div id="st1" class="lab"><span class="snum">02</span><div class="ltext"><div class="sname">Connection</div><div class="ssub">Meet your server</div></div></div><div id="st2" class="lab"><span class="snum">03</span><div class="ltext"><div class="sname">Resources</div><div class="ssub">Download &amp; verify</div></div></div><div id="st3" class="lab"><span class="snum">04</span><div class="ltext"><div class="sname">Character</div><div class="ssub">Make yourself at home</div></div></div><div id="st4" class="lab"><span class="snum">05</span><div class="ltext"><div class="sname">Night City</div><div class="ssub">Enter your world</div></div></div></div>
+        </div>
+
+        <div id="diag" class="glass">
+            <div id="diag-edge"></div>
+            <div id="diaghead">
+                <div class="grow"><div class="eyebrow p"><span>LET'S GET YOU BACK IN</span></div><div id="failurecode"></div></div>
+                <div id="copy" class="qbtn act"><span id="copytext">Copy report</span></div>
+                <div id="toggledetails" class="tbtn act"><span id="toggletext">Show details</span></div>
+            </div>
+            <div id="details"></div>
+        </div>
+        <div id="actionerror"></div>
+
+        <div id="foot">
+            <div id="footcopy">
+                <div id="network"><span class="mark">//</span><span>ONE CITY. ENDLESS STORIES.</span></div>
+                <div id="footstatus">Cyberpunk 2077 / Community multiplayer</div>
+            </div>
+            <div class="grow"></div>
+            <div id="music">
+                <div id="musictoggle" class="act"><path id="musicicon" view-box="0 0 24 24" d="M7 5h3v14H7zM14 5h3v14h-3z"/></div>
+                <div id="musictrack">
+                    <div class="eyebrow"><span>NIGHT CITY RADIO</span><span id="eq"><span class="eqb"></span><span class="eqb b2"></span><span class="eqb b3"></span></span></div>
+                    <div id="musictitle">System Initialization</div>
+                    <div id="musicstatus">Loading preferences</div>
+                </div>
+                <div id="volbars"><div id="vb1" class="vb act"></div><div id="vb2" class="vb act"></div><div id="vb3" class="vb act"></div><div id="vb4" class="vb act"></div><div id="vb5" class="vb act"></div></div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- the intro: OPEN//77 arrives over one of the artworks, then the screen assembles -->
+    <div id="intro">
+        <div id="intro-art"></div>
+        <div id="intro-shade"></div>
+        <div id="intro-grid"></div>
+        <div id="intro-scan"></div>
+        <div id="intro-center">
+            <div id="intro-logo">
+                <div id="intro-ghost-p" class="ghost"><path class="gp iy" view-box="0 0 1219 149" d="M808.033 0l-57 147.875h22L829.533 0h-21.5zM171.042 41.375L146.558 106.5h22.039l24.911-65.125h-22.466zM843.533 0l-57 147.875h22L865.033 0h-21.5z M1218.1 28.625L1138.91 27l-5.13 5 84.32-3.375zm-71.82-4.812l4.25-4.625.75 2.375 57.63 3.75-62.63-1.5zm42.5 23.062h-68.87l-4.63 5.25 73.5-5.25zM969.658 124.75l-51.25-1.125-3.25 3.625 54.5-2.5zm-287.875 12.625h-385.75l2.25 4.25h381l2.5-4.25zm-395.25 0h-23.75l2.25 4.25h23.875l-2.375-4.25zM49.406 79.199H82.06l-4.923 12.142-68.589-1.969 36.471-2.575 4.387-7.599zM0 94.967h75.317l-1.969 4.266L0 94.967zm53.196-23.168l-1.477 2.626H79.45l1.146-2.626h-27.4z"/><path class="gp iw" view-box="0 0 1219 149" d="M612.533 16.625l-41 111.5h49.75L606.158 121l26.375-71.125 53.5 78.25h28.25l39.75-107 28.75-4.5h-60l-24.5 66.625-1.5 4.25-1.09-7.651-48.16-63.224h-35zm-201.5.25l21.5 16.75-10.5 28-38 26-82.62.049-14.38 39.451h-22.5l-54 21.25 44-35.75 35-95.75h121.5zM310.156 63.5h67.877l11.875-9.125 4.875-13h-76.625L310.156 63.5zM255.033 6.188l17 20.5-30 82.001-41 33h-114.5l-18.5-26.5 30-79.5 43-29.5h114zm-129.541 44.75l-24 64.501h88l24.5-18.501 24.582-64.5h-90.082l-23 18.5zm284.791 76.937l40.75-111h134.75l-16.669 20.487 24.669 4.4h-28.25-89.195l-6.464 17.737h71.909l-8.625 23.751h-71.939l-7.061 19.375h98.875l9.5 25.25h-152.25zm577.75-111.5h-112l-9.25 24.966h97.991l-25.241 9.784-75.5 84.375h43.625l98.752-106.75-18.377-12.375zm160.627 0h-143.38l14.69 11.438-11.69 13.529h85.74l-25.24 9.784-75.497 84.375h43.627l111.75-119.125z"/></div>
+                <div id="intro-ghost-b" class="ghost"><path class="gb iy" view-box="0 0 1219 149" d="M808.033 0l-57 147.875h22L829.533 0h-21.5zM171.042 41.375L146.558 106.5h22.039l24.911-65.125h-22.466zM843.533 0l-57 147.875h22L865.033 0h-21.5z M1218.1 28.625L1138.91 27l-5.13 5 84.32-3.375zm-71.82-4.812l4.25-4.625.75 2.375 57.63 3.75-62.63-1.5zm42.5 23.062h-68.87l-4.63 5.25 73.5-5.25zM969.658 124.75l-51.25-1.125-3.25 3.625 54.5-2.5zm-287.875 12.625h-385.75l2.25 4.25h381l2.5-4.25zm-395.25 0h-23.75l2.25 4.25h23.875l-2.375-4.25zM49.406 79.199H82.06l-4.923 12.142-68.589-1.969 36.471-2.575 4.387-7.599zM0 94.967h75.317l-1.969 4.266L0 94.967zm53.196-23.168l-1.477 2.626H79.45l1.146-2.626h-27.4z"/><path class="gb iw" view-box="0 0 1219 149" d="M612.533 16.625l-41 111.5h49.75L606.158 121l26.375-71.125 53.5 78.25h28.25l39.75-107 28.75-4.5h-60l-24.5 66.625-1.5 4.25-1.09-7.651-48.16-63.224h-35zm-201.5.25l21.5 16.75-10.5 28-38 26-82.62.049-14.38 39.451h-22.5l-54 21.25 44-35.75 35-95.75h121.5zM310.156 63.5h67.877l11.875-9.125 4.875-13h-76.625L310.156 63.5zM255.033 6.188l17 20.5-30 82.001-41 33h-114.5l-18.5-26.5 30-79.5 43-29.5h114zm-129.541 44.75l-24 64.501h88l24.5-18.501 24.582-64.5h-90.082l-23 18.5zm284.791 76.937l40.75-111h134.75l-16.669 20.487 24.669 4.4h-28.25-89.195l-6.464 17.737h71.909l-8.625 23.751h-71.939l-7.061 19.375h98.875l9.5 25.25h-152.25zm577.75-111.5h-112l-9.25 24.966h97.991l-25.241 9.784-75.5 84.375h43.625l98.752-106.75-18.377-12.375zm160.627 0h-143.38l14.69 11.438-11.69 13.529h85.74l-25.24 9.784-75.497 84.375h43.627l111.75-119.125z"/></div>
+                <div id="intro-mark"><path class="lm iy" view-box="0 0 1219 149" d="M808.033 0l-57 147.875h22L829.533 0h-21.5zM171.042 41.375L146.558 106.5h22.039l24.911-65.125h-22.466zM843.533 0l-57 147.875h22L865.033 0h-21.5z M1218.1 28.625L1138.91 27l-5.13 5 84.32-3.375zm-71.82-4.812l4.25-4.625.75 2.375 57.63 3.75-62.63-1.5zm42.5 23.062h-68.87l-4.63 5.25 73.5-5.25zM969.658 124.75l-51.25-1.125-3.25 3.625 54.5-2.5zm-287.875 12.625h-385.75l2.25 4.25h381l2.5-4.25zm-395.25 0h-23.75l2.25 4.25h23.875l-2.375-4.25zM49.406 79.199H82.06l-4.923 12.142-68.589-1.969 36.471-2.575 4.387-7.599zM0 94.967h75.317l-1.969 4.266L0 94.967zm53.196-23.168l-1.477 2.626H79.45l1.146-2.626h-27.4z"/><path class="lm iw" view-box="0 0 1219 149" d="M612.533 16.625l-41 111.5h49.75L606.158 121l26.375-71.125 53.5 78.25h28.25l39.75-107 28.75-4.5h-60l-24.5 66.625-1.5 4.25-1.09-7.651-48.16-63.224h-35zm-201.5.25l21.5 16.75-10.5 28-38 26-82.62.049-14.38 39.451h-22.5l-54 21.25 44-35.75 35-95.75h121.5zM310.156 63.5h67.877l11.875-9.125 4.875-13h-76.625L310.156 63.5zM255.033 6.188l17 20.5-30 82.001-41 33h-114.5l-18.5-26.5 30-79.5 43-29.5h114zm-129.541 44.75l-24 64.501h88l24.5-18.501 24.582-64.5h-90.082l-23 18.5zm284.791 76.937l40.75-111h134.75l-16.669 20.487 24.669 4.4h-28.25-89.195l-6.464 17.737h71.909l-8.625 23.751h-71.939l-7.061 19.375h98.875l9.5 25.25h-152.25zm577.75-111.5h-112l-9.25 24.966h97.991l-25.241 9.784-75.5 84.375h43.625l98.752-106.75-18.377-12.375zm160.627 0h-143.38l14.69 11.438-11.69 13.529h85.74l-25.24 9.784-75.497 84.375h43.627l111.75-119.125z"/></div>
+            </div>
+            <div id="intro-bar"><div id="intro-fill"></div></div>
+        </div>
+        <div id="intro-corner-tl" class="corner"></div>
+        <div id="intro-corner-br" class="corner"></div>
+        <div id="intro-flash"></div>
+    </div>
+
+    <div id="notice" class="glass">
+        <div id="notice-edge"></div>
+        <div class="eyebrow p"><span>SESSION INTERRUPTED</span></div>
+        <div id="noticemessage"></div>
+        <div id="noticehint">Press <span class="key">Esc</span> to leave character creation. Your connection details will remain available.</div>
+    </div>
+</div>
+</body>
+</rml>

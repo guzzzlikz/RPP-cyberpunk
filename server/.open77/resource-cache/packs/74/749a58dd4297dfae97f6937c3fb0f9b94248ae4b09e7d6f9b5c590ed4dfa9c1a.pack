@@ -1,0 +1,303 @@
+-- =============================================================================
+-- open77_prediction -- client
+-- =============================================================================
+--
+-- Two jobs, both cheap:
+--
+--   1. Hand the server's policy (global state bag `open77.prediction`) to the
+--      native prediction families through `Open77.prediction.setPolicy`: door,
+--      blast, car-against-car and car-against-player are started natively and
+--      gated there, at the moment a prediction would start. Melee, Ground Slam
+--      and quickhack predictions are started by open77_cyberware, which reads
+--      the same bag key itself -- so its switches also work on a client built
+--      before the native gate existed.
+--   2. Once per telemetry interval, send the server the NON-ZERO changes of
+--      every family's counters (predicted, adopted, refuted, skipped). One
+--      small net event a minute per client; nothing when nothing happened.
+--
+-- The host releases this resource's native policy when it stops, so a later
+-- server without it starts from the compiled defaults.
+-- =============================================================================
+
+local P = PredictionPolicy
+local native = type(Open77.prediction) == "table" and type(Open77.prediction.setPolicy) == "function"
+    and type(Open77.prediction.stats) == "function"
+local current = P.normalize(nil)
+
+local function read()
+    local state = Open77.state
+    local bag = type(state) == "table" and state.global or nil
+    if type(bag) ~= "table" then return nil end
+    local ok, value = pcall(bag.get, bag, P.KEY)
+    return ok and value or nil
+end
+
+local refusal = nil
+local function apply()
+    current = P.normalize(read())
+    if not native then return end
+    local ok, reason = Open77.prediction.setPolicy({ families = current.families, maxPingMs = current.maxPingMs })
+    if not ok and reason ~= refusal then
+        print(("[open77_prediction] native policy refused: %s"):format(tostring(reason)))
+    end
+    refusal = not ok and reason or nil
+end
+
+-- Natives refuse a call from a resource that is still preparing (top-level
+-- code), so the first apply waits for this resource's own start.
+AddEventHandler("onClientResourceStart", function(name)
+    if name == GetCurrentResourceName() then apply() end
+end)
+if type(Open77.state) == "table" and type(Open77.state.onChange) == "function" and Open77.state.global then
+    Open77.state.onChange(Open77.state.global, P.KEY, function() apply() end)
+end
+
+-- ---------------------------------------------------------------------------
+-- Telemetry
+-- ---------------------------------------------------------------------------
+
+local function slot(out, name)
+    local counts = out[name]
+    if not counts then
+        counts = { predicted = 0, adopted = 0, refuted = 0, skippedDisabled = 0, skippedLatency = 0 }
+        out[name] = counts
+    end
+    return counts
+end
+
+local function number(value)
+    value = tonumber(value)
+    return value and value == value and value >= 0 and value < math.huge and value or 0
+end
+
+-- open77_cyberware's own counters: the three action families' skips (its
+-- policy gate), and on a client without the native gate their outcomes too.
+local function cyberwareStats()
+    local exportsApi = Open77.exports
+    if type(exportsApi) ~= "table" or type(exportsApi.callSync) ~= "function" then return nil end
+    local ok, value = pcall(exportsApi.callSync, "open77_cyberware", "motionPredictionStats")
+    return ok and type(value) == "table" and value or nil
+end
+
+-- Cumulative counters of this game process, by family.
+local function collect()
+    local out, ping = {}, nil
+    if native then
+        local stats = Open77.prediction.stats()
+        if type(stats) == "table" then
+            ping = tonumber(stats.ping)
+            for name, counts in pairs(type(stats.families) == "table" and stats.families or {}) do
+                if P.KNOWN[name] and type(counts) == "table" then
+                    local s = slot(out, name)
+                    for _, field in ipairs(P.FIELDS) do s[field] = s[field] + number(counts[field]) end
+                end
+            end
+        end
+    end
+    local cyberware = cyberwareStats()
+    if cyberware then
+        if not native and type(cyberware.native) == "string" and type(json) == "table" then
+            local ok, decoded = pcall(json.decode, cyberware.native)
+            if ok and type(decoded) == "table" then
+                for _, name in ipairs({ "melee", "slam", "hack" }) do
+                    local counts = decoded[name]
+                    if type(counts) == "table" then
+                        local s = slot(out, name)
+                        s.predicted = s.predicted + number(counts.predicted)
+                        s.adopted = s.adopted + number(counts.adopted)
+                        s.refuted = s.refuted + number(counts.refuted)
+                    end
+                end
+            end
+        end
+        if type(cyberware.skipped) == "table" then
+            for name, counts in pairs(cyberware.skipped) do
+                if P.KNOWN[name] and type(counts) == "table" then
+                    local s = slot(out, name)
+                    s.skippedDisabled = s.skippedDisabled + number(counts.disabled)
+                    s.skippedLatency = s.skippedLatency + number(counts.latency)
+                end
+            end
+        end
+    end
+    if ping == nil and type(Open77.network) == "table" and type(Open77.network.status) == "function" then
+        local status = Open77.network.status()
+        ping = type(status) == "table" and tonumber(status.ping) or nil
+    end
+    return out, ping
+end
+
+-- This client's cumulative counters by family, and its round trip: what the
+-- next report is computed from (for a debug panel or a test).
+exports("counters", function()
+    local counters, ping = collect()
+    return { families = counters, ping = ping, policy = current }
+end)
+
+CreateThread(function()
+    -- Counters are process-wide: whatever happened before this session is not
+    -- this server's to hear about.
+    local baseline = collect()
+    while true do
+        local interval = current.telemetrySeconds
+        Wait((interval > 0 and interval or P.DEFAULT_TELEMETRY_SECONDS) * 1000)
+        local counters, ping = collect()
+        local delta, any = P.delta(counters, baseline)
+        baseline = counters
+        if any and current.telemetrySeconds > 0 then
+            ping = ping and ping > 0 and math.tointeger(math.floor(ping)) or nil
+            TriggerServerEvent("open77_prediction:report", { v = P.VERSION, ping = ping, families = delta })
+        end
+    end
+end)
+-- open77_prediction -- the operator's switches and telemetry for every
+-- presentation-only prediction family (review items I6 and I9).
+--
+-- A prediction shows the actor a reaction before the server's verdict (a
+-- struck car moving, a hit player falling, a door opening) and is then adopted
+-- by the real reaction or refuted. This resource is how an operator controls
+-- them without a client release:
+--
+--   * seven switches -- melee, slam, hack, door, blast, carContact,
+--     playerContact -- and a round-trip ceiling above which a client starts no
+--     new prediction (one in flight finishes normally). They are server
+--     tunables: Warden renders them as a form, `tunable.set open77_prediction
+--     <key> <value>` sets one from the console, and both persist.
+--   * a gamemode can only RESTRICT them further, for as long as it runs:
+--     `exports.open77_prediction:restrict({ families = { blast = false },
+--     maxPingMs = 150 })`, withdrawn by `clearRestriction()` or its own stop.
+--   * the effective policy is published in the GLOBAL STATE BAG under
+--     `open77.prediction`; every client applies it at once, late joiners
+--     included, with no event of its own.
+--   * each client reports its non-zero counters (predicted, adopted, refuted,
+--     skipped) once a minute; the server logs one aggregated line per window
+--     and names clients whose refutation rate is high. `prediction` prints it.
+--
+-- Missing entirely, clients keep their compiled defaults: every family on,
+-- 250 ms ceiling. Nothing depends on this resource, so a server may omit it
+-- from `resources.load`; it then has no switch and no telemetry.
+resource "open77_prediction"
+version "1.0.0"
+open77_version ">=0.0.1"
+auto_start true
+reload_policy "local"
+
+shared_script "shared/policy.lua"
+server_script "server/main.lua"
+client_script "client/main.lua"
+
+permissions {
+    -- server: publish the policy key of the global bag.
+    "state.write",
+    -- both: the telemetry report (client -> server) and `Open77.network.status`
+    -- (its `ping`), which is gated by `network.client`.
+    "network.events",
+    "network.client",
+    -- client: `Open77.prediction.setPolicy`, the native families' switches.
+    "prediction.policy",
+}
+-- The shape of the prediction policy, shared by the server that publishes it
+-- and the clients that apply it (review items I6/I9). Pure data and pure
+-- functions: no engine call, so both sides agree on every default and the
+-- rules are tested without a game (scripting/tests/prediction_policy_resource_test.lua).
+PredictionPolicy = {}
+local P = PredictionPolicy
+
+-- Key of the global state bag. `[A-Za-z][A-Za-z0-9_.-]*`, 64 bytes at most.
+P.KEY = "open77.prediction"
+P.VERSION = 1
+-- Fixed spellings: the tunable keys, the bag keys and the telemetry keys.
+-- They match network/PredictionPolicy.hpp in the client.
+P.FAMILIES = { "melee", "slam", "hack", "door", "blast", "carContact", "playerContact" }
+P.KNOWN = {}
+for _, name in ipairs(P.FAMILIES) do P.KNOWN[name] = true end
+-- The client's compiled default ceiling; 0 removes the ceiling.
+P.DEFAULT_MAX_PING_MS = 250
+P.MAX_PING_CEILING_MS = 5000
+-- Telemetry cadence. 0 turns reports off; anything else is held to [15, 3600].
+P.DEFAULT_TELEMETRY_SECONDS = 60
+P.MIN_TELEMETRY_SECONDS = 15
+P.MAX_TELEMETRY_SECONDS = 3600
+-- Report fields, in a fixed order for logs.
+P.FIELDS = { "predicted", "adopted", "refuted", "skippedDisabled", "skippedLatency" }
+-- One window's count per field and family is capped: no honest client comes
+-- near it (a prediction is a hit, a crash or a door), and it bounds what one
+-- forged report can add to an aggregate.
+P.MAX_COUNT = 100000
+
+local function integral(value)
+    return type(value) == "number" and value == value and value % 1 == 0
+        and value > -math.huge and value < math.huge
+end
+
+--- A fresh, complete policy from a published value; anything missing or
+--- malformed falls back to the default for that field alone.
+function P.normalize(value)
+    local out = { families = {}, maxPingMs = P.DEFAULT_MAX_PING_MS, telemetrySeconds = P.DEFAULT_TELEMETRY_SECONDS }
+    for _, name in ipairs(P.FAMILIES) do out.families[name] = true end
+    if type(value) ~= "table" then return out end
+    if type(value.families) == "table" then
+        for _, name in ipairs(P.FAMILIES) do
+            if value.families[name] == false then out.families[name] = false end
+        end
+    end
+    local ping = value.maxPingMs
+    if integral(ping) and ping >= 0 and ping <= P.MAX_PING_CEILING_MS then out.maxPingMs = math.tointeger(ping) end
+    local telemetry = value.telemetrySeconds
+    if integral(telemetry) and telemetry >= 0 and telemetry <= P.MAX_TELEMETRY_SECONDS then
+        out.telemetrySeconds = telemetry == 0 and 0 or math.max(P.MIN_TELEMETRY_SECONDS, math.tointeger(telemetry))
+    end
+    return out
+end
+
+--- The tighter of two ceilings, where 0 means "none".
+function P.tighterCeiling(a, b)
+    if a == 0 then return b end
+    if b == 0 then return a end
+    return math.min(a, b)
+end
+
+--- A client report, validated field by field: `{ families = {...}, ping = n|nil }`
+--- or nil, reason. Unknown families and fields are ignored; a non-integral,
+--- negative or oversized count refuses the whole report.
+function P.validateReport(report)
+    if type(report) ~= "table" or type(report.families) ~= "table" then return nil, "malformed" end
+    local families, any = {}, false
+    for name, counts in pairs(report.families) do
+        if P.KNOWN[name] then
+            if type(counts) ~= "table" then return nil, "malformed" end
+            local clean = {}
+            for _, field in ipairs(P.FIELDS) do
+                local value = counts[field]
+                if value ~= nil then
+                    if not integral(value) or value < 0 or value > P.MAX_COUNT then return nil, "out_of_range" end
+                    if value > 0 then clean[field] = math.tointeger(value); any = true end
+                end
+            end
+            if next(clean) then families[name] = clean end
+        end
+    end
+    if not any then return nil, "empty" end
+    local ping = report.ping
+    if not (integral(ping) and ping >= 0 and ping <= 60000) then ping = nil end
+    return { families = families, ping = ping and math.tointeger(ping) or nil }
+end
+
+--- Counter delta since the previous reading. A counter that went backwards
+--- was reset (a resource restart): its current value is the delta.
+function P.delta(current, previous)
+    local out, any = {}, false
+    for _, name in ipairs(P.FAMILIES) do
+        local now, before = current[name], previous and previous[name]
+        if now then
+            local counts = {}
+            for _, field in ipairs(P.FIELDS) do
+                local a, b = now[field] or 0, before and before[field] or 0
+                local d = a >= b and a - b or a
+                if d > 0 then counts[field] = math.min(d, P.MAX_COUNT); any = true end
+            end
+            if next(counts) then out[name] = counts end
+        end
+    end
+    return out, any
+end

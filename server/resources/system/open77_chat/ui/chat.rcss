@@ -1,0 +1,137 @@
+/* Open//77 chat on NativeUI. Closed: the last messages float top-left, each on its own
+   dark, opaque strip, and fade after a while. Open: a solid panel (header, log, composer,
+   command index); the left of the screen softens behind it. 1 dp = 1 px at 1080p. */
+
+body { pointer-events: none; }
+#root { position: absolute; left: 0; top: 0; right: 0; bottom: 0; perspective: 1500dp; perspective-origin: 50% 20%; font-family: Rajdhani; font-weight: bold; color: #e6eaec; }
+.grow { flex: 1 1 auto; }
+
+/* ---- the focus veil: blur and dim the left of the screen while typing ----------------- */
+#focus-veil
+{
+    position: absolute; left: 0; top: 0; bottom: 0; width: 52%;
+    backdrop-filter: blur(7dp) saturate(0.85);
+    decorator: linear-gradient(90deg, #05070bb8 0%, #05070b70 45%, #05070b00 100%);
+    mask-image: linear-gradient(90deg, #ffffffff 0%, #ffffffff 50%, #ffffff00 100%);
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.22s cubic-out;
+}
+#root.open #focus-veil { opacity: 1; visibility: visible; }
+
+/* ---- the chat column ------------------------------------------------------------------ */
+#chat { position: absolute; left: 30dp; top: 28dp; width: 580dp; transform: rotateY(14deg); transform-origin: 0% 0%; transition: transform 0.25s cubic-out; }
+#root.open #chat { transform: rotateY(7deg); } /* flatter while typing: easier to read */
+#chat.disabled { display: none; }
+#panel { position: relative; padding: 0; transition: padding 0.18s cubic-out; }
+#root.open #panel
+{
+    padding: 0 0 10dp 0;
+    background-color: #0a0d13f0;
+    border-width: 1dp; border-color: #22d8e238;
+    box-shadow: #00000099 0 18dp 46dp 0;
+    animation: 0.2s cubic-out panel-in;
+}
+@keyframes panel-in { from { opacity: 0; transform: translateY(-6dp); } to { opacity: 1; transform: translateY(0dp); } }
+#root.open #panel:after { }
+
+/* header (open only) */
+#head { display: none; flex-direction: row; align-items: center; height: 34dp; padding: 0 14dp; border-bottom-width: 1dp; border-bottom-color: #ffffff10; }
+#root.open #head { display: flex; }
+.slash { font-family: "Chakra Petch"; font-size: 14dp; color: #22d8e2; margin-right: 8dp; }
+.title { font-family: "Chakra Petch"; font-size: 13dp; letter-spacing: 0.22em; color: #f7f9fb; margin-right: 10dp; }
+.channel { font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.2em; color: #05262a; background-color: #22d8e2; padding: 2dp 7dp; }
+.live { display: flex; flex-direction: row; align-items: center; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.22em; color: #2be58b; margin-right: 10dp; }
+.live-dot { width: 6dp; height: 6dp; border-radius: 3dp; background-color: #2be58b; margin-right: 6dp; animation: 1.6s sine-in-out infinite live-blink; }
+@keyframes live-blink { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+.count { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #8a94a2; }
+
+/* the log */
+#log { position: relative; }
+#root.open #log { max-height: 330dp; overflow-y: auto; padding: 8dp 8dp 4dp 8dp; }
+#messages { }
+#empty { display: none; padding: 26dp 0; text-align: center; font-size: 13dp; letter-spacing: 0.14em; color: #5a6472; }
+#root.open.empty #empty { display: block; }
+
+/* one message */
+.msg
+{
+    display: block; margin-bottom: 3dp; padding: 5dp 12dp 5dp 10dp;
+    background-color: #0a0d13d9;
+    border-left-width: 2dp; border-left-color: #22d8e2;
+    font-size: 16dp; line-height: 20dp;
+    transition: opacity transform 0.6s cubic-in-out;
+    animation: 0.26s cubic-out msg-in;
+}
+@keyframes msg-in { from { opacity: 0; transform: translateX(-16dp); } to { opacity: 1; transform: translateX(0dp); } }
+.msg.stale { opacity: 0; transform: translateX(-10dp); }
+#root.open .msg.stale { opacity: 1; transform: translateX(0dp); }
+.msg.old { display: none; }  /* closed: only the newest rows show */
+#root.open .msg.old { display: block; }
+#root.open .msg { background-color: #ffffff06; }
+#root.open .msg:hover { background-color: #ffffff0f; }
+.msg.mention { background-color: #ffb0201f; border-left-color: #ffb020; }
+
+.time { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #5a6472; margin-right: 8dp; }
+.tag { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.16em; padding: 1dp 5dp; margin-right: 7dp; border-width: 1dp; }
+.pid { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #8a94a2; margin-right: 5dp; }
+.author { font-weight: bold; margin-right: 7dp; }
+.role { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.14em; margin-left: 4dp; color: #8a94a2; }
+.author.admin { color: #ff3b4e; }
+.author.mod { color: #ffb020; }
+.text { color: #e6eaec; font-weight: normal; }
+.bold { font-weight: bold; }
+
+/* system, error, warning, presence, action, announcement */
+.k-system { border-left-color: #22d8e2; }
+.k-error { border-left-color: #ff3b4e; background-color: #2a0b10e0; }
+.k-warning { border-left-color: #ffb020; background-color: #241a08e0; }
+.marker { font-family: "Chakra Petch"; margin-right: 6dp; color: #22d8e2; }
+.k-error .marker, .k-error .source { color: #ff6b7a; }
+.k-warning .marker, .k-warning .source { color: #ffb020; }
+.source { font-family: "Chakra Petch"; font-size: 11dp; letter-spacing: 0.16em; color: #22d8e2; margin-right: 8dp; }
+.k-system .text { color: #c2cad3; }
+.k-join, .k-leave { border-left-color: #2be58b; font-size: 14dp; }
+.k-leave { border-left-color: #5a6472; }
+.dot { font-family: "Chakra Petch"; margin-right: 6dp; color: #2be58b; }
+.k-leave .dot { color: #5a6472; }
+.k-join .text, .k-leave .text { color: #8a94a2; }
+.k-action { border-left-color: #ffb020; }
+.k-action .text { color: #ffcf7a; font-style: italic; }
+.k-announce { border-left-width: 3dp; border-left-color: #ff2e88; background-color: #1d0a17eb; padding-top: 7dp; padding-bottom: 8dp; }
+.announce-head { display: block; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.22em; color: #ff2e88; margin-bottom: 3dp; }
+.k-announce .text { color: #f7f9fb; font-size: 17dp; }
+
+/* new messages below while scrolled up */
+#latest { display: none; position: absolute; right: 16dp; bottom: 112dp; padding: 4dp 10dp; background-color: #22d8e2; color: #05262a; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.14em; }
+#root.open #latest.on { display: block; animation: 0.2s cubic-out msg-in; }
+
+/* the composer */
+#composer { display: none; flex-direction: row; align-items: center; height: 42dp; margin: 6dp 10dp 0 10dp; padding: 0 12dp; background-color: #05070b; border-width: 1dp; border-color: #ffffff1a; transition: border-color 0.15s cubic-out; }
+#root.open #composer { display: flex; border-color: #22d8e299; }
+.prompt { font-family: "Chakra Petch"; font-size: 20dp; color: #22d8e2; margin-right: 10dp; }
+#input { flex: 1 1 auto; height: 22dp; font-family: Rajdhani; font-weight: bold; font-size: 17dp; color: #f7f9fb; background-color: transparent; border-width: 0; padding: 0; }
+#input:focus { border-width: 0; }
+.chars { font-family: "Roboto Mono"; font-weight: normal; font-size: 10dp; color: #5a6472; margin-left: 10dp; }
+.chars.near { color: #ffb020; }
+#root.sending #composer { animation: 0.32s cubic-out send-flash; }
+@keyframes send-flash { 0% { background-color: #22d8e244; } 100% { background-color: #05070b; } }
+
+/* the command index */
+#suggestions { display: none; margin: 6dp 10dp 0 10dp; background-color: #05070b; border-width: 1dp; border-color: #22d8e244; }
+#root.open #suggestions.on { display: block; animation: 0.16s cubic-out panel-in; }
+.sg-head { display: flex; flex-direction: row; padding: 5dp 10dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.22em; color: #5a6472; border-bottom-width: 1dp; border-bottom-color: #ffffff10; }
+.sg { display: flex; flex-direction: row; align-items: center; padding: 5dp 10dp; }
+.sg.sel { background-color: #22d8e21f; border-left-width: 2dp; border-left-color: #22d8e2; }
+.sg-cmd { font-family: "Roboto Mono"; font-weight: normal; font-size: 13dp; color: #4ee6ee; margin-right: 6dp; white-space: nowrap; }
+.sg-params { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #8a94a2; margin-right: 10dp; white-space: nowrap; }
+.sg-help { flex: 1 1 auto; text-align: right; font-size: 13dp; color: #8a94a2; white-space: nowrap; overflow: hidden; }
+
+/* the foot */
+#foot { display: none; flex-direction: row; align-items: center; margin: 8dp 12dp 0 12dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.18em; color: #5a6472; }
+#root.open #foot { display: flex; }
+#foot > span { margin-right: 14dp; }
+.key { font-family: "Roboto Mono"; font-weight: normal; font-size: 9dp; color: #22d8e2; border-width: 1dp; border-color: #22d8e244; padding: 0 4dp; margin-right: 5dp; }
+
+scrollbarvertical { width: 3dp; }
+scrollbarvertical slidertrack { background-color: transparent; }
+scrollbarvertical sliderbar { background-color: #22d8e266; }

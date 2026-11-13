@@ -1,0 +1,1223 @@
+local config=ContextMenuConfig
+local resource=GetCurrentResourceName()
+local page,ready,active,busy=nil,false,false,false
+-- Whether this menu holds the input lease. Kept from the surface's own events, not
+-- polled: the WebUI page's focus was moved by other surfaces (a NativeUI HUD or chat
+-- taking the keyboard) and the menu closed on its own while ALT was still held.
+local focused=false
+local lostForeground=0 -- consecutive polls with the game window in the background
+local VERSION="1.2.0"
+local epoch,selection,lastPickAt,nextCheck=0,nil,-1,0
+local visibleActions={}
+local armed=true -- A captured key is reported as released by the key-mapping host.
+local disabledOwners={}
+local now=function() return Open77.time.monotonic()*1000 end
+local registry=ContextMenuRegistry.new(function(owner,generation)
+    return GetResourceState(owner)=="running" and Open77.resource.generation(owner)==generation
+end)
+local function owner()
+    return GetInvokingResource(),GetInvokingResourceGeneration()
+end
+exports("register",function(definition) local r,g=owner();return registry.register(r,g,definition) end)
+exports("registerMany",function(definitions) local r,g=owner();return registry.registerMany(r,g,definitions) end)
+exports("unregister",function(token) local r=owner();return registry.unregister(r,token) end)
+exports("unregisterMany",function(tokens) local r=owner();return registry.unregisterMany(r,tokens) end)
+exports("update",function(token,patch) local r,g=owner();return registry.update(r,g,token,patch) end)
+exports("get",function(token) local r=owner();return registry.describe(r,token) end)
+exports("clear",function() local r=owner();if not r then return false,"export_call_required" end;registry.removeOwner(r);return true end)
+exports("setEnabled",function(token,value) local r=owner();return registry.setEnabled(r,token,value) end)
+exports("list",function() local r=owner();return registry.list(r) end)
+exports("isOpen",function() return active end)
+exports("isReady",function() return ready and page~=nil end)
+exports("getVersion",function() return VERSION end)
+exports("getContext",function() return selection end)
+exports("getTarget",function() return selection and selection.target end)
+
+-- Helpers are just validated filters over the same owner-scoped registry.
+-- A single definition returns one token; an array returns an atomic token array.
+local function scoped(definitions,filter)
+    if type(definitions)~="table" then return nil,"invalid_actions" end
+    local single=definitions.id~=nil
+    local input=single and {definitions} or definitions
+    local batch={}
+    for k,d in pairs(input) do
+        if type(d)~="table" then return nil,"invalid_action" end
+        local action={};for field,value in pairs(d) do action[field]=value end
+        for field,value in pairs(filter) do action[field]=value end
+        batch[k]=action
+    end
+    local r,g=owner();local tokens,err=registry.registerMany(r,g,batch)
+    if not tokens then return nil,err end
+    return single and tokens[1] or tokens
+end
+exports("registerPlayers",function(d) return scoped(d,{types={"player"}}) end)
+exports("registerVehicles",function(d) return scoped(d,{types={"vehicle"}}) end)
+exports("registerNpcs",function(d) return scoped(d,{types={"npc"}}) end)
+exports("registerProps",function(d) return scoped(d,{types={"prop"}}) end)
+exports("registerDoors",function(d) return scoped(d,{types={"door"}}) end)
+exports("registerWorld",function(d) return scoped(d,{types={"world"}}) end)
+exports("registerSky",function(d) return scoped(d,{types={"sky"}}) end)
+exports("registerSelf",function(definitions) return scoped(definitions,{types={"player"},allowSelf=true,selfOnly=true}) end)
+exports("registerModels",function(records,definitions)
+    if records==nil then return nil,"invalid_records" end
+    return scoped(definitions,{records=records})
+end)
+exports("registerEntities",function(entities,definitions)
+    if entities==nil then return nil,"invalid_entities" end
+    return scoped(definitions,{entities=entities})
+end)
+local function targetingEnabled()
+    for r,g in pairs(disabledOwners) do
+        if GetResourceState(r)~="running" or Open77.resource.generation(r)~=g then disabledOwners[r]=nil end
+    end
+    return next(disabledOwners)==nil
+end
+exports("isTargetingEnabled",targetingEnabled)
+
+local function send(event,payload) if page then page:send(event,payload or {}) end end
+local function key() return Open77.input.keyFor("contextmenu.activate") or config.key end
+local function alive()
+    local state=Open77.character.state()
+    return state and state.attached and state.alive and state.health and state.health>0 and state
+end
+local function close(reason)
+    epoch=epoch+1
+    local wasOpen=active
+    active,busy,selection,visibleActions=false,false,nil,{}
+    focused,lostForeground=false,0
+    if page then page:setFocus(false,false);send("context:close");page:hide() end
+    if Open77.players and Open77.players.resetControls then Open77.players.resetControls() end
+    if wasOpen then TriggerEvent("open77:contextmenu:closed",reason or "closed") end
+end
+exports("close",function() close("provider_closed");return true end)
+exports("setTargetingEnabled",function(value)
+    local r,g=owner()
+    if not r or not g then return false,"export_call_required" end
+    if type(value)~="boolean" then return false,"expected_boolean" end
+    disabledOwners[r]=not value and g or nil
+    if not value and active then close("provider_disabled") end
+    return true
+end)
+local function call(action,export,context,request,budget)
+    local observation={};for k,v in pairs(context) do observation[k]=v end
+    observation.action={id=action.id,owner=action.owner,token=action.token,data=action.data}
+    local promise,reason=Open77.exports.call(action.owner,export,observation)
+    if not promise then return nil,reason end
+    local deadline=math.min(now()+config.exportTimeoutMs,budget or math.huge)
+    while promise:status()=="pending" and now()<deadline and active and request==epoch do Wait(10) end
+    if not active or request~=epoch then return nil,"cancelled" end
+    if promise:status()=="pending" then return nil,"export_timeout" end
+    return promise:await()
+end
+local function contextAt(x,y)
+    local state=alive()
+    if not state then return nil,"player_not_ready" end
+    local hit,reason=Open77.camera.screenRaycast(x,y,config.rayDistance,{self=true})
+    if not hit then return nil,reason end
+    hit.screen={x=x,y=y}
+    hit.hasSurface=hit.hit==true and hit.hitSource~="self_presentation"
+    if not hit.hit then
+        hit.target={kind="sky",networked=false};hit.kind="sky"
+        hit.playerDistance=nil
+        return hit
+    end
+    if not hit.entityLookupAvailable then return nil,"Entity picking is unavailable on this client build." end
+    local p,s=hit.position,state.position
+    hit.playerDistance=math.sqrt((p.x-s.x)^2+(p.y-s.y)^2+(p.z-s.z)^2)
+    hit.target=hit.target or {kind="world",networked=false}
+    hit.kind=hit.target.isLocalPlayer and "self" or hit.target.kind
+    return hit
+end
+local function sameTarget(a,b)
+    if not a or not b then return false end
+    if a.kind~=b.kind then return false end
+    if a.kind=="sky" then
+        local p,q=a.direction,b.direction
+        return p and q and p.x*q.x+p.y*q.y+p.z*q.z>0.9998
+    end
+    if a.target.engineEntity or b.target.engineEntity then return a.target.engineEntity==b.target.engineEntity end
+    local p,q=a.position,b.position
+    return (p.x-q.x)^2+(p.y-q.y)^2+(p.z-q.z)^2<0.04
+end
+local function validRequest(request)
+    return active and request==epoch and page and focused and Open77.input.isDown(key())
+end
+local function pick(payload)
+    if not active or busy or now()-lastPickAt<150 or type(payload)~="table" or payload.epoch~=epoch then return end
+    lastPickAt=now()
+    -- The click's coordinates, from the document (the lease's own pointer, not the
+    -- system cursor). They are observations only: the target is resolved by a fresh
+    -- native trace.
+    local x,y=payload.x,payload.y
+    local cursor
+    if type(x)~="number" or type(y)~="number" or x~=x or y~=y or x<0 or x>1 or y<0 or y>1 then return end
+    cursor={x=x,y=y}
+    epoch=epoch+1;local request=epoch
+    selection,visibleActions,busy=nil,{},true
+    send("context:loading",{epoch=request,x=cursor.x,y=cursor.y})
+    local context,reason=contextAt(cursor.x,cursor.y)
+    if not context then busy=false;send("context:empty",{epoch=request,message=reason});return end
+    local rows={}
+    local budget=now()+config.lookupBudgetMs
+    for _,action in ipairs(registry.candidates(context)) do
+        if not validRequest(request) then return end
+        if now()>=budget then break end
+        local allowed=not action.canInteract or call(action,action.canInteract,context,request,budget)==true
+        if not validRequest(request) then return end
+        if allowed and registry.get(action.token)==action and registry.matches(action,context) then
+            rows[#rows+1]={token=action.token,label=action.label,description=action.description,
+                group=action.group,icon=action.icon,danger=action.danger}
+            visibleActions[action.token]=true
+            if #rows>=config.maxActions then break end
+        end
+    end
+    if not validRequest(request) then return end
+    selection,busy=context,false
+    send("context:menu",{epoch=request,x=cursor.x,y=cursor.y,target=context.target, distance=context.playerDistance,actions=rows})
+end
+local function selectAction(payload)
+    if not active or busy or type(payload)~="table" or payload.epoch~=epoch or not visibleActions[payload.token] then return end
+    local action=registry.get(payload.token)
+    if not action or not selection then close("action_unavailable");return end
+    local request=epoch
+    busy=true;send("context:busy",{epoch=request,token=payload.token})
+    local current=contextAt(selection.screen.x,selection.screen.y)
+    if not sameTarget(selection,current) or not registry.matches(action,current) then close("target_changed");return end
+    local allowed=not action.canInteract or call(action,action.canInteract,current,request)==true
+    if not validRequest(request) then return end
+    -- Revalidate after a yielding predicate, not just before it.
+    local fresh=contextAt(selection.screen.x,selection.screen.y)
+    if not allowed or registry.get(action.token)~=action or not sameTarget(current,fresh) or not registry.matches(action,fresh) then
+        busy=false;send("context:error",{epoch=request,message="This action is no longer available."});return
+    end
+    -- Resolve the callback from the registered owner, never from the UI payload.
+    fresh.action={id=action.id,owner=action.owner,token=action.token,data=action.data}
+    local promise,reason=Open77.exports.call(action.owner,action.onSelect,fresh)
+    if not promise then busy=false;send("context:error",{epoch=request,message=tostring(reason)});return end
+    -- Release input before the provider opens another UI or starts an interaction.
+    close("selected")
+    TriggerEvent("open77:contextmenu:selected",fresh)
+    local result,err=promise:await()
+    if result==false or err then print("[contextmenu] action failed: "..tostring(err or "provider_rejected")) end
+end
+local function open()
+    if not armed or not Open77.input.isDown(key()) then return end
+    armed=false -- Never reopen after selection/Escape until a real key release.
+    if active or not ready or not page or not targetingEnabled() or Open77.input.isCaptured() or not alive() then return end
+    local cursor=Open77.input.cursor()
+    if not cursor or cursor.captured then return end
+    epoch=epoch+1;active=true;selection=nil;visibleActions={}
+    send("context:open",{epoch=epoch,key=key(),appearance=config.appearance})
+    page:show()
+    if not page:setFocus(true,true) then close("focus_refused");return end
+    focused,lostForeground=true,0
+    if not Open77.players.allowAim(false) or not Open77.players.allowShoot(false) or
+       not Open77.players.allowInteraction(false) or not Open77.players.freezeRotation(true) then
+        close("controls_unavailable");return
+    end
+    TriggerEvent("open77:contextmenu:opened")
+end
+AddEventHandler("open77:pauseKey",function() if active then close("pause") end end)
+AddEventHandler("onClientResourceStop",function(name)
+    if name==resource then
+        close("resource_stopped")
+        if Open77.input.setNativeActionBlocked then Open77.input.setNativeActionBlocked("WeaponWheel",false) end
+        page,ready=nil,false
+    else registry.removeOwner(name);disabledOwners[name]=nil end
+end)
+AddEventHandler("onClientResourceStart",function(name)
+    if name~=resource then return end
+    if type(Open77.camera.screenRaycast)~="function" or type(Open77.input.cursor)~="function" then
+        print("[contextmenu] Requires a client with the screen-picking APIs; package disabled.");return
+    end
+    local reason
+    -- A NativeUI document (client/ui.lua, ui/contextmenu.rml) drawn by the game's
+    -- renderer, speaking the page API the WebUI page used.
+    page,reason=ContextMenuUi.create(config)
+    if not page then print("[contextmenu] Requires a client with NativeUI: "..tostring(reason));return end
+    if config.blockNativeWeaponWheel then
+        local blocked,err=false,"native_action_unavailable"
+        if Open77.input.setNativeActionBlocked then blocked,err=Open77.input.setNativeActionBlocked("WeaponWheel",true) end
+        if not blocked then
+            print("[contextmenu] Cannot reserve the native weapon wheel: "..tostring(err))
+            page:destroy();page=nil;return
+        end
+    end
+    page:on("context:ready",function() ready=true;page:hide() end)
+    page:on("context:pick",pick)
+    page:on("context:select",selectAction)
+    page:on("context:cancel",function(payload) if active and payload and payload.epoch==epoch then close("cancelled") end end)
+    -- The lease went to someone else (a WebUI page opened, the document reloaded) or
+    -- could not be taken: nothing else closes the menu behind the player's back.
+    page:on("context:blur",function(reason)
+        if active then focused=false;close("focus_lost:"..tostring(reason or "blur")) end
+    end)
+    RegisterKeyMapping("contextmenu.activate","Context menu (hold)",config.key,open)
+    CreateThread(function()
+        while page do
+            if not Open77.input.isDown(key()) then armed=true end
+            if active then
+                -- A background window for one poll is a tooltip or an overlay blinking:
+                -- only a lasting one (about 75 ms) closes the menu.
+                lostForeground=Open77.input.cursor() and 0 or lostForeground+1
+                if not Open77.input.isDown(key()) or not alive() or lostForeground>=3 then close("input_released")
+                elseif selection and not busy and now()>=nextCheck then
+                    nextCheck=now()+config.revalidateMs
+                    local current=contextAt(selection.screen.x,selection.screen.y)
+                    if not sameTarget(selection,current) then close("target_changed") end
+                end
+            else registry.sweep() end
+            Wait(active and config.activePollMs or config.idlePollMs)
+        end
+    end)
+end)
+-- Pure registry: ownership is supplied by the runtime, never by a browser.
+ContextMenuRegistry = {}
+local kinds = { player=true, vehicle=true, npc=true, prop=true, door=true,
+    device=true, item=true, object=true, world=true, sky=true }
+local function finite(n) return type(n)=="number" and n==n and math.abs(n)<math.huge end
+local function text(v,n) return type(v)=="string" and #v>0 and #v<=n and not v:find("[%c]") end
+local function name(v) return text(v,64) and v:match("^[%w_%.:%-]+$")~=nil end
+local function copy(v)
+    if type(v)~="table" then return v end
+    local out={};for k,item in pairs(v) do out[k]=copy(item) end;return out
+end
+local function dense(v,max)
+    if type(v)~="table" or #v<1 or #v>max then return false end
+    local count=0;for k in pairs(v) do if type(k)~="number" or k%1~=0 or k<1 or k>#v then return false end;count=count+1 end
+    return count==#v
+end
+local function dataValid(value)
+    local remaining,seen=2048,{}
+    local function visit(v,depth)
+        remaining=remaining-8
+        if remaining<0 or depth>4 then return false end
+        if type(v)=="string" then remaining=remaining-#v;return remaining>=0 end
+        if type(v)=="number" then return finite(v) end
+        if type(v)=="boolean" or v==nil then return true end
+        if type(v)~="table" or seen[v] or (getmetatable and getmetatable(v)) then return false end
+        seen[v]=true
+        for k,item in pairs(v) do
+            if not ((type(k)=="string" and #k<=64) or (finite(k) and k%1==0 and k>=1 and k<=64)) or not visit(k,depth+1) or not visit(item,depth+1) then return false end
+        end
+        seen[v]=nil;return true
+    end
+    return visit(value,0)
+end
+local function selectorValid(v)
+    if type(v)~="table" then return false end
+    local count=0
+    for k,id in pairs(v) do
+        count=count+1
+        if k=="playerId" or k=="vehicleId" or k=="npcId" then
+            -- Vehicle/NPC IDs carry a generation and can exceed uint32.
+            -- Keep exact Lua integers; reject imprecise double representations.
+            if not finite(id) or id%1~=0 or id<1 or
+                (math.type(id)~="integer" and id>9007199254740991) then return false end
+        elseif k=="engineEntity" or k=="propId" then
+            if type(id)~="string" or #id>20 or not id:match("^[1-9]%d*$") then return false end
+        else return false end
+    end
+    return count==1
+end
+local function array(value, validate)
+    if value==nil then return nil,true end
+    if type(value)~="table" or #value>32 then return nil,false end
+    local out,count={},0
+    for k,v in pairs(value) do
+        if type(k)~="number" or k%1~=0 or k<1 or k>#value or not validate(v) then return nil,false end
+        out[v]=true; count=count+1
+    end
+    return out,count==#value and count>0
+end
+-- Registration is linear in the batch, never in the registry. The first
+-- version counted every registered action per definition and copied the whole
+-- table before a batch, so a batch of five with a hundred actions already
+-- registered cost ~12 000 VM instructions -- past the 10 000-instruction hook
+-- interval of the client host, which on a loaded client kills the resume at
+-- its first hook. Measured 2026-09-18: open77_admin logged `context
+-- registration failed: registry.lua:127: Open77 script execution budget
+-- exceeded` at every start on an RP server where ~70 resources shared the
+-- host and several registered context actions in the same tick. The count
+-- and the id lookup are now indexes kept by `insert`/`erase`, and a failed
+-- batch undoes its own journal instead of restoring a copy. Same limits (128
+-- total, 32 per owner), same id replacement, same atomic rollback.
+local ICONS={interact=true,person=true,vehicle=true,info=true,lock=true,tool=true,location=true}
+local FLAGS={"enabled","networked","allowSelf","selfOnly","danger"}
+local FIELDS={"id","label","onSelect","canInteract","description","group","icon","enabled","networked","allowSelf","selfOnly","danger","distance","order","types","records","entities","data"}
+function ContextMenuRegistry.new(alive)
+    local actions,sequence={},0
+    -- Indexes over `actions`: the total, one count per owner, and per owner
+    -- the token each id currently occupies. Every mutation goes through
+    -- `insert`/`erase` so they cannot drift.
+    local total,ownerCount,ownerIds=0,{},{}
+    local function insert(a)
+        actions[a.token]=a
+        total=total+1
+        ownerCount[a.owner]=(ownerCount[a.owner] or 0)+1
+        local ids=ownerIds[a.owner]
+        if not ids then ids={};ownerIds[a.owner]=ids end
+        ids[a.id]=a.token
+    end
+    local function erase(token)
+        local a=actions[token]
+        if not a then return nil end
+        actions[token]=nil
+        total=total-1
+        local remaining=ownerCount[a.owner]-1
+        if remaining>0 then
+            ownerCount[a.owner]=remaining
+            local ids=ownerIds[a.owner]
+            if ids[a.id]==token then ids[a.id]=nil end
+        else
+            ownerCount[a.owner]=nil;ownerIds[a.owner]=nil
+        end
+        return a
+    end
+    local api={}
+    function api.removeOwner(owner)
+        for token,a in pairs(actions) do if a.owner==owner then erase(token) end end
+    end
+    function api.sweep()
+        for token,a in pairs(actions) do if not alive(a.owner,a.generation) then erase(token) end end
+    end
+    -- One validated definition into the registry, after the caller has swept.
+    -- Returns the token and the action it replaced, so a batch can undo it.
+    local function registerOne(owner,generation,d)
+        if not name(owner) or type(generation)~="number" or not alive(owner,generation) then return nil,"invalid_owner" end
+        if type(d)~="table" or not name(d.id) or not text(d.label,80) or not name(d.onSelect) then return nil,"invalid_action" end
+        if d.canInteract~=nil and not name(d.canInteract) then return nil,"invalid_predicate" end
+        if d.description~=nil and not text(d.description,180) then return nil,"invalid_description" end
+        if d.group~=nil and not text(d.group,40) then return nil,"invalid_group" end
+        if d.icon~=nil and not ICONS[d.icon] then return nil,"invalid_icon" end
+        for _,field in ipairs(FLAGS) do
+            if d[field]~=nil and type(d[field])~="boolean" then return nil,"invalid_"..field end
+        end
+        local distance=d.distance or 3.0
+        if not finite(distance) or distance<0.1 or distance>50 then return nil,"invalid_distance" end
+        local order=d.order or 0
+        if not finite(order) or order%1~=0 or math.abs(order)>1000 then return nil,"invalid_order" end
+        local types,ok=array(d.types,function(v) return kinds[v]==true end)
+        if not ok then return nil,"invalid_types" end
+        local records,recordsOk=array(d.records,function(v) return text(v,200) end)
+        if not recordsOk then return nil,"invalid_records" end
+        if d.selfOnly and (not d.allowSelf or (types and not types.player)) then return nil,"invalid_self_filter" end
+        if d.entities~=nil then
+            if not dense(d.entities,32) then return nil,"invalid_entities" end
+            for _,v in ipairs(d.entities) do if not selectorValid(v) then return nil,"invalid_entities" end end
+        end
+        if not dataValid(d.data) then return nil,"invalid_data" end
+        local ids=ownerIds[owner]
+        local previous=ids and ids[d.id] or nil
+        if not previous and (total>=128 or (ownerCount[owner] or 0)>=32) then return nil,"action_limit" end
+        local replaced=previous and erase(previous) or nil
+        sequence=sequence+1
+        local token=tostring(sequence)
+        local action={token=token,owner=owner,generation=generation,id=d.id,label=d.label,
+            description=d.description,group=d.group or "Actions",icon=d.icon or "interact",
+            onSelect=d.onSelect,canInteract=d.canInteract,types=types,records=records,
+            distance=distance,order=order,enabled=d.enabled~=false,networked=d.networked,
+            allowSelf=d.allowSelf==true,selfOnly=d.selfOnly==true,danger=d.danger==true,
+            entities=copy(d.entities),data=copy(d.data)}
+        -- Keep only supported fields; never retain a provider's Lua table.
+        local definition={}
+        for _,field in ipairs(FIELDS) do definition[field]=copy(d[field]) end
+        action.definition=definition
+        insert(action)
+        return token,replaced
+    end
+    function api.register(owner,generation,d)
+        api.sweep()
+        local token,err=registerOne(owner,generation,d)
+        if not token then return nil,err end
+        return token
+    end
+    function api.registerMany(owner,generation,definitions)
+        if not dense(definitions,32) then return nil,"invalid_actions" end
+        local ids={}
+        for _,d in ipairs(definitions) do
+            if type(d)~="table" or not name(d.id) or ids[d.id] then return nil,"invalid_or_duplicate_id" end
+            ids[d.id]=true
+        end
+        api.sweep()
+        -- Atomic: on any failure the batch is undone newest-first, putting
+        -- back whatever each registration replaced under its old token.
+        local tokens,journal={},{}
+        for _,d in ipairs(definitions) do
+            local token,result=registerOne(owner,generation,d)
+            if not token then
+                for index=#journal,1,-1 do
+                    local step=journal[index]
+                    erase(step.token)
+                    if step.replaced then insert(step.replaced) end
+                end
+                return nil,result
+            end
+            tokens[#tokens+1]=token
+            journal[#journal+1]={token=token,replaced=result}
+        end
+        return tokens
+    end
+    function api.update(owner,generation,token,patch)
+        local a=api.get(token)
+        if not a or a.owner~=owner then return nil,"not_owner" end
+        if type(patch)~="table" or (patch.id~=nil and patch.id~=a.id) then return nil,"invalid_patch" end
+        local d=copy(a.definition);for k,v in pairs(patch) do d[k]=v end
+        return api.register(owner,generation,d) -- revokes old in-flight menus
+    end
+    function api.describe(owner,token)
+        local a=api.get(token)
+        if not a or a.owner~=owner then return nil,"not_owner" end
+        return {token=token,definition=copy(a.definition)}
+    end
+    function api.unregister(owner,token)
+        local a=actions[token]
+        if not a then return false,"action_not_found" end
+        if a.owner~=owner then return false,"not_owner" end
+        erase(token); return true
+    end
+    function api.setEnabled(owner,token,value)
+        local a=actions[token]
+        if not a or a.owner~=owner then return false,"not_owner" end
+        if type(value)~="boolean" then return false,"expected_boolean" end
+        a.enabled=value;a.definition.enabled=value; return true
+    end
+    function api.unregisterMany(owner,tokens)
+        if not dense(tokens,32) then return false,"invalid_tokens" end
+        for _,token in ipairs(tokens) do local a=actions[token];if not a or a.owner~=owner then return false,"not_owner" end end
+        for _,token in ipairs(tokens) do erase(token) end;return true
+    end
+    function api.get(token) api.sweep();return actions[token] end
+    function api.matches(a,context)
+        local target=context.target or {kind="world",networked=false}
+        -- Empty space is opt-in, never disguised as a zero-distance surface.
+        local distanceOk=target.kind=="sky" and a.types and a.types.sky==true or
+            target.kind~="sky" and finite(context.playerDistance) and context.playerDistance>=0 and context.playerDistance<=a.distance
+        local entityOk=not a.entities
+        for _,selector in ipairs(a.entities or {}) do for k,id in pairs(selector) do if target[k]==id then entityOk=true end end end
+        return a.enabled and alive(a.owner,a.generation) and distanceOk and entityOk and
+            (not target.isLocalPlayer or a.allowSelf) and (not a.selfOnly or target.isLocalPlayer==true) and
+            (not a.types or a.types[target.kind]==true) and (not a.records or a.records[target.record]==true) and
+            (a.networked==nil or a.networked==target.networked)
+    end
+    function api.candidates(context)
+        api.sweep(); local out={}
+        for _,a in pairs(actions) do if api.matches(a,context) then out[#out+1]=a end end
+        table.sort(out,function(a,b)
+            if a.order~=b.order then return a.order<b.order end
+            if a.group~=b.group then return a.group<b.group end
+            if a.label~=b.label then return a.label<b.label end
+            return a.token<b.token
+        end)
+        return out
+    end
+    function api.list(owner)
+        api.sweep();local out={}
+        for _,a in pairs(actions) do if a.owner==owner then
+            out[#out+1]={token=a.token,id=a.id,label=a.label,enabled=a.enabled}
+        end end
+        table.sort(out,function(a,b) return a.id<b.id end);return out
+    end
+    return api
+end
+-- The ALT context menu on NativeUI (ui/contextmenu.rml).
+--
+-- client/main.lua keeps every decision (targeting, predicates, revalidation, input
+-- claims) and talks to this module through the page API it used with the WebUI page:
+-- page:on(event, fn), page:send(event, payload), show, hide, setFocus, hasFocus,
+-- destroy. Events this surface raises: context:ready, context:pick {epoch,x,y},
+-- context:select {epoch,token}, context:cancel {epoch} and context:blur (reason),
+-- the last when the input lease is taken away or refused.
+--
+-- Why a native document: the WebUI page lost its focus whenever another surface
+-- moved the input (a NativeUI HUD or chat taking the keyboard), and the menu closed
+-- on its own. The NativeUI lease cannot be taken by another document; only a WebUI
+-- page that really opens takes it, and then closing is the right answer.
+ContextMenuUi = {}
+local M = ContextMenuUi
+
+M.DEFAULT_ACCENT = "#18d6e7"
+M.PANEL_WIDTH = 272   -- dp, keep in step with #panel in contextmenu.rcss
+M.ROW_HEIGHT = 34     -- dp, a row and its margins
+M.GROUP_HEIGHT = 24   -- dp
+M.CHROME_HEIGHT = 66  -- dp: header, sweep, list padding, foot
+M.MAX_LIST = 384      -- dp, #rows max-height
+
+-- Local vector glyphs (24 x 24): no icon font, no remote asset, no provider markup.
+M.ICONS = {
+    interact = "M8 12V5a2 2 0 0 1 4 0v6 M12 9h3l4 4v4l-3 4h-5l-6-7a2 2 0 0 1 3-2Z",
+    person = "M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z M4 21v-3a8 8 0 0 1 16 0v3",
+    vehicle = "M4 10l2-6h12l2 6 M3 10h18v8H3Z M5 18v3 M19 18v3 M6 14h2 M16 14h2",
+    info = "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z M12 11v6 M12 7v.2",
+    lock = "M6 10V7a6 6 0 0 1 12 0v3 M4 10h16v11H4Z M12 14v3",
+    tool = "M14 3a6 6 0 0 0-6 8l-6 6 5 5 6-6a6 6 0 0 0 8-7l-4 4-5-5 4-4Z",
+    location = "M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z",
+}
+
+local KIND_LABELS = {
+    player = "Player", self = "You", vehicle = "Vehicle", npc = "NPC", prop = "Object",
+    door = "Door", world = "Surface", sky = "Sky",
+}
+local KIND_TITLES = {
+    player = "Player", self = "Your character", vehicle = "Vehicle", npc = "Character", prop = "Object",
+    door = "Door", world = "Surface", sky = "Direction",
+}
+
+local function clamp(v, a, b) return v < a and a or (v > b and b or v) end
+
+--- Text safe to place inside RML: markup escaped, and no "{{" a data model would evaluate.
+function M.escape(value)
+    local text = tostring(value == nil and "" or value)
+    text = text:gsub("[%c]", " ")
+    text = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;")
+    text = text:gsub("{", "{ "):gsub("}", " }")
+    return text
+end
+
+function M.safeColor(value)
+    local text = tostring(value or "")
+    return text:match("^#%x%x%x%x%x%x$") and text:lower() or M.DEFAULT_ACCENT
+end
+
+--- The accent as a stylesheet layer over contextmenu.rcss (every rule that uses it).
+function M.theme(color)
+    local c = M.safeColor(color)
+    return table.concat({
+        "#stage.available .br { border-color: " .. c .. "; }",
+        ".ring-shape { stroke: " .. c .. "; }",
+        "#stage.available #dot { background-color: " .. c .. "; }",
+        "#panel { border-color: " .. c .. "; }",
+        "#kind { background-color: " .. c .. "; }",
+        "#sweep-bar { background-color: " .. c .. "; filter: glow(4dp " .. c .. " 1); }",
+        "#rows scrollbarvertical sliderbar { background-color: " .. c .. "99; }",
+        ".row .spin { stroke: " .. c .. "; }",
+        ".row .go { border-color: " .. c .. "; }",
+        ".row.focus { background-color: " .. c .. "2e; border-color: " .. c .. "; }",
+        ".row.focus .ic path { stroke: " .. c .. "; }",
+        "#hint-key { background-color: " .. c .. "; }",
+    }, "\n")
+end
+
+--- What the header names: the target's kind and a title.
+function M.describe(target, distance)
+    target = type(target) == "table" and target or {}
+    local kind = target.isLocalPlayer and "self" or tostring(target.kind or "world")
+    local title = KIND_TITLES[kind] or "Target"
+    if kind == "player" then
+        if type(target.name) == "string" and target.name ~= "" then title = target.name
+        elseif tonumber(target.playerId) then title = "Player #" .. math.floor(tonumber(target.playerId)) end
+    elseif type(target.name) == "string" and target.name ~= "" then
+        title = target.name
+    end
+    local dist = ""
+    local d = tonumber(distance)
+    if d and d == d and d >= 0 then dist = (d < 10 and ("%.1f M"):format(d) or ("%d M"):format(math.floor(d + 0.5))) end
+    return {
+        kindLabel = (KIND_LABELS[kind] or kind):upper(),
+        title = title:sub(1, 40),
+        distance = dist,
+    }
+end
+
+--- The action list as RML: groups (optional), then rows r1..rN. Returns the RML and
+--- the rows as { token, description, danger } in display order.
+function M.rows(actions, showGroups)
+    local out, rows, group = {}, {}, nil
+    for _, action in ipairs(type(actions) == "table" and actions or {}) do
+        if type(action) == "table" and action.token ~= nil then
+            if showGroups and action.group ~= group then
+                group = action.group
+                if group ~= nil and tostring(group) ~= "" then
+                    out[#out + 1] = '<div class="grp"><span>' .. M.escape(group) .. '</span></div>'
+                end
+            end
+            local i = #rows + 1
+            rows[i] = {
+                token = action.token,
+                description = action.description and tostring(action.description):sub(1, 160) or "",
+                danger = action.danger == true,
+            }
+            local icon = M.ICONS[action.icon] or M.ICONS.interact
+            out[#out + 1] = ('<div class="row%s" id="r%d"><div class="ic"><path view-box="0 0 24 24" d="%s"/>'
+                .. '<shape type="circle" class="spin"/></div><span class="lb">%s</span><div class="go"></div></div>')
+                :format(action.danger and " danger" or "", i, icon, M.escape(action.label))
+        end
+    end
+    return table.concat(out), rows
+end
+
+--- Where the panel goes for a pick at (ax, ay), fractions of a W x H screen: to the
+--- right of the reticle, or to its left when it would leave the screen, and never
+--- below the bottom edge. Pixels, for the top-left corner of the (scaled) panel.
+function M.place(ax, ay, width, height, scale, rowCount, groupCount)
+    local r = math.max(0.5, height / 1080) * scale
+    local w = M.PANEL_WIDTH * r
+    local list = math.min(M.MAX_LIST, (rowCount or 0) * M.ROW_HEIGHT + (groupCount or 0) * M.GROUP_HEIGHT)
+    local h = (M.CHROME_HEIGHT + math.max(list, 40)) * r
+    local x, y = ax * width, ay * height
+    local gap, margin = 26 * r, 8
+    local left = x + gap
+    local flipped = left + w > width - margin
+    if flipped then left = x - gap - w end
+    left = clamp(left, margin, math.max(margin, width - w - margin))
+    local top = clamp(y - 16 * r, margin, math.max(margin, height - h - margin))
+    return { left = math.floor(left + 0.5), top = math.floor(top + 0.5), flipped = flipped }
+end
+
+--- Sizes for a configured scale (0.75 to 1.5): a stylesheet layer, so the motion
+--- channels (scale, x, opacity) stay free for the animations.
+function M.scaleSheet(scale)
+    local k = clamp(tonumber(scale) or 1, 0.75, 1.5)
+    if math.abs(k - 1) < 0.01 then return "" end
+    local function dp(v) return ("%.1fdp"):format(v * k) end
+    return table.concat({
+        "#panel { width: " .. dp(M.PANEL_WIDTH) .. "; }",
+        "#head, #kind { height: " .. dp(32) .. "; }",
+        "#kind span { font-size: " .. dp(10) .. "; line-height: " .. dp(32) .. "; }",
+        "#title span { font-size: " .. dp(12) .. "; }",
+        "#dist span, #status-text { font-size: " .. dp(11) .. "; }",
+        "#rows { max-height: " .. dp(M.MAX_LIST) .. "; }",
+        ".row { height: " .. dp(32) .. "; }",
+        ".row .lb { font-size: " .. dp(12.5) .. "; }",
+        ".row .ic, .row .ic path { width: " .. dp(18) .. "; height: " .. dp(18) .. "; }",
+        ".grp span { font-size: " .. dp(9) .. "; }",
+        "#desc span { font-size: " .. dp(11) .. "; line-height: " .. dp(15) .. "; }",
+    }, "\n")
+end
+
+local function defaults()
+    return {
+        open = false, locked = false, loading = false, available = false, keyboard = false,
+        left = false, up = false, panelShown = false, empty = false, hasError = false, busy = false,
+        kindLabel = "", title = "", distance = "", status = "", statusTag = "", desc = "",
+        key = "ALT", hint = "Hold - click a target - right click or Esc to close",
+    }
+end
+
+--- A surface with the page API client/main.lua uses.
+function M.create(config)
+    if type(Open77) ~= "table" or type(Open77.ui) ~= "table" or type(Open77.ui.create) ~= "function" then
+        return nil, "nativeui_unavailable"
+    end
+    local appearance = type(config) == "table" and type(config.appearance) == "table" and config.appearance or {}
+    local ui, why = Open77.ui.create({
+        document = "ui/contextmenu.rml", layer = "hud", zIndex = 60, visible = true,
+        models = { cm = defaults() },
+    })
+    if not ui then return nil, why end
+
+    local page = { handlers = {} }
+    local S = {
+        opened = false, epoch = 0, busy = false, shown = false, rows = {}, focus = nil,
+        accent = nil, scale = 1, showGroups = false, generation = 0, width = nil, height = nil,
+        locked = false, anchor = nil, flipped = false, fading = false, scaleApplied = nil,
+    }
+    local alive = true
+
+    local function emit(name, payload)
+        local fn = page.handlers[name]
+        if fn then fn(payload) end
+    end
+    local function screen()
+        local ok, state = pcall(ui.state, ui)
+        if ok and type(state) == "table" and tonumber(state.width) and tonumber(state.width) > 0 then
+            S.width, S.height = tonumber(state.width), tonumber(state.height)
+        elseif not S.width and type(Open77.input) == "table" and type(Open77.input.cursor) == "function" then
+            local c = Open77.input.cursor()
+            if type(c) == "table" and tonumber(c.width) then S.width, S.height = tonumber(c.width), tonumber(c.height) end
+        end
+        return S.width or 1920, S.height or 1080
+    end
+    local function applyAppearance(value)
+        value = type(value) == "table" and value or {}
+        local accent = M.safeColor(value.accentColor)
+        if accent ~= S.accent then
+            S.accent = accent
+            ui:stylesheet("accent", M.theme(accent))
+        end
+        local scale = clamp(tonumber(value.scale) or 1, 0.75, 1.5)
+        if scale ~= S.scale or S.scaleApplied == nil then
+            S.scale, S.scaleApplied = scale, true
+            ui:stylesheet("scale", M.scaleSheet(scale))
+        end
+        S.showGroups = value.showGroups == true
+    end
+
+    -- ---- focus, rows ---------------------------------------------------------------------
+    local function setRowFocus(index, keyboard)
+        if index == S.focus then return end
+        if S.focus then ui:class("#r" .. S.focus, "focus", false) end
+        S.focus = index
+        if index then
+            ui:class("#r" .. index, "focus", true)
+            if keyboard then ui:scrollTo("#r" .. index, "nearest", true) end
+        end
+        ui:merge("cm", { desc = index and S.rows[index] and S.rows[index].description or "", keyboard = keyboard == true })
+    end
+    local function moveFocus(step, absolute)
+        local n = #S.rows
+        if n == 0 or S.busy then return end
+        local index
+        if absolute == "first" then index = 1
+        elseif absolute == "last" then index = n
+        elseif not S.focus then index = step < 0 and n or 1
+        else index = (S.focus - 1 + step) % n + 1 end
+        setRowFocus(index, true)
+    end
+    local function choose(index)
+        local row = index and S.rows[index]
+        if not S.opened or S.busy or not row then return end
+        emit("context:select", { epoch = S.epoch, token = row.token })
+    end
+
+    -- ---- the panel -------------------------------------------------------------------------
+    local function placePanel(rowCount, groupCount, animate)
+        if not S.anchor then return end
+        local w, h = screen()
+        local p = M.place(S.anchor.x, S.anchor.y, w, h, S.scale, rowCount, groupCount)
+        local flippedChanged = p.flipped ~= S.flipped
+        S.flipped = p.flipped
+        ui:style("#panel", { left = p.left .. "px", top = p.top .. "px" })
+        ui:set("cm", "left", p.flipped)
+        if animate then
+            local dx = p.flipped and 14 or -14
+            ui:animate("#panel", { from = { opacity = 0, x = dx, scale = 0.96 }, to = { opacity = 1, x = 0, scale = 1 },
+                spring = { duration = 0.32, bounce = 0.18 } })
+        elseif flippedChanged then
+            ui:animate("#panel", { from = { opacity = 0.4 }, to = { opacity = 1 }, preset = "snappy" })
+        end
+    end
+    local function lockReticle(px, py)
+        S.locked = true
+        ui:style("#reticle", { left = px .. "px", top = py .. "px" })
+        ui:animate("#reticle", { from = { scale = 1.55, opacity = 0.6 }, to = { scale = 1, opacity = 1 },
+            spring = { duration = 0.36, bounce = 0.35 } })
+    end
+    local function startLoading()
+        ui:merge("cm", { loading = true })
+        ui:keyframes("#ring", { channel = "rotate", stops = { { offset = 0, value = 0 }, { offset = 1, value = 360 } },
+            duration = 0.9, iterations = -1 })
+        ui:keyframes("#sweep-bar", { channel = "x", stops = { { offset = 0, value = -100 }, { offset = 1, value = M.PANEL_WIDTH } },
+            duration = 0.85, iterations = -1 })
+    end
+    local function stopLoading()
+        ui:merge("cm", { loading = false })
+        ui:stop("#ring")
+        ui:stop("#sweep-bar")
+    end
+    local function clearRows()
+        S.rows, S.focus, S.busy = {}, nil, false
+        ui:rml("#rows", "")
+        ui:merge("cm", { desc = "", busy = false, hasError = false, empty = false, available = false })
+    end
+
+    -- ---- page API --------------------------------------------------------------------------
+    function page.on(_, name, fn) page.handlers[name] = fn end
+    function page.show() ui:show(); return true end
+    -- a close fades out first (context:close hides the document when it is done)
+    function page.hide() if not S.fading then ui:hide() end; return true end
+    function page.hasFocus() return ui:hasFocus() == true end
+    function page.setFocus(_, keyboard, cursor)
+        if keyboard or cursor then
+            local ok = ui:focus({ keyboard = true, cursor = true })
+            return ok ~= false and ok ~= nil
+        end
+        ui:blur()
+        return true
+    end
+    function page.destroy()
+        alive = false
+        pcall(ui.destroy, ui)
+    end
+
+    function page.send(_, name, p)
+        p = type(p) == "table" and p or {}
+        if name == "context:open" then
+            S.generation = S.generation + 1
+            S.fading = false
+            S.opened, S.epoch, S.locked, S.anchor, S.flipped = true, tonumber(p.epoch) or 0, false, nil, false
+            applyAppearance(p.appearance)
+            clearRows()
+            stopLoading()
+            local key = tostring(p.key or "ALT"):upper():sub(1, 12)
+            ui:merge("cm", { open = true, locked = false, panelShown = false, key = key,
+                hint = "Hold - click a target - right click or Esc to close", status = "", statusTag = "",
+                kindLabel = "", title = "", distance = "" })
+            ui:show()
+            local w, h = screen()
+            -- the lease puts the pointer at the centre of the screen
+            ui:style("#reticle", { left = math.floor(w / 2) .. "px", top = math.floor(h / 2) .. "px" })
+            ui:animate("#reticle", { from = { opacity = 0, scale = 1.7, rotate = -45 }, to = { opacity = 1, scale = 1, rotate = 0 },
+                spring = { duration = 0.4, bounce = 0.28 } })
+            ui:animate("#hintbar", { from = { opacity = 0, y = 16 }, to = { opacity = 1, y = 0 }, spring = { duration = 0.35, bounce = 0.2 } })
+        elseif name == "context:close" then
+            if not S.opened then return end
+            S.opened, S.busy = false, false
+            stopLoading()
+            ui:merge("cm", { open = false })
+            ui:animate("#reticle", { to = { opacity = 0, scale = 0.7 }, duration = 0.12, easing = "ease-in" })
+            ui:animate("#hintbar", { to = { opacity = 0, y = 10 }, duration = 0.12, easing = "ease-in" })
+            if S.shown then ui:animate("#panel", { to = { opacity = 0, scale = 0.97 }, duration = 0.12, easing = "ease-in" }) end
+            local generation = S.generation
+            S.fading = true
+            CreateThread(function()
+                Wait(150)
+                if alive and generation == S.generation and not S.opened then
+                    S.fading = false
+                    S.shown = false
+                    ui:merge("cm", { panelShown = false, locked = false })
+                    clearRows()
+                    ui:hide()
+                end
+            end)
+        elseif name == "context:loading" then
+            if not S.opened or (tonumber(p.epoch) or -1) < S.epoch then return end
+            S.epoch = tonumber(p.epoch)
+            local x, y = clamp(tonumber(p.x) or 0.5, 0, 1), clamp(tonumber(p.y) or 0.5, 0, 1)
+            S.anchor = { x = x, y = y }
+            local w, h = screen()
+            lockReticle(math.floor(x * w + 0.5), math.floor(y * h + 0.5))
+            clearRows()
+            ui:merge("cm", { locked = true, panelShown = true, kindLabel = "Scan", title = "Looking",
+                distance = "", statusTag = "SCAN", status = "Resolving the target..." })
+            local first = not S.shown
+            S.shown = true
+            placePanel(0, 0, first)
+            startLoading()
+        elseif name == "context:empty" then
+            if not S.opened or p.epoch ~= S.epoch then return end
+            stopLoading()
+            ui:merge("cm", { empty = true, kindLabel = "None", title = "No target",
+                statusTag = "EMPTY", status = tostring(p.message or "Click another object or surface."):sub(1, 120) })
+            ui:animate("#reticle", { from = { scale = 0.85 }, to = { scale = 1 }, spring = { duration = 0.3, bounce = 0.5 } })
+        elseif name == "context:menu" then
+            if not S.opened or p.epoch ~= S.epoch then return end
+            stopLoading()
+            local rml, rows = M.rows(p.actions, S.showGroups)
+            S.rows, S.focus, S.busy = rows, nil, false
+            local groups = 0
+            if S.showGroups then for _ in rml:gmatch('class="grp"') do groups = groups + 1 end end
+            local head = M.describe(p.target, p.distance)
+            local any = #rows > 0
+            ui:merge("cm", { kindLabel = head.kindLabel, title = head.title, distance = head.distance,
+                available = any, empty = not any, hasError = false, busy = false, desc = "",
+                statusTag = any and "" or "NONE", status = any and "" or "Nothing to do with this target." })
+            ui:rml("#rows", rml)
+            placePanel(#rows, groups, false)
+            if any then
+                ui:animate("#rows .row", { from = { opacity = 0, x = -10 }, to = { opacity = 1, x = 0 },
+                    spring = { duration = 0.3, bounce = 0.16 }, stagger = 0.028 })
+                ui:animate("#reticle", { from = { scale = 1.18 }, to = { scale = 1 }, spring = { duration = 0.32, bounce = 0.45 } })
+            end
+        elseif name == "context:busy" then
+            if not S.opened or p.epoch ~= S.epoch then return end
+            S.busy = true
+            ui:set("cm", "busy", true)
+            for i, row in ipairs(S.rows) do
+                if row.token == p.token then
+                    ui:class("#r" .. i, "pending", true)
+                    ui:keyframes("#r" .. i .. " .spin", { channel = "rotate",
+                        stops = { { offset = 0, value = 0 }, { offset = 1, value = 360 } }, duration = 0.7, iterations = -1 })
+                else
+                    ui:class("#r" .. i, "idle", true)
+                end
+            end
+        elseif name == "context:error" then
+            if not S.opened or p.epoch ~= S.epoch then return end
+            S.busy = false
+            for i in ipairs(S.rows) do
+                ui:class("#r" .. i, "pending", false)
+                ui:class("#r" .. i, "idle", false)
+                ui:stop("#r" .. i .. " .spin")
+            end
+            ui:merge("cm", { busy = false, hasError = true, statusTag = "ERROR",
+                status = tostring(p.message or "Action unavailable."):sub(1, 120) })
+            ui:keyframes("#panel", { channel = "x", stops = {
+                { offset = 0, value = 0 }, { offset = 0.2, value = -7 }, { offset = 0.4, value = 6 },
+                { offset = 0.6, value = -4 }, { offset = 0.8, value = 2 }, { offset = 1, value = 0 } }, duration = 0.34 })
+        end
+    end
+
+    -- ---- input -----------------------------------------------------------------------------
+    local function mouse(e)
+        local x, y = tonumber(e and e.mouse_x), tonumber(e and e.mouse_y)
+        if not x or not y then return nil end
+        return x, y
+    end
+    ui:on("mousemove", "#hit", function(e)
+        if not S.opened or S.locked then return end
+        local x, y = mouse(e)
+        if x then ui:style("#reticle", { left = math.floor(x) .. "px", top = math.floor(y) .. "px" }) end
+    end)
+    ui:on("click", "#hit", function(e)
+        if not S.opened or S.busy then return end
+        local x, y = mouse(e)
+        if not x then return end
+        local w, h = screen()
+        local nx, ny = x / w, y / h
+        if nx ~= nx or ny ~= ny or nx < 0 or nx > 1 or ny < 0 or ny > 1 then return end
+        emit("context:pick", { epoch = S.epoch, x = nx, y = ny })
+    end)
+    ui:on("mousedown", function(e)
+        if S.opened and tonumber(e and e.button) == 1 then emit("context:cancel", { epoch = S.epoch }) end
+    end)
+    ui:on("mouseover", ".row", function(e)
+        if not S.opened or S.busy then return end
+        local index = tonumber(tostring(e.id or ""):match("^r(%d+)$"))
+        if index then setRowFocus(index, false) end
+    end)
+    ui:on("click", ".row", function(e)
+        local index = tonumber(tostring(e.id or ""):match("^r(%d+)$"))
+        if index then choose(index) end
+    end)
+    ui:on("keydown", function(e)
+        if not S.opened then return end
+        local key = tostring(e.key or "")
+        if key == "escape" then emit("context:cancel", { epoch = S.epoch })
+        elseif key == "down" then moveFocus(1)
+        elseif key == "up" then moveFocus(-1)
+        elseif key == "home" then moveFocus(0, "first")
+        elseif key == "end" then moveFocus(0, "last")
+        elseif key == "enter" or key == "space" then choose(S.focus) end
+    end)
+
+    -- ---- lifecycle -------------------------------------------------------------------------
+    local function ready()
+        S.accent, S.scaleApplied = nil, nil
+        applyAppearance(appearance)
+        ui:hide()
+        emit("context:ready")
+    end
+    ui:onEvent("loaded", ready)
+    ui:onEvent("reloaded", function()
+        S.accent, S.scaleApplied = nil, nil
+        applyAppearance(appearance)
+        if S.opened then emit("context:blur", "reloaded") else ui:hide() end
+    end)
+    ui:onEvent("focus", function(kind, detail)
+        if kind == "blur" and S.opened then emit("context:blur", detail and detail.reason or "blur") end
+    end)
+    ui:onEvent("error", function(kind, detail)
+        local message = tostring(detail and detail.message or "")
+        if kind == "focus" then
+            if S.opened then emit("context:blur", message ~= "" and message or "focus_unavailable") end
+            return
+        end
+        print("[contextmenu] UI " .. tostring(kind) .. ": " .. message)
+    end)
+    return page
+end
+resource "open77_contextmenu"
+version "1.2.0"
+open77_version ">=0.0.1"
+auto_start true
+reload_policy "reconnect"
+client_scripts { "shared/config.lua", "client/registry.lua", "client/ui.lua", "client/main.lua" }
+-- The menu is a NativeUI document (since 1.2.0; it was a WebUI page before).
+files { "ui/contextmenu.rml", "ui/contextmenu.rcss" }
+permissions { "world.query", "input.actions", "players.controls", "local.events" }
+ContextMenuConfig = {
+    key = "ALT",
+    blockNativeWeaponWheel = true, -- Resource lifetime claim, before the first ALT press.
+    appearance = {
+        accentColor = "#18d6e7", -- #RRGGBB: eye, hover highlight and spinner.
+        scale = 1.0, -- Compact by default; 0.75 to 1.5 for readability.
+        showGroups = false, -- Optional small headings; labels/icons only by default.
+    },
+    rayDistance = 12.0, -- From the camera. Actions separately enforce player distance.
+    maxActions = 24,
+    idlePollMs = 100,
+    activePollMs = 25,
+    revalidateMs = 200,
+    exportTimeoutMs = 750,
+    lookupBudgetMs = 1500, -- Total budget across all display predicates.
+}
+/* Open//77 ALT context menu on NativeUI.
+   The accent colour is applied by client/ui.lua as a named stylesheet layer
+   ("accent"): every rule below that uses #18d6e7 is its default.
+   1 dp = 1 px of the 1080p reference; positions set from Lua are in px. */
+
+body { width: 100%; height: 100%; pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; color: #e6eaec; }
+#stage { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; }
+
+/* the whole screen takes the clicks while the menu is open: a click anywhere picks */
+#hit { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: auto; cursor: default; }
+
+/* a soft darkening at the edges, so the panel and the reticle read on any scene */
+#vignette
+{
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none;
+    decorator: radial-gradient(circle, #00000000 60%, #02040a59 100%);
+    opacity: 0; transition: opacity 0.25s cubic-out;
+}
+#stage.open #vignette { opacity: 1; }
+
+/* ---- the reticle --------------------------------------------------------------- */
+#reticle
+{
+    position: absolute; left: 50%; top: 50%;
+    width: 46dp; height: 46dp; margin-left: -23dp; margin-top: -23dp;
+    pointer-events: none; opacity: 0;
+}
+.br { position: absolute; width: 11dp; height: 11dp; border-color: #e6eaecd9; transition: border-color 0.14s linear-in-out; }
+.br.tl  { left: 0; top: 0; border-left-width: 2dp; border-top-width: 2dp; }
+.br.tr  { right: 0; top: 0; border-right-width: 2dp; border-top-width: 2dp; }
+.br.bl  { left: 0; bottom: 0; border-left-width: 2dp; border-bottom-width: 2dp; }
+.br.brr { right: 0; bottom: 0; border-right-width: 2dp; border-bottom-width: 2dp; }
+#stage.available .br { border-color: #18d6e7; }
+#ring { position: absolute; left: 7dp; top: 7dp; width: 32dp; height: 32dp; opacity: 0; transition: opacity 0.15s cubic-out; }
+.ring-shape { position: absolute; left: 0; top: 0; width: 32dp; height: 32dp; fill: #00000000; stroke: #18d6e7; stroke-width: 2dp; stroke-dasharray: 18 9; }
+#stage.loading #ring { opacity: 1; }
+#dot { position: absolute; left: 20dp; top: 20dp; width: 6dp; height: 6dp; background-color: #e6eaec; transform: rotate(45deg); opacity: 0; transition: opacity 0.12s linear-in-out, background-color 0.14s linear-in-out; }
+#stage.locked #dot { opacity: 1; }
+#stage.available #dot { background-color: #18d6e7; }
+
+/* ---- the panel ------------------------------------------------------------------ */
+/* display, not opacity, hides it: a backdrop filter still draws at opacity 0 */
+#panel
+{
+    display: none;
+    position: absolute; left: 0; top: 0;
+    width: 272dp;
+    pointer-events: auto; cursor: default;
+    background-color: #060a11e0;
+    backdrop-filter: blur(12dp) saturate(1.15);
+    border-left-width: 2dp; border-color: #18d6e7;
+    box-shadow: #000000a6 0dp 10dp 30dp 0dp;
+}
+#panel.shown { display: block; }
+
+#head { display: flex; flex-direction: row; align-items: center; height: 32dp; padding: 0 10dp 0 0; border-bottom-width: 1dp; border-color: #ffffff12; }
+#kind { height: 32dp; padding: 0 12dp 0 10dp; margin-right: 10dp; background-color: #18d6e7; flex-shrink: 0; }
+#kind span { font-size: 10dp; line-height: 32dp; letter-spacing: 0.2em; color: #04080d; text-transform: uppercase; }
+#title { flex: 1 1 auto; overflow: hidden; }
+#title span { font-size: 12dp; letter-spacing: 0.1em; color: #f2f5f7; white-space: nowrap; text-transform: uppercase; }
+#dist { display: none; flex-shrink: 0; margin-left: 8dp; }
+#dist.on { display: block; }
+#dist span { font-family: "Roboto Mono"; font-size: 11dp; color: #8a94a2; }
+
+/* a scan line under the header while the target is looked up */
+#sweep { position: relative; height: 2dp; overflow: hidden; background-color: #ffffff08; }
+#sweep-bar { position: absolute; left: 0; top: 0; width: 34%; height: 2dp; background-color: #18d6e7; opacity: 0; filter: glow(4dp #18d6e7 1); }
+#stage.loading #sweep-bar { opacity: 1; }
+
+#status { display: none; flex-direction: row; align-items: center; padding: 10dp 12dp; }
+#status.on { display: flex; }
+#status-tag { height: 16dp; padding: 0 6dp; margin-right: 9dp; background-color: #8a94a240; transform: skewX(-14deg); flex-shrink: 0; }
+#status-tag span { font-size: 10dp; line-height: 16dp; letter-spacing: 0.14em; color: #c7ced8; }
+#status-text { font-size: 11dp; letter-spacing: 0.06em; color: #a3adb9; }
+#panel.error #status-tag { background-color: #ff3b4e; filter: glow(5dp #ff3b4e 0.8); }
+#panel.error #status-tag span { color: #1a0306; }
+#panel.error #status-text { color: #ff8a96; }
+
+#rows { display: block; max-height: 384dp; overflow-y: auto; padding: 4dp 0 4dp 0; }
+#rows scrollbarvertical { width: 3dp; }
+#rows scrollbarvertical sliderbar { background-color: #18d6e799; }
+
+.grp { display: block; padding: 9dp 12dp 3dp 12dp; }
+.grp span { font-size: 9dp; letter-spacing: 0.24em; color: #6e7886; text-transform: uppercase; }
+
+.row
+{
+    display: flex; flex-direction: row; align-items: center;
+    height: 32dp; padding: 0 12dp 0 10dp; margin: 1dp 4dp 1dp 0dp;
+    border-left-width: 2dp; border-color: #00000000;
+    background-color: #00000000;
+    cursor: pointer;
+    transition: background-color border-color padding-left 0.14s cubic-out;
+}
+.row .ic { position: relative; width: 18dp; height: 18dp; margin-right: 11dp; flex-shrink: 0; }
+.row .ic path { position: absolute; left: 0; top: 0; width: 18dp; height: 18dp; fill: #00000000; stroke: #c7ced8; stroke-width: 1.6dp; stroke-linecap: round; stroke-linejoin: round; }
+.row .spin { display: none; position: absolute; left: 1dp; top: 1dp; width: 16dp; height: 16dp; fill: #00000000; stroke: #18d6e7; stroke-width: 2dp; stroke-dasharray: 14 10; }
+.row .lb { flex: 1 1 auto; font-size: 12.5dp; letter-spacing: 0.04em; color: #dfe4ea; white-space: nowrap; }
+.row .go { flex-shrink: 0; width: 8dp; height: 8dp; margin-left: 8dp; border-right-width: 2dp; border-top-width: 2dp; border-color: #18d6e7; transform: rotate(45deg); opacity: 0; transition: opacity 0.12s cubic-out; }
+
+.row.focus { background-color: #18d6e72e; border-color: #18d6e7; padding-left: 14dp; }
+.row.focus .lb { color: #ffffff; }
+.row.focus .ic path { stroke: #18d6e7; }
+.row.focus .go { opacity: 1; }
+
+.row.danger .lb { color: #ff7b88; }
+.row.danger .ic path { stroke: #ff7b88; }
+.row.danger.focus { background-color: #ff3b4e2e; border-color: #ff3b4e; }
+.row.danger.focus .ic path { stroke: #ff3b4e; }
+.row.danger .go { border-color: #ff3b4e; }
+
+.row.pending .ic path { display: none; }
+.row.pending .spin { display: block; }
+#panel.busy .row { cursor: default; }
+#panel.busy .row.idle { opacity: 0.45; }
+
+/* the focused row's description, under the list */
+#desc { display: none; padding: 7dp 12dp 8dp 12dp; border-top-width: 1dp; border-color: #ffffff0f; }
+#desc.on { display: block; }
+#desc span { font-family: "Lato"; font-weight: normal; font-size: 11dp; line-height: 15dp; color: #a3adb9; }
+
+#foot { display: flex; flex-direction: row; align-items: center; height: 22dp; padding: 0 10dp; border-top-width: 1dp; border-color: #ffffff0f; }
+.fk { font-family: "Roboto Mono"; font-size: 9dp; color: #c7ced8; margin-right: 4dp; }
+.ft { font-size: 8.5dp; letter-spacing: 0.18em; color: #5a6472; margin-right: 11dp; }
+#panel.empty #foot { display: none; }
+
+/* ---- the hint bar ---------------------------------------------------------------- */
+#hintbar
+{
+    position: absolute; left: 0; right: 0; bottom: 96dp;
+    display: flex; flex-direction: row; justify-content: center; align-items: center;
+    pointer-events: none; opacity: 0;
+}
+#hint-key { height: 20dp; padding: 0 8dp; margin-right: 10dp; background-color: #18d6e7; transform: skewX(-14deg); }
+#hint-key span { font-size: 10dp; line-height: 20dp; letter-spacing: 0.16em; color: #04080d; }
+.hint-text { font-size: 10dp; letter-spacing: 0.24em; color: #c7ced8; text-transform: uppercase; font-effect: shadow(0dp 1dp #000000); }
+<rml>
+<head>
+    <title>Open//77 Target actions</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="contextmenu.rcss"/>
+</head>
+<!-- The ALT context menu on NativeUI. client/ui.lua owns every decision and every
+     position; the document only binds the "cm" model and holds the shapes.
+     Layers, back to front: the click catcher (#hit), the vignette, the reticle that
+     follows the pointer and locks on a pick, the action panel, the hint bar. -->
+<body data-model="cm">
+<div id="stage" data-class-open="open" data-class-locked="locked" data-class-loading="loading"
+     data-class-available="available" data-class-keyboard="keyboard">
+
+    <div id="hit"></div>
+    <div id="vignette"></div>
+
+    <!-- four brackets, a ring that spins while the target is looked up, and a dot -->
+    <div id="reticle">
+        <div class="br tl"></div><div class="br tr"></div>
+        <div class="br bl"></div><div class="br brr"></div>
+        <div id="ring"><shape type="circle" class="ring-shape"/></div>
+        <div id="dot"></div>
+    </div>
+
+    <div id="panel" data-class-left="left" data-class-up="up" data-class-shown="panelShown"
+         data-class-empty="empty" data-class-error="hasError" data-class-busy="busy">
+        <div id="head">
+            <div id="kind"><span>{{kindLabel}}</span></div>
+            <div id="title"><span>{{title}}</span></div>
+            <div id="dist" data-class-on="distance != ''"><span>{{distance}}</span></div>
+        </div>
+        <div id="sweep"><div id="sweep-bar"></div></div>
+        <div id="status" data-class-on="status != ''">
+            <div id="status-tag"><span>{{statusTag}}</span></div>
+            <span id="status-text">{{status}}</span>
+        </div>
+        <div id="rows"></div>
+        <div id="desc" data-class-on="desc != ''"><span>{{desc}}</span></div>
+        <div id="foot">
+            <span class="fk">UP/DN</span><span class="ft">MOVE</span>
+            <span class="fk">ENTER</span><span class="ft">SELECT</span>
+            <span class="fk">ESC</span><span class="ft">CLOSE</span>
+        </div>
+    </div>
+
+    <div id="hintbar">
+        <div id="hint-key"><span>{{key}}</span></div>
+        <span class="hint-text">{{hint}}</span>
+    </div>
+</div>
+</body>
+</rml>

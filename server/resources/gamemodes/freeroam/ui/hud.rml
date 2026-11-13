@@ -1,0 +1,57 @@
+<rml>
+<head>
+    <title>Open//77 Freeroam HUD</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="hud.rcss"/>
+</head>
+<body data-model="hud">
+<div id="hud" data-class-ready="ready" data-class-hidden="hidden" data-class-vehicle="inVehicle">
+
+    <!-- left: vitals, turned toward the centre of the screen -->
+    <div id="left" class="wing wing-left">
+        <div id="weapons" data-if="weaponCount > 0 &amp;&amp; !inVehicle">
+            <div class="wb" data-for="w : weapons" data-class-low="w.low" data-class-reloading="w.reloading"
+                 data-class-melee="w.melee" data-class-drawn="w.drawn">
+                <div class="wb-head">
+                    <div class="wb-badge"><span class="wb-slot">{{w.slot}}</span></div>
+                    <span class="wb-name">{{w.label}}</span>
+                    <span class="wb-type">{{w.hand}} · {{w.category}}</span>
+                    <span class="grow"></span>
+                    <span class="wb-ammo" data-if="w.ammoKnown"><span class="wb-mag">{{w.magazine}}</span><span class="wb-res">/ {{w.reserve}}</span></span>
+                    <span class="wb-state" data-if="!w.ammoKnown">{{w.state}}</span>
+                </div>
+                <div class="wb-strip" data-if="w.ammoKnown"><span data-for="s : w.segs" data-class-live="s"></span></div>
+                <div class="wb-line" data-if="!w.ammoKnown"></div>
+                <div class="wb-reload"><div class="wb-reload-bar"></div></div>
+            </div>
+        </div>
+        <div id="vitals" data-class-critical="critical" data-class-hurt="hurt">
+            <div class="vb-badge">
+                <path class="vb-cross" view-box="0 0 10 10" d="M3.6 0.8H6.4V3.6H9.2V6.4H6.4V9.2H3.6V6.4H0.8V3.6H3.6Z"/>
+                <span class="vb-hp">{{hp}}</span>
+            </div>
+            <div class="vb-bars">
+                <div class="vb-armor" data-class-on="armor > 0"><div class="vb-armor-fill" data-style-width="armorPct + '%'"></div></div>
+                <div class="vb-health">
+                    <div class="vb-ghost" data-style-width="hpGhost + '%'"></div>
+                    <div class="vb-fill" data-style-width="hpPct + '%'"><div class="vb-tip"></div></div>
+                </div>
+                <div class="vb-stamina"><div class="vb-sta-fill" data-style-width="staPct + '%'" data-class-low="25 > staPct"></div></div>
+            </div>
+            <span class="vb-armor-value" data-if="armor > 0">{{armor}}</span>
+        </div>
+    </div>
+
+    <!-- right: weapons and the command hints, turned toward the centre -->
+    <div id="right" class="wing wing-right">
+        <div id="hints" data-if="hintsVisible">
+            <div class="hint"><span class="hint-text">Menu &amp; tools</span><span class="hint-cmd">/freeroam</span></div>
+            <div class="hint"><span class="hint-text">Street racing</span><span class="hint-cmd">/race</span></div>
+            <div class="hint"><span class="hint-text">Combat arenas</span><span class="hint-cmd">/pvp</span></div>
+            <div class="hint"><span class="hint-text">Animations</span><span class="hint-cmd">/anim</span></div>
+        </div>
+    </div>
+
+</div>
+</body>
+</rml>

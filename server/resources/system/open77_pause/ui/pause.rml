@@ -1,0 +1,115 @@
+<rml>
+<head>
+    <title>Open//77 pause</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="pause.rcss"/>
+</head>
+<body>
+<!-- Structure only: every word comes from shared/strings.lua (client/ui.lua fills it),
+     except what the engine owns (setting labels, options, device and key names). -->
+<div id="root">
+    <!-- the world behind, frosted and dimmed toward the panel -->
+    <div id="scrim"></div>
+    <div id="aura"></div>
+
+    <div id="panel">
+        <div id="panel-glass"></div>
+        <div id="panel-edge"></div>
+        <div id="panel-spine"></div>
+        <div id="panel-scan"></div>
+
+        <!-- ===== main page ===== -->
+        <div id="page-main" class="page">
+            <div id="mast">
+                <div id="wordmark"><img src="/ui/open77-wordmark.png"/></div>
+                <div id="brand-sep"></div>
+                <div id="brand"></div>
+                <div class="grow"></div>
+                <div id="chip"><span id="chip-dot"></span><span id="chip-text"></span></div>
+            </div>
+
+            <div id="session">
+                <div id="session-head">
+                    <div class="grow">
+                        <div id="session-eyebrow"><span class="mark">//</span><span id="session-label"></span></div>
+                        <div id="session-name"></div>
+                    </div>
+                    <div id="pill"><span id="pill-dot"></span><span id="pill-text"></span></div>
+                </div>
+                <div id="session-grid"></div>
+                <div id="session-hint"></div>
+                <div id="privacy" class="nav-item" data-nav="privacy">
+                    <div id="privacy-box"><span id="privacy-tick"></span></div>
+                    <span id="privacy-text"></span>
+                </div>
+            </div>
+
+            <div id="pause-error"></div>
+            <div id="items"></div>
+        </div>
+
+        <!-- ===== confirmation ===== -->
+        <div id="page-confirm" class="page">
+            <div id="confirm-mast">
+                <div id="confirm-icon"></div>
+                <div id="confirm-kicker"></div>
+            </div>
+            <div id="confirm-title"></div>
+            <div id="confirm-body"></div>
+            <div id="confirm-actions">
+                <div id="confirm-no" class="btn nav-item" data-nav="confirm-no"><span id="confirm-no-text"></span><span class="kbd" id="confirm-no-key"></span></div>
+                <div id="confirm-yes" class="btn danger nav-item" data-nav="confirm-yes"><span id="confirm-yes-text"></span></div>
+            </div>
+        </div>
+
+        <!-- ===== settings: category rail + content ===== -->
+        <div id="page-settings" class="page">
+            <div id="rail">
+                <div id="rail-wordmark"><img src="/ui/open77-wordmark.png"/></div>
+                <div id="back" class="nav-item" data-nav="back"></div>
+                <div id="rail-label"></div>
+                <div id="tabs"></div>
+                <div class="grow"></div>
+                <div id="vanilla" class="nav-item" data-nav="vanilla"></div>
+                <div id="vanilla-hint"></div>
+            </div>
+            <div id="content">
+                <div id="content-head">
+                    <div class="grow">
+                        <div id="content-kicker"><span class="mark">//</span><span id="content-kicker-text"></span></div>
+                        <div id="content-title"></div>
+                    </div>
+                    <div id="note"></div>
+                </div>
+                <div id="filter-wrap" class="nav-item" data-nav="filter">
+                    <div id="filter-icon"></div>
+                    <input id="filter" type="text" maxlength="64"/>
+                    <span id="filter-placeholder"></span>
+                    <div id="filter-clear" class="nav-item" data-nav="filter-clear"></div>
+                </div>
+                <div id="list-wrap">
+                    <div id="list"></div>
+                    <div id="list-fade"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="foot"></div>
+    </div>
+
+    <!-- a list setting's options: a sheet over the settings content -->
+    <div id="sheet-veil"></div>
+    <div id="sheet">
+        <div id="sheet-head">
+            <div class="grow">
+                <div id="sheet-kicker"><span class="mark">//</span><span id="sheet-kicker-text"></span></div>
+                <div id="sheet-title"></div>
+            </div>
+            <div id="sheet-count"></div>
+        </div>
+        <div id="sheet-find"></div>
+        <div id="sheet-list"></div>
+    </div>
+</div>
+</body>
+</rml>

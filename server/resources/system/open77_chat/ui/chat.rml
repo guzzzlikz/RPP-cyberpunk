@@ -1,0 +1,43 @@
+<rml>
+<head>
+    <title>Open//77 chat</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="chat.rcss"/>
+</head>
+<body>
+<div id="root">
+<!-- the left of the screen softens while typing: the eye goes to the chat -->
+<div id="focus-veil"></div>
+<div id="chat">
+    <div id="panel">
+        <div id="head">
+            <span class="slash">//</span>
+            <span class="title">CHAT</span>
+            <span id="channel" class="channel">GLOBAL</span>
+            <span class="grow"></span>
+            <span class="live"><span class="live-dot"></span><span>LIVE</span></span>
+            <span id="count" class="count">00</span>
+        </div>
+        <div id="log">
+            <div id="messages"></div>
+            <div id="empty">No messages yet</div>
+        </div>
+        <div id="latest"><span id="unread">0</span><span> new below</span></div>
+        <div id="composer">
+            <span class="prompt">›</span>
+            <input id="input" type="text" maxlength="256" placeholder="Message everyone, or type / for commands"/>
+            <span id="chars" class="chars">0/256</span>
+        </div>
+        <div id="suggestions"></div>
+        <div id="foot">
+            <span><span class="key">ENTER</span>Send</span>
+            <span><span class="key">TAB</span>Complete</span>
+            <span><span class="key">UP/DN</span>History</span>
+            <span class="grow"></span>
+            <span><span class="key">ESC</span>Close</span>
+        </div>
+    </div>
+</div>
+</div>
+</body>
+</rml>

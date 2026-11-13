@@ -1,0 +1,31 @@
+<rml>
+<head>
+    <title>Open//77 Freeroam speedometer</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="hud.rcss"/>
+</head>
+<body data-model="hud">
+<!-- its own document: it floats on its own, apart from the vitals and the weapons -->
+<div id="hud" data-class-ready="ready" data-class-hidden="hidden" data-class-vehicle="inVehicle">
+    <!-- the speedometer: a head-up readout floating beside the car, no panel, turned toward the centre -->
+    <div id="vehicle">
+        <div id="speedo">
+            <div class="hud-row">
+                <div class="speed"><span class="speed-lead">{{speedLead}}</span><span class="speed-num">{{speedNum}}</span></div>
+                <div class="tells">
+                    <span class="tell" data-class-on="airborne">AIR</span>
+                    <span class="tell" data-class-on="gear == 'R'">REV</span>
+                    <span class="tell" data-class-warn="35 > integrity">DMG</span>
+                </div>
+            </div>
+            <div class="hud-row sub">
+                <span class="gear" data-class-rev="gear == 'R'">GEAR {{gear}}</span>
+                <span class="grow"></span>
+                <span class="unit">KM/H</span>
+            </div>
+            <div class="rpm-line"><div class="rpm-fill" data-style-width="rpmPct + '%'" data-class-red="rpmPct > 88"></div></div>
+        </div>
+    </div>
+</div>
+</body>
+</rml>

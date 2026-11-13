@@ -1,0 +1,886 @@
+return assert(require('@polyzone')).installGlobals().BoxZone
+return assert(require('@polyzone')).installGlobals().CircleZone
+return assert(require('@polyzone')).installGlobals().ComboZone
+return assert(require('@polyzone')).installGlobals().EntityZone
+return assert(require('@polyzone')).installGlobals().PolyZone
+local PZ,loadError=require('@polyzone')
+assert(PZ,'polyzone requires the Open77 dependency-module client update: '..tostring(loadError))
+local draft,last,zone,page,ready,open,sourceText=nil,nil,nil,nil,false,false,''
+local draftPreview=false
+local function notice(text,ok)
+    print('[polyzone] '..tostring(text))
+    TriggerEvent('chat:addMessage',{author='PolyZone',text=tostring(text),color=ok and {34,216,226} or {255,180,90}})
+    if page and ready then page:send('polyzone:notice',{text=tostring(text),ok=ok}) end
+end
+RegisterNetEvent('polyzone:notice',notice)
+local function clone(value)
+    if type(value)~='table' then return value end
+    local result={};for k,v in pairs(value) do result[k]=clone(v) end;return result
+end
+local function update()
+    if page and ready then page:send('polyzone:state',{open=open,draft=draft or false,source=sourceText}) end
+end
+local function redraw()
+    if zone then zone:destroy(); zone=nil end
+    if not draft then return end
+    local options={name=draft.name,minZ=draft.minZ,maxZ=draft.maxZ,heading=draft.heading,debugPoly=true,useZ=draft.useZ}
+    if draft.kind=='poly' and #draft.points>=3 then
+        local ok,value=pcall(PZ.PolyZone.Create,PZ.PolyZone,draft.points,options)
+        if ok then zone=value else notice('The polygon needs non-collinear points. Move sideways, then add a vertex.',false) end
+    elseif draft.kind=='box' then zone=PZ.BoxZone:Create(draft.center,draft.length,draft.width,options)
+    elseif draft.kind=='circle' then zone=PZ.CircleZone:Create(draft.center,draft.radius,options) end
+    sourceText=zone and PZ.serialize(zone) or ''
+    update()
+    if draft.kind=='poly' and not draftPreview then
+        draftPreview=true
+        CreateThread(function()
+            while draft and draft.kind=='poly' do
+                local lines={}
+                for i,p in ipairs(draft.points) do
+                    local a={x=p.x,y=p.y,z=p.z+.05}
+                    lines[#lines+1]={a=a,b={x=p.x,y=p.y,z=p.z+1},color='#19d5e0ff'}
+                    local previous=draft.points[i-1]
+                    if previous then lines[#lines+1]={a=a,b={x=previous.x,y=previous.y,z=previous.z+.05},color='#19d5e0ff'} end
+                end
+                Open77.debugDraw.set('polyzone:editor-draft',{lines=lines,ttl=.5,maxDistance=500})
+                Wait(100)
+            end
+            Open77.debugDraw.clear('polyzone:editor-draft');draftPreview=false
+        end)
+    end
+end
+local function setOpen(value)
+    if not page then
+        local err;page,err=WebUI.create({entry='web/index.html',layer='menu',fps=30,transparent=true,visible=false})
+        if not page then notice('Editor unavailable: '..tostring(err),false);return end
+        page:on('polyzone:ready',function()ready=true;update()end)
+        page:on('polyzone:action',function(payload)
+            TriggerEvent('polyzone:editorAction',payload)
+        end)
+    end
+    open=value
+    if open then page:show() else page:hide() end
+    page:setFocus(open,open)
+    update()
+end
+local function command(name,args)
+    args=args or {}
+    if name=='pzcomboinfo' then TriggerEvent('polyzone:pzcomboinfo');return end
+    if name=='pzedit' then setOpen(not open);return end
+    if name=='pzcancel' then if zone then zone:destroy();zone=nil end;draft=nil;sourceText='';setOpen(false);return end
+    if name=='pzlast' then
+        if not last or last.kind=='poly' then return notice('/pzlast requires a previously finished box or circle.',false) end
+        if draft then return notice('Finish or cancel the current zone first.',false) end
+        local position=PZ.PolyZone.getPlayerPosition();if not position then return notice('Enter the world first.',false) end
+        draft=clone(last)
+        local heightDelta=position.z-draft.center.z
+        if draft.minZ then draft.minZ=draft.minZ+heightDelta end
+        if draft.maxZ then draft.maxZ=draft.maxZ+heightDelta end
+        draft.center=position;if args[1] then draft.name=args[1] end
+        redraw();setOpen(true);return
+    end
+    if name=='pzcreate' then
+        if draft then return notice('Finish or cancel the current zone first.',false) end
+        local position=PZ.PolyZone.getPlayerPosition()
+        if not position then return notice('Enter the world before creating a zone.',false) end
+        local kind=args[1] or 'poly'
+        if kind~='poly' and kind~='box' and kind~='circle' then return notice('Usage: /pzcreate poly|box|circle [name] [length/radius] [width]',false) end
+        draft={kind=kind,name=args[2] or 'new_zone',center=position,points={},heading=0,length=tonumber(args[3]) or 4,width=tonumber(args[4]) or 4,radius=tonumber(args[3]) or 3,useZ=false}
+        if draft.length<=0 or draft.width<=0 or draft.radius<=0 then draft=nil;return notice('Dimensions must be positive.',false) end
+        if kind=='poly' then draft.points[1]=clone(position) end
+        redraw();setOpen(true);return
+    end
+    if not draft then return notice('Start a zone with /pzcreate first.',false) end
+    if name=='pzadd' then
+        if draft.kind~='poly' then return notice('/pzadd only applies to polygons.',false) end
+        local p=PZ.PolyZone.getPlayerPosition();if not p then return end
+        if #draft.points>=128 then return notice('Editor limit: 128 vertices.',false) end
+        draft.points[#draft.points+1]=clone(p);redraw()
+    elseif name=='pzundo' then table.remove(draft.points);redraw()
+    elseif name=='pzfinish' then
+        if not zone then return notice('Add at least three non-collinear polygon points.',false) end
+        sourceText=PZ.serialize(zone)
+        TriggerServerEvent('polyzone:save',sourceText)
+        local stored,err=Open77.kvp.set('last_zone',sourceText)
+        if not stored then notice('Local backup unavailable: '..tostring(err),false) end
+        last=clone(draft);zone:destroy();zone=nil;draft=nil;update()
+    end
+end
+RegisterNetEvent('polyzone:command',function(name,args)
+    local ok,err=pcall(command,name,args);if not ok then notice(err,false) end
+end)
+AddEventHandler('polyzone:editorAction',function(payload)
+    if type(payload)~='table' then return end
+    local action=payload.action
+    if action=='close' then setOpen(false);return end
+    if action=='copy' then
+        local ok,err=Open77.clipboard.setText(sourceText)
+        notice(ok and 'Lua source copied.' or ('Copy failed: '..tostring(err)),ok);return
+    end
+    if action=='command' then
+        local ok,err=pcall(command,payload.name,payload.args);if not ok then notice(err,false) end;return
+    end
+    if action=='moveHere' and draft then draft.center=PZ.PolyZone.getPlayerPosition() or draft.center;redraw();return end
+    if action=='patch' and draft then
+        local candidate=clone(draft)
+        for _,key in ipairs({'length','width','radius','heading','minZ','maxZ'}) do
+            if payload[key]~=nil then
+                if payload[key]=='' and (key=='minZ' or key=='maxZ') then candidate[key]=nil
+                else local n=tonumber(payload[key]);if not n or n~=n or math.abs(n)>100000 then return notice('Invalid '..key,false) end;candidate[key]=n end
+            end
+        end
+        if candidate.length<=0 or candidate.width<=0 or candidate.radius<=0 then return notice('Dimensions must be positive.',false) end
+        if candidate.minZ and candidate.maxZ and candidate.minZ>candidate.maxZ then return notice('minZ must not exceed maxZ.',false) end
+        if type(payload.name)=='string' then candidate.name=payload.name:sub(1,96) end
+        if type(payload.useZ)=='boolean' then candidate.useZ=payload.useZ end
+        draft=candidate;local ok,err=pcall(redraw);if not ok then notice(err,false) end
+    end
+end)
+AddEventHandler('onClientResourceStart',function(name)
+    if name~=GetCurrentResourceName() then return end
+    if not Open77.debugDraw or not Open77.world.entityGeometry then notice('Update the Open77 client to use native PolyZone geometry.',false) end
+    RegisterKeyMapping('polyzone.editor','PolyZone: toggle editor focus','F9',function()if draft or page then setOpen(not open)end end)
+    RegisterKeyMapping('polyzone.add','PolyZone: add polygon vertex','F10',function()
+        if draft and draft.kind=='poly' then local ok,err=pcall(command,'pzadd');if not ok then notice(err,false)end end
+    end)
+end)
+AddEventHandler('onClientResourceStop',function(name)
+    if name~=GetCurrentResourceName() then return end
+    if page then page:setFocus(false,false);page:destroy();page=nil end
+end)
+local G=assert(require('@polyzone/geometry'))
+local D={}
+local function color(rgb,alpha)
+    rgb=rgb or {0,255,0}
+    return string.format('#%02x%02x%02x%02x',math.floor(math.max(0,math.min(255,rgb[1]))),
+        math.floor(math.max(0,math.min(255,rgb[2]))),math.floor(math.max(0,math.min(255,rgb[3]))),alpha)
+end
+function D.build(zone,player)
+    local result={lines={},triangles={},maxDistance=zone._options.debugDistance or 250,ttl=0.5}
+    local outline=color(zone.debugColors.outline or {255,0,0},184)
+    local wall=color(zone.debugColors.walls or zone.debugColor,48)
+    local function line(a,b,c) result.lines[#result.lines+1]={a=a,b=b,color=c or outline} end
+    local function triangle(a,b,c) result.triangles[#result.triangles+1]={a=a,b=b,c=c,color=wall} end
+    local z=player and player.z or zone.center.z or 0
+    local low,high=zone.minZ or z-45,zone.maxZ or z+45
+    local points=zone.points
+    if zone.isCircleZone then
+        points={}; local count=48
+        for i=0,count-1 do
+            local angle=i*math.pi*2/count
+            points[#points+1]={x=zone.center.x+zone.radius*math.cos(angle),y=zone.center.y+zone.radius*math.sin(angle)}
+        end
+        outline=color(zone.debugColor,190)
+        if zone.useZ then
+            for axis=1,3 do
+                local last
+                for i=0,count do
+                    local angle=i*math.pi*2/count
+                    local a,b=zone.radius*math.cos(angle),zone.radius*math.sin(angle)
+                    local p={x=zone.center.x+(axis==3 and 0 or a),y=zone.center.y+(axis==1 and b or axis==3 and a or 0),z=zone.center.z+(axis~=1 and b or 0)}
+                    if last then line(last,p,outline) end; last=p
+                end
+            end
+            return result
+        end
+    end
+    for i,p in ipairs(points) do
+        local q=points[i%#points+1]
+        if not zone.isCircleZone then p,q=zone:TransformPoint(p),zone:TransformPoint(q) end
+        local a,b,c,d={x=p.x,y=p.y,z=low},{x=p.x,y=p.y,z=high},{x=q.x,y=q.y,z=low},{x=q.x,y=q.y,z=high}
+        line(a,b);line(b,d);line(a,c);triangle(a,b,c);triangle(b,d,c)
+    end
+    if zone.debugGrid and zone.grid and zone.gridCellWidth then
+        local gridColor=color(zone.debugColors.grid or {255,255,255},196)
+        for y,row in pairs(zone.grid) do for x,inside in pairs(row) do
+            if inside and #result.lines<=500 then
+                local a={x=zone.min.x+x*zone.gridCellWidth,y=zone.min.y+y*zone.gridCellHeight,z=high}
+                local b={x=a.x+zone.gridCellWidth,y=a.y,z=high}
+                local c={x=b.x,y=b.y+zone.gridCellHeight,z=high}
+                local d={x=a.x,y=c.y,z=high}
+                line(a,b,gridColor);line(b,c,gridColor);line(c,d,gridColor);line(d,a,gridColor)
+            end
+        end end
+    end
+    return result
+end
+return D
+-- PolyZone geometry, adapted from Michael Afrin's MIT PolyZone (see LICENSE).
+-- Open77 vectors are ordinary {x,y,z} tables, not Cfx userdata.
+local G = {}
+function G.finite(v) return type(v) == 'number' and v == v and math.abs(v) < math.huge end
+function G.vector(v, z)
+    assert(type(v) == 'table' and G.finite(v.x or v[1]) and G.finite(v.y or v[2]), 'polyzone: expected finite position {x,y,z}')
+    local result = {x = v.x or v[1], y = v.y or v[2], z = v.z or v[3] or z or 0}
+    assert(G.finite(result.z), 'polyzone: invalid position.z')
+    return result
+end
+function G.positive(v, name)
+    assert(G.finite(v) and v > 0, 'polyzone: '..name..' must be positive and finite')
+    return v
+end
+function G.copy(t) local out = {}; for k,v in pairs(t or {}) do out[k]=v end; return out end
+function G.distance2(a,b,useZ)
+    local z = useZ and ((a.z or 0) - (b.z or 0)) or 0
+    return (a.x-b.x)^2 + (a.y-b.y)^2 + z*z
+end
+function G.rotate(origin, p, heading)
+    local angle = math.rad(heading)
+    local c,s,x,y = math.cos(angle),math.sin(angle),p.x-origin.x,p.y-origin.y
+    return {x=origin.x+x*c-y*s,y=origin.y+x*s+y*c,z=p.z}
+end
+local function left(a,b,p) return (b.x-a.x)*(p.y-a.y)-(p.x-a.x)*(b.y-a.y) end
+function G.winding(p,points)
+    local winding = 0
+    for i=1,#points do
+        local a,b=points[i],points[i % #points+1]
+        if a.y<=p.y then
+            if b.y>p.y and left(a,b,p)>0 then winding=winding+1 end
+        elseif b.y<=p.y and left(a,b,p)<0 then winding=winding-1 end
+    end
+    return winding~=0
+end
+function G.intersects(a,b,c,d)
+    local ax,bx,dx,ay,by,dy=a.x-c.x,b.x-a.x,d.x-c.x,a.y-c.y,b.y-a.y,d.y-c.y
+    local denominator=bx*dy-by*dx
+    local n1,n2=ay*dx-ax*dy,ay*bx-ax*by
+    if denominator==0 then return n1==0 and n2==0 end
+    local r,s=n1/denominator,n2/denominator
+    return r>=0 and r<=1 and s>=0 and s<=1
+end
+function G.bounds(points)
+    local min,max={x=math.huge,y=math.huge},{x=-math.huge,y=-math.huge}
+    local area=0
+    for i,p in ipairs(points) do
+        min.x,min.y=math.min(min.x,p.x),math.min(min.y,p.y)
+        max.x,max.y=math.max(max.x,p.x),math.max(max.y,p.y)
+        local q=points[i % #points+1]; area=area+p.x*q.y-q.x*p.y
+    end
+    return min,max,{x=max.x-min.x,y=max.y-min.y},{x=(min.x+max.x)/2,y=(min.y+max.y)/2,z=0},math.abs(area)*.5
+end
+function G.insideCell(zone,cx,cy)
+    local x,y=zone.min.x+cx*zone.gridCellWidth,zone.min.y+cy*zone.gridCellHeight
+    local cell={{x=x,y=y},{x=x+zone.gridCellWidth,y=y},{x=x+zone.gridCellWidth,y=y+zone.gridCellHeight},{x=x,y=y+zone.gridCellHeight}}
+    local any=false
+    for _,p in ipairs(cell) do if G.winding(p,zone.points) then any=true; break end end
+    if not any then return false end
+    for i=1,4 do for j=1,#zone.points do
+        if G.intersects(cell[i],cell[i%4+1],zone.points[j],zone.points[j%#zone.points+1]) then return false end
+    end end
+    return true
+end
+function G.scaleOffset(options)
+    local function expand(v,default)
+        v=v or {default,default,default}
+        assert(type(v)=='table' and (#v==3 or #v==6),'polyzone: scale/offset must contain 3 or 6 values')
+        for _,n in ipairs(v) do assert(G.finite(n),'polyzone: scale/offset must be finite') end
+        if #v==3 then return {v[1],v[1],v[2],v[2],v[3],v[3]} end
+        return G.copy(v)
+    end
+    return expand(options.scale,1),expand(options.offset,0)
+end
+function G.transform(p,position,q)
+    if not q then return {x=p.x+position.x,y=p.y+position.y,z=p.z+position.z} end
+    local x,y,z,w=q.x or q.i or 0,q.y or q.j or 0,q.z or q.k or 0,q.w or q.r or 1
+    local tx,ty,tz=2*(y*p.z-z*p.y),2*(z*p.x-x*p.z),2*(x*p.y-y*p.x)
+    return {x=position.x+p.x+w*tx+y*tz-z*ty,y=position.y+p.y+w*ty+z*tx-x*tz,z=position.z+p.z+w*tz+x*ty-y*tx}
+end
+return G
+-- Open77 PolyZone: equivalent zone operations, native Open77 resource ownership.
+-- MIT; mathematical conventions originate in mkafrin/PolyZone 2.6.2.
+local G = assert(require('@polyzone/geometry'))
+local P = {version='2.6.2-open77.1'}
+local Poly,Box,Circle,Entity,Combo = {},{},{},{},{}
+P.PolyZone,P.BoxZone,P.CircleZone,P.EntityZone,P.ComboZone = Poly,Box,Circle,Entity,Combo
+local zones, watches, nextId, running = {},{},0,false
+local startScheduler
+local function now() return Open77.time.monotonic()*1000 end
+local function warn(message) print('[polyzone] '..tostring(message)) end
+local function invalidate(zone)
+    zone._revision=(zone._revision or 0)+1
+    for parent in pairs(zone._parents or {}) do parent._gridDirty=true; invalidate(parent) end
+end
+local function attachMethods(object,class)
+    for k,v in pairs(Poly) do if type(v)=='function' then object[k]=v end end
+    if class==Entity then for k,v in pairs(Box) do if type(v)=='function' then object[k]=v end end end
+    for k,v in pairs(class) do if type(v)=='function' then object[k]=v end end
+    return object
+end
+local function insideZ(zone,p) return (not zone.minZ or p.z>=zone.minZ) and (not zone.maxZ or p.z<=zone.maxZ) end
+local function zBounds(options)
+    assert(options.minZ==nil or G.finite(options.minZ),'polyzone: invalid minZ')
+    assert(options.maxZ==nil or G.finite(options.maxZ),'polyzone: invalid maxZ')
+    assert(not options.minZ or not options.maxZ or options.minZ<=options.maxZ,'polyzone: minZ exceeds maxZ')
+end
+local function safeCall(callback,...)
+    local ok,err=pcall(callback,...)
+    if not ok then warn('callback failed: '..tostring(err)) end
+    return ok
+end
+local function addWatch(zone,getPoint,callback,interval,exhaustive,damage)
+    assert(type(callback)=='function' and type(getPoint)=='function','polyzone: callbacks must be functions')
+    interval=interval==nil and 500 or interval
+    assert(G.finite(interval) and interval>=0,'polyzone: invalid polling interval')
+    local item={zone=zone,getPoint=getPoint,callback=callback,interval=interval,due=0,exhaustive=exhaustive,damage=damage,
+        previous=zone.isComboZone and nil or false,insideZones={}}
+    -- `and nil or false` is false in Lua: ComboZone intentionally reports its first outside sample.
+    if zone.isComboZone then item.previous=nil end
+    watches[#watches+1]=item
+    startScheduler()
+    return function() item.cancelled=true end -- Open77 extension, optional cancellation.
+end
+local function difference(a,b)
+    local out
+    for _,v in ipairs(a) do
+        local found=false; for _,other in ipairs(b) do if v==other then found=true; break end end
+        if not found then out=out or {}; out[#out+1]=v end
+    end
+    return out
+end
+local function poll(item)
+    local zone=item.zone
+    local ok,value=pcall(item.getPoint)
+    if not ok then error(value,0) end
+    if item.damage then
+        if not value then item.health=nil; return end
+        if item.health and value.health<item.health then
+            safeCall(item.callback,value.health<=0,value.attacker,value.weapon,value.isMelee,value)
+        end
+        item.health=value.health; return
+    end
+    -- No incarnation/streamed entity is not a point at (0,0,0). Emit a single
+    -- exit on loss and resume normally after respawn/world entry.
+    local inside,hit=false,nil
+    if value then inside,hit=zone:isPointInside(value) end
+    if item.exhaustive then
+        local current={}
+        if value then inside,current=zone:isPointInsideExhaustive(value) end
+        local entered,left=difference(current,item.insideZones),difference(item.insideZones,current)
+        if item.previous~=inside or entered or left then
+            item.previous,item.insideZones=inside,G.copy(current)
+            safeCall(item.callback,inside,value,current,entered,left)
+        end
+    elseif inside~=item.previous then
+        local last=item.hit
+        item.previous,item.hit=inside,hit
+        if zone.isComboZone then safeCall(item.callback,inside,value,hit or last)
+        else safeCall(item.callback,inside,value) end
+    end
+end
+startScheduler=function()
+    if running then return end
+    running=true
+    CreateThread(function()
+        local nextDebug=0
+        while running do
+            local stamp=now()
+            local nextPoll=stamp+100
+            local count=#watches
+            for i=1,count do
+                local item=watches[i]
+                if item and not item.cancelled and not item.zone.destroyed and not item.zone.paused and stamp>=item.due then
+                    item.due=stamp+item.interval
+                    local ok,err=pcall(poll,item)
+                    if not ok then item.cancelled=true; warn('watch stopped: '..tostring(err)) end
+                end
+                if item and not item.cancelled and not item.zone.paused then nextPoll=math.min(nextPoll,item.due) end
+            end
+            for i=#watches,1,-1 do
+                if watches[i].cancelled or watches[i].zone.destroyed then table.remove(watches,i) end
+            end
+            local hasDebug=false
+            for _,zone in pairs(zones) do if zone.debugPoly or zone.debugGrid then hasDebug=true; break end end
+            if hasDebug and stamp>=nextDebug then
+                nextDebug=stamp+100
+                for _,zone in pairs(zones) do
+                    if zone.debugPoly or zone.debugGrid then
+                        local ok,err=pcall(zone.draw,zone,false)
+                        if not ok and not zone._drawError then zone._drawError=true; warn(err) end
+                    end
+                end
+            end
+            if #watches==0 and not hasDebug then running=false; return end
+            if hasDebug then nextPoll=math.min(nextPoll,nextDebug) end
+            Wait(math.max(0,math.floor(nextPoll-now())))
+        end
+    end)
+end
+local function base(class,flag,options)
+    options=options or {}; zBounds(options)
+    nextId=nextId+1
+    local zone=attachMethods({name=tostring(options.name),data=options.data or {},destroyed=false,paused=false,
+        minZ=options.minZ,maxZ=options.maxZ,debugPoly=options.debugPoly==true,debugGrid=options.debugGrid==true,
+        debugColors=G.copy(options.debugColors),debugColor=options.debugColor or {0,255,0},
+        _key='polyzone:'..nextId,_parents={},_revision=0,_events={},_blips={},_options=G.copy(options)},class)
+    zone[flag]=true
+    zone._id=nextId
+    return zone
+end
+local function track(zone)
+    zones[zone._id]=zone
+    if zone.debugPoly or zone.debugGrid then startScheduler() end
+    return zone
+end
+local function finish(zone,options)
+    if options and options.debugBlip then zone:addDebugBlip() end
+    return zone
+end
+function Poly:new(points,options)
+    options=options or {}
+    assert(type(points)=='table' and #points>=3 and #points<=2048,'polyzone: polygon needs 3..2048 points')
+    local zone=base(Poly,'isPolyZone',options)
+    zone.points={}; for i,p in ipairs(points) do zone.points[i]=G.vector(p) end
+    zone.min,zone.max,zone.size,zone.center,zone.area=G.bounds(zone.points)
+    assert(zone.area>0 and zone.size.x>0 and zone.size.y>0,'polyzone: degenerate polygon')
+    zone.boundingRadius=math.sqrt(zone.size.x^2+zone.size.y^2)/2
+    zone.useGrid=options.useGrid~=false; zone.lazyGrid=options.lazyGrid~=false and not zone.debugGrid
+    zone.gridDivisions=options.gridDivisions or 30
+    assert(math.type(zone.gridDivisions)=='integer' and zone.gridDivisions>=1 and zone.gridDivisions<=256,'polyzone: gridDivisions must be 1..256')
+    zone.gridCellWidth,zone.gridCellHeight=zone.size.x/zone.gridDivisions,zone.size.y/zone.gridDivisions
+    zone.grid={}; zone.gridArea=0; zone.gridCoverage=0
+    if zone.useGrid and not zone.lazyGrid then
+        CreateThread(function()
+            for y=0,zone.gridDivisions-1 do
+                if zone.destroyed then return end
+                zone.grid[y]=zone.grid[y] or {}
+                for x=0,zone.gridDivisions-1 do
+                    local contained=G.insideCell(zone,x,y); zone.grid[y][x]=contained
+                    if contained then zone.gridArea=zone.gridArea+zone.gridCellWidth*zone.gridCellHeight end
+                    -- Yield within large rows too; grid construction is never
+                    -- allowed to monopolise a resource's frame budget.
+                    if x % 4==3 then Wait(0); if zone.destroyed then return end end
+                end
+                Wait(0)
+            end
+            zone.gridCoverage=zone.gridArea/zone.area
+        end)
+    end
+    return track(zone)
+end
+function Poly:Create(points,options) return finish(Poly:new(points,options),options) end
+function Poly:isPointInside(point)
+    if self.destroyed or not point then return false end
+    local p=G.vector(point)
+    if p.x<self.min.x or p.x>self.max.x or p.y<self.min.y or p.y>self.max.y or not insideZ(self,p) then return false end
+    if self.useGrid then
+        local x=math.min(self.gridDivisions-1,math.floor((p.x-self.min.x)/self.gridCellWidth))
+        local y=math.min(self.gridDivisions-1,math.floor((p.y-self.min.y)/self.gridCellHeight))
+        self.grid[y]=self.grid[y] or {}
+        if self.grid[y][x]==nil and self.lazyGrid then self.grid[y][x]=G.insideCell(self,x,y) end
+        if self.grid[y][x] then return true end
+    end
+    return G.winding(p,self.points)
+end
+function Poly:TransformPoint(point) return point end
+function Poly:getBoundingBoxMin() return self.min end
+function Poly:getBoundingBoxMax() return self.max end
+function Poly:getBoundingBoxSize() return self.size end
+function Poly:getBoundingBoxCenter() return self.center end
+function Poly:getCenter() return self.center end
+function Poly:setPaused(paused) self.paused=paused==true end
+function Poly:isPaused() return self.paused end
+function Poly.getPlayerPosition()
+    local s=Open77.character.state()
+    return s and s.attached and s.position or nil
+end
+function Poly.getPlayerHeadPosition()
+    local s,err=Open77.world.entityGeometry(0)
+    return s and s.head or nil,err
+end
+function Poly.rotate(origin,point,theta) return G.rotate(origin,point,theta) end
+function Poly:onPointInOut(getPoint,callback,waitInMS) return addWatch(self,getPoint,callback,waitInMS) end
+function Poly:onPlayerInOut(callback,waitInMS) return self:onPointInOut(Poly.getPlayerPosition,callback,waitInMS) end
+function Poly:addEvent(eventName)
+    assert(type(eventName)=='string' and #eventName>0 and #eventName<=100,'polyzone: invalid event name')
+    self:removeEvent(eventName)
+    self._events[eventName]=assert(RegisterNetEvent('__PolyZone__:'..eventName,function(...)
+        if not self.destroyed and self:isPointInside(Poly.getPlayerPosition()) then TriggerEvent(eventName,...) end
+    end))
+end
+function Poly:removeEvent(eventName)
+    if self._events[eventName] then RemoveEventHandler(self._events[eventName]); self._events[eventName]=nil end
+end
+function Poly:addDebugBlip()
+    if self.destroyed then return nil,'destroyed' end
+    if self.debugBlip then return self.debugBlip end
+    local center=self:getCenter()
+    if not center then return nil,'entity_not_streamed' end
+    local id,err=Open77.blips.create({position=G.vector(center),label=self.name,visible=true})
+    if id then self._blips[#self._blips+1]=id; self.debugBlip=id else warn('debug blip: '..tostring(err)) end
+    return id,err
+end
+function Poly:destroy()
+    if self.destroyed then return end
+    self.destroyed=true; zones[self._id]=nil
+    for name in pairs(self._events) do self:removeEvent(name) end
+    for _,id in ipairs(self._blips) do Open77.blips.remove(id) end
+    self._blips={}
+    if Open77.debugDraw then Open77.debugDraw.clear(self._key) end
+    invalidate(self)
+end
+function Box.calculateMinAndMaxZ(minZ,maxZ,scaleZ,offsetZ)
+    local a,b=(scaleZ or {})[1] or 1,(scaleZ or {})[2] or 1
+    if minZ and maxZ then
+        local center,half=(minZ+maxZ)/2,(maxZ-minZ)/2
+        minZ,maxZ=center-half*a,center+half*b
+    end
+    return minZ and minZ-((offsetZ or {})[1] or 0),maxZ and maxZ+((offsetZ or {})[2] or 0)
+end
+local function rebuildBox(zone)
+    local s,o=zone._scale,zone._offset
+    local min={x=-zone.width/2*s[3]-o[3],y=-zone.length/2*s[2]-o[2]}
+    local max={x=zone.width/2*s[4]+o[4],y=zone.length/2*s[1]+o[1]}
+    assert(min.x<max.x and min.y<max.y,'polyzone: scale/offset inverted box')
+    zone.min={x=zone.center.x+min.x,y=zone.center.y+min.y}
+    zone.max={x=zone.center.x+max.x,y=zone.center.y+max.y}
+    zone.size={x=max.x-min.x,y=max.y-min.y}; zone.area=zone.size.x*zone.size.y
+    zone.startPos=G.copy(zone.center); zone.offsetPos={x=0,y=0}
+    zone.points={{x=zone.min.x,y=zone.min.y},{x=zone.max.x,y=zone.min.y},{x=zone.max.x,y=zone.max.y},{x=zone.min.x,y=zone.max.y}}
+    zone.boundingRadius=math.sqrt(math.max(min.x^2,max.x^2)+math.max(min.y^2,max.y^2))
+    invalidate(zone)
+end
+function Box:new(center,length,width,options)
+    options=options or {}
+    G.positive(length,'length'); G.positive(width,'width')
+    local zone=base(Box,'isBoxZone',options)
+    zone.isPolyZone=true
+    zone.center=G.vector(center); zone.length,zone.width=length,width
+    zone._scale,zone._offset=G.scaleOffset(options)
+    zone.scaleZ,zone.offsetZ={zone._scale[6],zone._scale[5]},{zone._offset[6],zone._offset[5]}
+    zone.minZ,zone.maxZ=Box.calculateMinAndMaxZ(zone.minZ,zone.maxZ,zone.scaleZ,zone.offsetZ)
+    zone.offsetRot=options.heading or 0; assert(G.finite(zone.offsetRot),'polyzone: invalid heading')
+    zone.useGrid=false; rebuildBox(zone)
+    return track(zone)
+end
+function Box:Create(center,length,width,options) return finish(Box:new(center,length,width,options),options) end
+function Box:TransformPoint(point) return G.rotate(self.center,point,self.offsetRot) end
+function Box:isPointInside(point)
+    if self.destroyed or not point then return false end
+    local p=G.vector(point)
+    if not insideZ(self,p) then return false end
+    p=G.rotate(self.center,p,-self.offsetRot)
+    return p.x>=self.min.x and p.x<=self.max.x and p.y>=self.min.y and p.y<=self.max.y
+end
+function Box:getHeading() return self.offsetRot end
+function Box:setHeading(v) if v==nil then return end; assert(G.finite(v),'polyzone: invalid heading'); self.offsetRot=v; invalidate(self) end
+function Box:setCenter(v) if not v then return end; self.center=G.vector(v); rebuildBox(self) end
+function Box:getLength() return self.length end
+function Box:setLength(v) if not v then return end; self.length=G.positive(v,'length'); rebuildBox(self) end
+function Box:getWidth() return self.width end
+function Box:setWidth(v) if not v then return end; self.width=G.positive(v,'width'); rebuildBox(self) end
+function Circle:new(center,radius,options)
+    options=options or {}; G.positive(radius,'radius')
+    local zone=base(Circle,'isCircleZone',options)
+    zone.center,zone.radius,zone.diameter=G.vector(center),radius,radius*2
+    zone.useZ=options.useZ==true
+    return track(zone)
+end
+function Circle:Create(center,radius,options) return finish(Circle:new(center,radius,options),options) end
+function Circle:isPointInside(point)
+    return not self.destroyed and point~=nil and G.distance2(G.vector(point),self.center,self.useZ)<self.radius^2
+end
+function Circle:getRadius() return self.radius end
+function Circle:setRadius(v) if not v then return end; self.radius=G.positive(v,'radius'); self.diameter=v*2; invalidate(self) end
+function Circle:setCenter(v) if not v then return end; self.center=G.vector(v); invalidate(self) end
+-- Entity handles are generation-checked Open77 handles, never raw engine pointers.
+-- A typed reference {kind='vehicle'|'npc'|'player',id=...} survives stream-out/in.
+local function refreshEntity(zone)
+    local state,err=Open77.world.entityGeometry(zone.entity)
+    if not state or not state.attached then zone._streamed=false; zone.error=err or 'entity_not_attached'; return false end
+    local dimensions=zone._options.dimensions or state.bounds
+    if not dimensions then zone._streamed=false; zone.error='entity_bounds_unavailable'; return false end
+    local min,max=G.vector(dimensions.min or dimensions[1]),G.vector(dimensions.max or dimensions[2])
+    if min.x>=max.x or min.y>=max.y or min.z>max.z then zone._streamed=false; zone.error='invalid_entity_bounds'; return false end
+    zone.dimensions={min,max}; zone._geometry=state
+    zone.center=G.vector(state.position); zone.length,zone.width=max.y-min.y,max.x-min.x
+    -- GTA boxes were centred at the origin. Open77 model origins are not
+    -- guaranteed centred: honour the actual local bounds, including their offset.
+    local localCenter={x=(min.x+max.x)/2,y=(min.y+max.y)/2,z=0}
+    zone._localCenter=localCenter
+    zone.offsetRot=state.heading or math.deg(math.atan(-(state.forward.x),state.forward.y))
+    zone.center=G.transform(localCenter,state.position,state.orientation)
+    rebuildBox(zone)
+    if zone.useZ then
+        local minZ,maxZ=math.huge,-math.huge
+        for _,x in ipairs({min.x,max.x}) do for _,y in ipairs({min.y,max.y}) do for _,z in ipairs({min.z,max.z}) do
+            local world=G.transform({x=x,y=y,z=z},state.position,state.orientation)
+            minZ,maxZ=math.min(minZ,world.z),math.max(maxZ,world.z)
+        end end end
+        zone.minZ,zone.maxZ=Box.calculateMinAndMaxZ(minZ,maxZ,zone.scaleZ,zone.offsetZ)
+    else zone.minZ,zone.maxZ=nil,nil end
+    zone._streamed,zone.error=true,nil
+    for _,id in ipairs(zone._blips) do Open77.blips.update(id,{position=zone.center}) end
+    return true
+end
+function Entity:new(entity,options)
+    options=options or {}
+    assert(type(entity)=='number' or type(entity)=='table','polyzone: expected Open77 entity handle or typed reference')
+    if type(entity)=='table' then
+        assert((entity.kind=='entity' or entity.kind=='player' or entity.kind=='vehicle' or entity.kind=='npc')
+            and math.type(entity.id)=='integer' and entity.id>=0,'polyzone: invalid typed entity reference')
+    else assert(math.type(entity)=='integer' and entity>=0,'polyzone: invalid entity handle') end
+    if options.dimensions then
+        local min,max=G.vector(options.dimensions.min or options.dimensions[1]),G.vector(options.dimensions.max or options.dimensions[2])
+        assert(min.x<max.x and min.y<max.y and min.z<=max.z,'polyzone: invalid entity dimensions')
+    end
+    local zone=Box:new({x=0,y=0,z=0},1,1,options)
+    attachMethods(zone,Entity); zone.isEntityZone=true
+    zone.entity,zone.useZ=entity,options.useZ==true
+    local ok,err=pcall(refreshEntity,zone)
+    if not ok then zone:destroy(); error(err) end
+    return zone
+end
+function Entity:Create(entity,options) return finish(Entity:new(entity,options),options) end
+function Entity:isPointInside(point) return not self.destroyed and refreshEntity(self) and Box.isPointInside(self,point) end
+function Entity:getCenter() if not self.destroyed then refreshEntity(self) end; return self._streamed and self.center or nil end
+function Entity:onEntityDamaged(callback)
+    return addWatch(self,function()
+        if not refreshEntity(self) then return nil end
+        return self._geometry.damage
+    end,callback,50,false,true)
+end
+local function intersectsTree(root,wanted,seen)
+    if root==wanted then return true end
+    seen=seen or {}; if seen[root] then return false end; seen[root]=true
+    for _,child in ipairs(root.zones or {}) do if intersectsTree(child,wanted,seen) then return true end end
+    return false
+end
+local function buildComboGrid(combo)
+    combo.grid,combo._dynamic={},{}
+    for _,zone in ipairs(combo.zones) do
+        if not zone.destroyed then
+            local radius=zone.radius or zone.boundingRadius
+            if zone.isEntityZone or zone.isComboZone or not radius then combo._dynamic[#combo._dynamic+1]=zone
+            else
+                local minX,maxX=math.floor((zone.center.x-radius)/256),math.floor((zone.center.x+radius)/256)
+                local minY,maxY=math.floor((zone.center.y-radius)/256),math.floor((zone.center.y+radius)/256)
+                if (maxX-minX+1)*(maxY-minY+1)>4096 then combo._dynamic[#combo._dynamic+1]=zone
+                else for y=minY,maxY do for x=minX,maxX do
+                    local key=x..':'..y; combo.grid[key]=combo.grid[key] or {}; combo.grid[key][zone]=true
+                end end end
+            end
+        end
+    end
+    combo._gridDirty=false
+end
+function Combo:new(children,options)
+    assert(type(children)=='table','polyzone: expected zone array')
+    for _,child in ipairs(children) do
+        assert(type(child)=='table' and type(child.isPointInside)=='function' and not child.destroyed and child._parents,'polyzone: invalid child zone')
+    end
+    local zone=base(Combo,'isComboZone',options or {})
+    zone.zones={}; zone.useGrid=not options or options.useGrid~=false
+    for _,child in ipairs(children) do zone:AddZone(child) end
+    return track(zone)
+end
+function Combo:Create(children,options) return finish(Combo:new(children,options),options) end
+function Combo:AddZone(zone)
+    assert(type(zone)=='table' and type(zone.isPointInside)=='function' and not zone.destroyed,'polyzone: invalid child zone')
+    assert(not intersectsTree(zone,self),'polyzone: cyclic ComboZone')
+    for _,child in ipairs(self.zones) do if child==zone then return end end
+    self.zones[#self.zones+1]=zone; zone._parents[self]=true; self._gridDirty=true; invalidate(self)
+    if self.debugBlip then zone:addDebugBlip() end
+end
+function Combo:RemoveZone(nameOrFunction)
+    local predicate=type(nameOrFunction)=='string' and function(z) return z.name==nameOrFunction end or nameOrFunction
+    if type(predicate)~='function' then return nil end
+    for i,zone in ipairs(self.zones) do if predicate(zone) then
+        table.remove(self.zones,i); zone._parents[self]=nil; self._gridDirty=true; invalidate(self); return zone
+    end end
+end
+function Combo:getZones(point)
+    if not self.useGrid then return self.zones end
+    point=G.vector(point)
+    if self._gridDirty then buildComboGrid(self) end
+    local key=math.floor(point.x/256)..':'..math.floor(point.y/256)
+    local selected=self.grid[key] or {}; local dynamic={}
+    for _,z in ipairs(self._dynamic) do dynamic[z]=true end
+    local result={}
+    -- Preserve insertion priority regardless of the broadphase path.
+    for _,z in ipairs(self.zones) do if selected[z] or dynamic[z] then result[#result+1]=z end end
+    return #result>0 and result or nil
+end
+function Combo:isPointInside(point,zoneName)
+    if self.destroyed or not point then return false,nil end
+    for _,zone in ipairs(self:getZones(point) or {}) do
+        if (zoneName==nil or zone.name==zoneName) and zone:isPointInside(point) then return true,zone end
+    end
+    return false,nil
+end
+function Combo:isPointInsideExhaustive(point,out)
+    out=out or {}; for i=#out,1,-1 do out[i]=nil end
+    if self.destroyed or not point then return false,out end
+    for _,zone in ipairs(self:getZones(point) or {}) do if zone:isPointInside(point) then out[#out+1]=zone end end
+    return #out>0,out
+end
+function Combo:onPointInOut(getPoint,callback,interval) return addWatch(self,getPoint,callback,interval) end
+function Combo:onPointInOutExhaustive(getPoint,callback,interval) return addWatch(self,getPoint,callback,interval,true) end
+function Combo:onPlayerInOutExhaustive(callback,interval) return self:onPointInOutExhaustive(Poly.getPlayerPosition,callback,interval) end
+function Combo:addEvent(eventName,zoneName)
+    assert(type(eventName)=='string' and #eventName>0 and #eventName<=100,'polyzone: invalid event name')
+    self:removeEvent(eventName)
+    self._events[eventName]=assert(RegisterNetEvent('__PolyZone__:'..eventName,function(...)
+        if not self.destroyed and self:isPointInside(Poly.getPlayerPosition(),zoneName) then TriggerEvent(eventName,...) end
+    end))
+end
+function Combo:addDebugBlip()
+    self.debugBlip=true; for _,zone in ipairs(self.zones) do zone:addDebugBlip() end
+end
+function Combo:destroy()
+    if self.destroyed then return end
+    Poly.destroy(self)
+    for _,zone in ipairs(self.zones) do zone._parents[self]=nil; zone:destroy() end
+end
+function Combo:printInfo()
+    local counts={PolyZone=0,BoxZone=0,CircleZone=0,EntityZone=0,ComboZone=0}
+    for _,zone in ipairs(self.zones) do
+        local kind=zone.isEntityZone and 'EntityZone' or zone.isBoxZone and 'BoxZone' or zone.isCircleZone and 'CircleZone' or zone.isComboZone and 'ComboZone' or 'PolyZone'
+        counts[kind]=counts[kind]+1
+    end
+    warn(('ComboZone %s: %d zones'):format(self.name,#self.zones))
+    for kind,count in pairs(counts) do if count>0 then warn(kind..': '..count) end end
+    return counts
+end
+function Poly.ensureMetatable(zone)
+    -- Open77 does not expose Lua metatable mutation. Rehydrate the methods of
+    -- a plain serialized zone; callbacks/VM ownership are never serialized.
+    assert(type(zone)=='table','polyzone: expected zone')
+    if zone._id and zones[zone._id]==zone then return zone end
+    local seen={}
+    local function rehydrate(value)
+        assert(type(value)=='table' and not seen[value],'polyzone: cyclic or invalid serialized zone')
+        if value._id and zones[value._id]==value then return value end
+        seen[value]=true
+        local options=G.copy(value._options or value)
+        options.name=value.name; options.data=value.data
+        options.debugPoly=false; options.debugGrid=false; options.debugBlip=false
+        local fresh
+        if value.isComboZone then
+            local children={}; for _,child in ipairs(value.zones or {}) do children[#children+1]=rehydrate(child) end
+            fresh=Combo:new(children,options)
+        elseif value.isEntityZone then fresh=Entity:new(value.entity,options)
+        elseif value.isBoxZone then options.heading=value.offsetRot or options.heading; fresh=Box:new(value.center,value.length,value.width,options)
+        elseif value.isCircleZone then options.useZ=value.useZ; fresh=Circle:new(value.center,value.radius,options)
+        else fresh=Poly:new(value.points,options) end
+        for key in pairs(value) do value[key]=nil end
+        for key,v in pairs(fresh) do value[key]=v end
+        zones[value._id]=value
+        for _,child in ipairs(value.zones or {}) do child._parents[fresh]=nil; child._parents[value]=true end
+        seen[value]=nil
+        return value
+    end
+    return rehydrate(zone)
+end
+-- Debug geometry and serialization are kept separate from containment.
+local debugGeometry=assert(require('@polyzone/debug'))
+function Poly:draw(forceDraw)
+    if self.destroyed or not (forceDraw or self.debugPoly or self.debugGrid) then return false end
+    if self.isEntityZone and not refreshEntity(self) then
+        Open77.debugDraw.clear(self._key); return false
+    end
+    local spec=debugGeometry.build(self,Poly.getPlayerPosition())
+    local ok,err=Open77.debugDraw.set(self._key,spec)
+    if not ok and not self._drawError then self._drawError=true; warn('debug drawing: '..tostring(err)) end
+    return ok,err
+end
+function Poly.drawPoly(zone,forceDraw) return Poly.draw(zone,forceDraw) end
+function Combo:draw(forceDraw)
+    for _,zone in ipairs(self.zones) do if not zone.destroyed then zone:draw(forceDraw or self.debugPoly) end end
+end
+function P.installGlobals()
+    PolyZone,BoxZone,CircleZone,EntityZone,ComboZone=Poly,Box,Circle,Entity,Combo
+    return P
+end
+P.serialize=assert(require('@polyzone/serialize'))
+function P.list() local result={}; for _,z in pairs(zones) do result[#result+1]=z end; return result end
+function P.destroyAll() local all=P.list(); for _,z in ipairs(all) do z:destroy() end end
+AddEventHandler('polyzone:pzcomboinfo',function() for _,z in pairs(zones) do if z.isComboZone then z:printInfo() end end end)
+AddEventHandler('onClientResourceStop',function(name)
+    if name==GetCurrentResourceName() then running=false; P.destroyAll(); watches={} end
+end)
+return P
+resource "polyzone"
+version "1.0.0"
+open77_version ">=0.0.1"
+auto_start true
+reload_policy "local"
+client_script "client/main.lua"
+server_script "server/main.lua"
+-- Library code explicitly published for require('@polyzone') in dependent VMs.
+files { "init.lua", "geometry.lua", "debug.lua", "serialize.lua", "client.lua", "BoxZone.lua", "CircleZone.lua", "EntityZone.lua", "ComboZone.lua" }
+web_ui_page "web/index.html"
+web_ui_auto_create false
+web_files { "web/index.html", "web/editor.js", "web/editor.css" }
+permissions { "world.query", "world.debug", "ui.vanilla.map", "input.actions", "clipboard.write", "network.events", "local.events", "filesystem.read", "filesystem.write", "acl.read" }
+-- Emits Lua code, never executes imported text. %q safely quotes zone names.
+local function position(p) return ('{x=%.6f,y=%.6f,z=%.6f}'):format(p.x,p.y,p.z or 0) end
+local function serialize(zone)
+    local options={'name='..string.format('%q',zone.name)}
+    -- Box Z bounds are already scaled. Serialize the original bounds along
+    -- with scale/offset, otherwise importing the export applies them twice.
+    local bounds=zone.isBoxZone and zone._options or zone
+    if bounds.minZ then options[#options+1]='minZ='..string.format('%.6f',bounds.minZ) end
+    if bounds.maxZ then options[#options+1]='maxZ='..string.format('%.6f',bounds.maxZ) end
+    if zone.isBoxZone then
+        options[#options+1]='scale={'..table.concat(zone._scale,',')..'}'
+        options[#options+1]='offset={'..table.concat(zone._offset,',')..'}'
+    end
+    if zone.isBoxZone then options[#options+1]='heading='..string.format('%.6f',zone:getHeading()) end
+    if zone.isCircleZone then options[#options+1]='useZ='..tostring(zone.useZ) end
+    local args
+    if zone.isEntityZone or zone.isComboZone then error('polyzone: editor serializes polygon, box and circle zones')
+    elseif zone.isCircleZone then args='CircleZone:Create('..position(zone.center)..', '..zone.radius
+    elseif zone.isBoxZone then args='BoxZone:Create('..position(zone.center)..', '..zone.length..', '..zone.width
+    else
+        local points={}; for _,p in ipairs(zone.points) do points[#points+1]='    '..position(p) end
+        args='PolyZone:Create({\n'..table.concat(points,',\n')..'\n}'
+    end
+    return 'local PZ = assert(require("@polyzone"))\nlocal PolyZone, BoxZone, CircleZone = PZ.PolyZone, PZ.BoxZone, PZ.CircleZone\n\nlocal zone = '..args..', {'..table.concat(options,', ')..'})\n'
+end
+return serialize
+:root{color-scheme:dark;font:14px system-ui,sans-serif;color:#edf4f8}*{box-sizing:border-box}body{margin:0;background:transparent}main{position:fixed;right:24px;top:4vh;width:min(420px,calc(100vw - 48px));max-height:92vh;overflow:auto;background:#0b121df5;border:1px solid #304454;border-top:3px solid #22d8e2;padding:22px;box-shadow:0 16px 60px #0007;animation:enter .16s ease-out}header,.source-title,.actions{display:flex;align-items:center;justify-content:space-between;gap:10px}h1{font-size:28px;letter-spacing:-1px;margin:5px 0}h1 span,small{color:#22d8e2}small{font:10px monospace;letter-spacing:2px}.hint,#count,#notice{color:#94a8ba;font-size:12px;line-height:1.5}section{padding:14px 0;border-bottom:1px solid #263442}label{display:block;font-size:12px;color:#b7c7d7;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}input,select,textarea{width:100%;margin-top:6px;padding:9px 10px;background:#111e2d;color:#f0f5fa;border:1px solid #334a5a;border-radius:3px}input:focus,textarea:focus,select:focus{outline:1px solid #22d8e2}button{border:1px solid #375565;border-radius:3px;background:#132231;color:#ccedf4;padding:9px 12px;cursor:pointer;transition:background .12s,transform .12s}button:hover{background:#203c4d}button:active{transform:translateY(1px)}button:focus-visible{outline:2px solid #22d8e2;outline-offset:2px}button:disabled{opacity:.4;cursor:default}.primary{background:#22d8e2;color:#062028;border:0;font-weight:700}.primary:hover{background:#70eef4}.actions{margin-top:10px;justify-content:flex-start;flex-wrap:wrap}.check{display:flex;align-items:center;gap:8px}.check input{width:auto;margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:1px}textarea{resize:vertical;min-height:145px;font:11px/1.5 monospace}#notice[data-error=true]{color:#ffb26f}[hidden]{display:none!important}@keyframes enter{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+:root .zone-types{border:0;margin:0 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:8px}.zone-types legend{color:#b7c7d7;font-size:12px;margin-bottom:8px}.zone-types label{display:flex;align-items:center;gap:5px;background:#111e2d;border:1px solid #334a5a;border-radius:3px;padding:8px;margin:0;cursor:pointer}.zone-types label:has(input:checked){border-color:#22d8e2;color:#22d8e2}.zone-types input{width:auto;margin:0;accent-color:#22d8e2}
+'use strict';
+const el=id=>document.getElementById(id);
+const send=payload=>Open77.emit('polyzone:action',payload);
+const command=(name,args=[])=>send({action:'command',name,args});
+el('close').onclick=()=>send({action:'close'});
+el('create').onclick=()=>command('pzcreate',[el('kind').querySelector('input:checked').value]);
+for(const [id,name] of Object.entries({add:'pzadd',undo:'pzundo',finish:'pzfinish',cancel:'pzcancel'}))el(id).onclick=()=>command(name);
+el('copy').onclick=()=>send({action:'copy'});
+el('here').onclick=()=>send({action:'moveHere'});
+for(const key of ['name','length','width','radius','heading','minZ','maxZ','useZ'])el(key).onchange=()=>send({action:'patch',[key]:key==='useZ'?el(key).checked:el(key).value});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();send({action:'close'});}});
+Open77.on('polyzone:state',state=>{
+    el('editor').hidden=!state.open;
+    el('new').hidden=!!state.draft;el('properties').hidden=!state.draft;
+    el('source').value=state.source||'';el('copy').disabled=!state.source;
+    const draft=state.draft;if(!draft)return;
+    for(const key of ['name','length','width','radius','heading','minZ','maxZ'])el(key).value=draft[key]??'';
+    el('useZ').checked=!!draft.useZ;
+    document.querySelectorAll('[data-for]').forEach(node=>{node.hidden=node.dataset.for==='height'?draft.kind==='circle':node.dataset.for!==draft.kind;});
+    el('count').textContent=draft.kind==='poly'?`${draft.points.length} vertices · at least 3 required`:'Debug geometry follows these dimensions in world space.';
+    el('add').hidden=el('undo').hidden=draft.kind!=='poly';el('here').hidden=draft.kind==='poly';
+    el('finish').disabled=!state.source;
+});
+Open77.on('polyzone:notice',value=>{el('notice').textContent=value.text;el('notice').dataset.error=String(!value.ok);});
+Open77.ready();Open77.emit('polyzone:ready',{});
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PolyZone · Open77</title><link rel="stylesheet" href="editor.css"></head>
+<body><main id="editor" hidden>
+<header><div><small>OPEN//77 · DEVELOPER TOOLS</small><h1>POLYZONE<span>.</span></h1></div><button id="close" title="Release focus (F9 / Escape)">×</button></header>
+<p class="hint">F9 releases the cursor so you can walk. F10 adds a vertex at your feet.</p>
+<section id="new"><fieldset id="kind" class="zone-types"><legend>Zone type</legend><label><input type="radio" name="kind" value="poly" checked> Polygon</label><label><input type="radio" name="kind" value="box"> Oriented box</label><label><input type="radio" name="kind" value="circle"> Circle / sphere</label></fieldset><button id="create">Create zone</button></section>
+<section id="properties" hidden><label>Name<input id="name" maxlength="96"></label><div class="grid">
+<label data-for="box">Length<input id="length" type="number" min="0.01" step="0.1"></label>
+<label data-for="box">Width<input id="width" type="number" min="0.01" step="0.1"></label>
+<label data-for="box">Heading °<input id="heading" type="number" step="1"></label>
+<label data-for="circle">Radius<input id="radius" type="number" min="0.01" step="0.1"></label>
+<label data-for="height">Minimum Z<input id="minZ" type="number" step="0.1" placeholder="Unbounded"></label>
+<label data-for="height">Maximum Z<input id="maxZ" type="number" step="0.1" placeholder="Unbounded"></label></div>
+<label data-for="circle" class="check"><input id="useZ" type="checkbox"> Use Z (sphere)</label>
+<p id="count"></p><div class="actions"><button id="here">Move to player</button><button id="add">Add vertex</button><button id="undo">Undo</button></div>
+<div class="actions"><button id="finish" class="primary">Finish & save</button><button id="cancel">Cancel</button></div></section>
+<section><div class="source-title"><h2>Lua source</h2><button id="copy">Copy</button></div><textarea id="source" readonly spellcheck="false" aria-label="Generated Lua source"></textarea></section>
+<p id="notice" role="status">Ready. Only your local debug zones are drawn.</p>
+</main><script src="editor.js"></script></body></html>

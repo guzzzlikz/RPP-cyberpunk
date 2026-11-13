@@ -1,0 +1,30 @@
+OPEN//77 connection-screen assets — retrieved 2026-10-14
+
+Source: the project's current website, https://open2077.net/
+Reference: the website and launcher screenshots supplied for this redesign.
+All assets are packaged locally. These URLs are provenance, never runtime dependencies.
+
+night-city.webp: https://open2077.net/home/videos/hero.webp
+grain.png: https://open2077.net/home/img/grain.png
+wordmark.svg: first data-logo-header SVG in the site's HTML. Its inherited
+currentColor and --active-color fills are made explicit (#ffffff / #fcee0a)
+so the same logo renders correctly as an independent offline image.
+
+DrukTextWide-MediumItalic.woff2:
+https://open2077.net/_next/static/immutable/media/DrukTextWide_MediumItalic_Trial-s.p.2nl0z_j3gimv_.woff2
+Nippo-Variable.woff2:
+https://open2077.net/_next/static/immutable/media/Nippo_Variable-s.p.1pddjyfoh4jki.woff2
+Satoshi-Variable.woff2:
+https://open2077.net/_next/static/immutable/media/Satoshi_Variable-s.p.1q7euddqujsio.woff2
+
+The existing lobby audio is retained unchanged; see the resource README and research record.
+
+NativeUI conversions (2026-11-09), same sources:
+art/art1-4.jpg: the four backdrop artworks supplied by the project owner on 2026-11-09
+(re-encoded at 1920 px wide); they replace night-city.webp as a cross-fading slideshow.
+grain.png: not used by the native screen (its tiling needs a repeating sampler).
+fonts/Druk-MediumItalic.ttf: the WOFF2 above, unwrapped to TrueType.
+fonts/Nippo-500.ttf, Nippo-700.ttf: Nippo-Variable instanced at wght 500 / 700.
+fonts/Satoshi-400.ttf, -500.ttf, -700.ttf: Satoshi-Variable instanced at wght 400 / 500 / 700.
+The wordmark's two SVG paths are drawn as NativeUI <path> elements in ui/shell.rml.
+audio/lobby.mp3: "System Initialization", supplied by the project owner on 2026-11-09 (replaces the previous lobby track).

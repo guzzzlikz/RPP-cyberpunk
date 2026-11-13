@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "sessionSecret": "AwlGE5alFElkQ2bD43n75pWAQmRU13Ec3i6rud1D3Tg=",
+  "accounts": [
+    {
+      "username": "rppveinoria",
+      "passwordHash": "pbkdf2$sha256$210000$xZ4ISnzqBsqL2iiSL2rOig==$1OFHO526MOrFH2h/F6qRyR3KAA4KK8mjd0AeK246Z\u002BA=",
+      "role": "owner",
+      "createdAtUtc": "2026-11-13T11:27:01.4613679+00:00"
+    }
+  ],
+  "roles": []
+}

@@ -1,0 +1,156 @@
+/* Open//77 freeroam HUD on NativeUI: glass panels turned toward the centre of the
+   screen (3D transforms), the design-system tokens of web/design-system.css.
+   1 dp = 1 px of the 1080p reference. */
+
+body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; color: #e6eaec; }
+/* hidden = visibility, not only opacity: a backdrop-filter (the glass) is still drawn at opacity 0 */
+/* one eye for every panel, at the centre of the screen: the panels are projected toward it */
+#hud { position: absolute; left: 0; top: 0; right: 0; bottom: 0; opacity: 0; visibility: hidden; transition: opacity 0.3s cubic-out;
+       perspective: 1500dp; perspective-origin: 50% 88%; }
+#hud.ready { opacity: 1; visibility: visible; }
+#hud.hidden, #hud.hidden #vehicle, #hud.ready.vehicle.hidden #vehicle { opacity: 0; visibility: hidden; }
+.grow { flex: 1 1 auto; }
+.dim { color: #8a94a2; }
+.label { font-size: 10dp; letter-spacing: 0.22em; color: #8a94a2; }
+
+/* ---- glass ---------------------------------------------------------------------- */
+.glass-panel
+{
+    position: relative;
+    background-color: #0b0e14a8;
+    decorator: linear-gradient(90deg, #05070bd0 0%, #0b0e1480 100%);
+    backdrop-filter: blur(10dp) saturate(1.3);
+    border-width: 1dp;
+    border-color: #e6eaec22;
+}
+.panel-edge
+{
+    position: absolute; left: -1dp; top: -1dp; width: 3dp; bottom: -1dp;
+    background-color: #22d8e2;
+    filter: glow(6dp #22d8e2 1.2);
+}
+
+/* ---- the wings, turned toward the centre ------------------------------------------ */
+.wing { position: absolute; bottom: 30dp; }
+/* they swing in from edge-on when the HUD becomes ready, then hold their angle */
+.wing-left
+{
+    left: 34dp; width: 420dp;
+    transform: rotateY(70deg);
+    transform-origin: 0% 100%;
+    transition: transform 0.7s back-out;
+}
+.wing-right
+{
+    right: 34dp; width: 300dp; bottom: 96dp; /* the bottom 96 dp belong to open-voice */
+    transform: rotateY(-70deg);
+    transform-origin: 100% 100%;
+    transition: transform 0.7s back-out;
+    display: flex; flex-direction: column; align-items: flex-end;
+}
+#hud.ready .wing-left { transform: rotateY(20deg); }
+#hud.ready .wing-right { transform: rotateY(-20deg); }
+
+/* ---- vitals: a floating bar, no panel ---------------------------------------------- */
+#vitals { display: flex; flex-direction: row; align-items: center; height: 44dp; }
+.vb-badge
+{
+    display: flex; flex-direction: row; align-items: center;
+    height: 26dp; padding: 0 9dp 0 7dp; margin-right: 6dp;
+    background-color: #e8263b;
+    transform: skewX(-14deg);
+    filter: glow(8dp #ff3b4e 0.9);
+}
+.vb-cross { width: 11dp; height: 11dp; fill: #ffffff; margin-right: 6dp; }
+.vb-hp { font-family: "Chakra Petch"; font-weight: bold; font-size: 19dp; line-height: 26dp; color: #ffffff; min-width: 30dp; }
+.vb-bars { flex: 1 1 auto; }
+.vb-armor { height: 3dp; margin: 0 4dp 3dp 6dp; transform: skewX(-24deg); background-color: #22d8e214; visibility: hidden; }
+.vb-armor.on { visibility: visible; }
+.vb-armor-fill { height: 3dp; background-color: #4ee6ee; filter: glow(4dp #22d8e2 1); transition: width 0.3s cubic-out; }
+.vb-health
+{
+    position: relative; height: 15dp;
+    transform: skewX(-24deg);
+    decorator: linear-gradient(90deg, #22d8e255 0%, #22d8e230 60%, #22d8e210 100%);
+    border-bottom-width: 1dp; border-bottom-color: #4ee6ee66;
+}
+.vb-ghost { position: absolute; left: 0; top: 0; bottom: 0; background-color: #ffd0d6; opacity: 0.5; transition: width 0.9s cubic-in-out; }
+.vb-fill
+{
+    position: absolute; left: 0; top: 0; bottom: 0;
+    decorator: linear-gradient(90deg, #a3121f 0%, #e8263b 55%, #ff5568 100%);
+    filter: glow(7dp #ff3b4e 0.8);
+    transition: width 0.18s cubic-out;
+}
+.vb-tip { position: absolute; right: 0; top: 0; bottom: 0; width: 3dp; background-color: #ffe3e7; }
+.vb-stamina { height: 3dp; margin: 3dp 14dp 0 0; transform: skewX(-24deg); background-color: #ffb02014; }
+.vb-sta-fill { height: 3dp; background-color: #ffb020; filter: glow(4dp #ffb020 0.8); transition: width 0.25s cubic-out; }
+.vb-sta-fill.low { background-color: #ff6a20; }
+.vb-armor-value { margin-left: 8dp; font-family: "Roboto Mono"; font-size: 11dp; color: #4ee6ee; }
+#vitals.critical .vb-badge { animation: 0.9s sine-in-out infinite hud-pulse; }
+@keyframes hud-pulse { 0% { opacity: 1; } 50% { opacity: 0.55; } 100% { opacity: 1; } }
+#vitals.hurt .vb-health { animation: 0.35s cubic-out hud-hurt; }
+@keyframes hud-hurt { 0% { background-color: #ff3b4e88; } 100% { background-color: #00000000; } }
+
+/* ---- weapons: floating rows right above the vitals bar, the same language -------- */
+#weapons { margin-bottom: 6dp; padding-left: 4dp; }
+.wb { margin-bottom: 7dp; opacity: 0.7; transition: opacity 0.2s cubic-out; }
+.wb.drawn { opacity: 1; }
+.wb-head { display: flex; flex-direction: row; align-items: center; height: 22dp; }
+.wb-badge { height: 18dp; padding: 0 7dp; margin-right: 8dp; background-color: #22d8e2; transform: skewX(-14deg); filter: glow(6dp #22d8e2 0.8); }
+.wb-slot { font-family: "Roboto Mono"; font-size: 12dp; line-height: 18dp; color: #05262a; }
+.wb-name { font-family: "Chakra Petch"; font-weight: bold; font-size: 14dp; letter-spacing: 0.06em; text-transform: uppercase; color: #f7f9fb; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); }
+.wb-type { margin-left: 8dp; font-size: 9dp; letter-spacing: 0.18em; text-transform: uppercase; color: #8a94a2; white-space: nowrap; }
+.wb-ammo { white-space: nowrap; margin-right: 14dp; }
+.wb-mag { font-family: "Chakra Petch"; font-weight: bold; font-size: 22dp; color: #f7f9fb; font-effect: shadow(0dp 1dp #000000); }
+.wb.low .wb-mag { color: #ff3b4e; animation: 0.8s sine-in-out infinite hud-blink; }
+@keyframes hud-blink { 0% { opacity: 1; } 50% { opacity: 0.45; } 100% { opacity: 1; } }
+.wb-res { margin-left: 4dp; font-family: "Roboto Mono"; font-size: 11dp; color: #8a94a2; }
+.wb-state { margin-right: 14dp; font-size: 9dp; letter-spacing: 0.2em; color: #8a94a2; }
+.wb.drawn .wb-state { color: #2be58b; }
+.wb-strip { display: flex; flex-direction: row; height: 6dp; margin: 3dp 18dp 0 0; transform: skewX(-24deg); }
+.wb-strip span { display: block; flex: 1 1 0; margin-right: 2dp; background-color: #22d8e222; }
+.wb-strip span.live { background-color: #4ee6ee; }
+.wb.low .wb-strip span.live { background-color: #ff3b4e; }
+.wb-line { height: 2dp; margin: 3dp 18dp 0 0; transform: skewX(-24deg); background-color: #22d8e255; }
+.wb-reload { display: none; position: relative; height: 3dp; margin: 2dp 18dp 0 0; transform: skewX(-24deg); background-color: #ffb02022; }
+.wb.reloading .wb-reload { display: block; }
+.wb.reloading .wb-mag { color: #ffb020; }
+.wb-reload-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 30%; background-color: #ffb020; filter: glow(5dp #ffb020 1); animation: 0.9s linear-in-out infinite hud-reload; }
+@keyframes hud-reload { from { left: 0%; } to { left: 70%; } }
+
+/* ---- hints: a discreet list, no panel ---------------------------------------------- */
+#hints { width: 200dp; opacity: 0.62; }
+.hint { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; height: 16dp; }
+.hint-text { font-family: Rajdhani; font-weight: bold; font-size: 12dp; color: #c2cad3; margin-right: 8dp; font-effect: shadow(0dp 1dp #000000); }
+.hint-cmd { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #4ee6ee; width: 72dp; text-align: right; font-effect: shadow(0dp 1dp #000000); }
+
+/* ---- vehicle: a head-up readout floating beside the car ---------------------------- */
+#vehicle
+{
+    position: absolute; left: 61%; bottom: 25%; width: 260dp;
+    transform: rotateY(-22deg) rotateX(12deg) translateY(24dp) scale(0.67);
+    transform-origin: 0% 100%;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity transform 0.4s cubic-out;
+}
+#hud.ready.vehicle #vehicle { visibility: visible; opacity: 1; transform: rotateY(-22deg) rotateX(12deg) translateY(0dp) scale(0.67); }
+#hud.vehicle #left { opacity: 0.85; }
+#speedo { animation: 3.2s sine-in-out infinite alternate hud-float; }
+@keyframes hud-float { from { transform: translateY(-2dp); } to { transform: translateY(2dp); } }
+.hud-row { display: flex; flex-direction: row; align-items: center; }
+.speed { font-family: "Chakra Petch"; font-weight: bold; font-size: 92dp; line-height: 84dp; letter-spacing: 0.04em; white-space: nowrap; }
+.speed-lead { color: #f7f9fb30; }
+.speed-num { color: #f7f9fb; font-effect: glow(3dp 0dp 0dp 0dp #9ff6ff99); }
+.tells { display: flex; flex-direction: column; margin-left: 14dp; }
+.tell { font-family: "Chakra Petch"; font-size: 15dp; line-height: 22dp; letter-spacing: 0.06em; color: #e6eaec38; }
+.tell.on { color: #ffb020; font-effect: glow(2dp 0dp 0dp 0dp #ffb02088); }
+.tell.warn { color: #ff3b4e; font-effect: glow(2dp 0dp 0dp 0dp #ff3b4e88); }
+.sub { margin-top: 2dp; padding-right: 50dp; }
+.gear { font-family: "Chakra Petch"; font-size: 17dp; letter-spacing: 0.06em; color: #2be58b; font-effect: glow(2dp 0dp 0dp 0dp #2be58b88); }
+.gear.rev { color: #ff3b4e; }
+.unit { font-family: "Chakra Petch"; font-size: 17dp; letter-spacing: 0.08em; color: #e6eaec; }
+.rpm-line { position: relative; height: 4dp; margin-top: 6dp; margin-right: 30dp; background-color: #e6eaec26; }
+.rpm-fill { height: 4dp; background-color: #f7f9fb; filter: glow(6dp #9ff6ff 1.4); transition: width 0.1s linear-in-out; }
+.rpm-fill.red { background-color: #ff3cac; filter: glow(6dp #ff3cac 1.4); }

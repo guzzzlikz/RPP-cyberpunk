@@ -1,0 +1,940 @@
+local chat
+local enabled = true
+local opened = false
+local lastSuggestionRequest = -1000
+local suggestionCount = 0
+local messageHistory, messageHistoryBytes = {}, 0
+local connectedOnce = false
+
+-- Parses `/command "an argument" plain\ value` into the exact string array
+-- expected by the server's authenticated command dispatcher.
+local function commandTokens(text)
+    local source = tostring(text or ""):sub(2)
+    local tokens, token, quote, escaped, started = {}, "", nil, false, false
+    for index = 1, #source do
+        local character = source:sub(index, index)
+        if escaped then
+            token = token .. character
+            escaped = false
+            started = true
+        elseif character == "\\" then
+            escaped = true
+            started = true
+        elseif quote ~= nil then
+            if character == quote then quote = nil
+            else token = token .. character end
+            started = true
+        elseif character == "\"" or character == "'" then
+            quote = character
+            started = true
+        elseif string.match(character, "%s") then
+            if started then
+                tokens[#tokens + 1] = token
+                token, started = "", false
+                if #tokens > 32 then return nil, "Commands are limited to 32 arguments." end
+            end
+        else
+            token = token .. character
+            started = true
+        end
+    end
+    if escaped then return nil, "A command cannot end with an escape character." end
+    if quote ~= nil then return nil, "The command contains an unterminated quote." end
+    if started then
+        tokens[#tokens + 1] = token
+        if #tokens > 32 then return nil, "Commands are limited to 32 arguments." end
+    end
+    if #tokens == 0 or tokens[1] == "" then return nil, "Enter a command after '/'." end
+    return tokens
+end
+
+local function send(name, payload)
+    if chat then chat:send(name, payload or {}) end
+end
+
+-- A8. Client commands are registered in the local runtime and never reach the
+-- server, so the server's suggestion list cannot know about them. Merge them in
+-- from the host registry on every refresh. Commands registered `restricted` are
+-- left out on purpose: the client has no ACL, so `ExecuteCommand` refuses them,
+-- and offering a completion for something that will not run is worse than
+-- offering nothing. Guarded on the global's existence because a resource set is
+-- served by the server while the runtime that hosts it ships with the client:
+-- a newer chat can find itself on an older client.
+local function mergeClientCommands()
+    if type(GetRegisteredCommands) ~= "function" then return end
+    local registered = GetRegisteredCommands()
+    if type(registered) ~= "table" or #registered == 0 then return end
+    local merged = {}
+    for _, entry in ipairs(registered) do
+        if type(entry) == "table" and not entry.restricted and type(entry.name) == "string" then
+            merged[#merged + 1] = {
+                command = "/" .. entry.name,
+                help = entry.help or ("client command from " .. tostring(entry.resource)),
+                parameters = entry.parameters or {}
+            }
+        end
+    end
+    if #merged > 0 then send("chat:addSuggestions", { suggestions = merged }) end
+end
+
+local function requestSuggestions()
+    local now = Open77.time.monotonic()
+    if now - lastSuggestionRequest < 0.75 then return true end
+    lastSuggestionRequest = now
+    mergeClientCommands()
+    local accepted, reason = TriggerServerEvent("chat:ready")
+    if not accepted then
+        print("[open77_chat] suggestion request failed: " .. tostring(reason))
+        return false
+    end
+    return true
+end
+
+local function closeChat()
+    if not chat or not opened then return end
+    opened = false
+    chat:setFocus(false, false)
+    send("chat:close", {})
+    TriggerEvent("open77:chat:visibility", false)
+end
+
+local function openChat()
+    -- Refusals are printed, not silent. "T does nothing" is the report this
+    -- resource has to be able to answer, and each of these three is a different
+    -- fault: no surface at all, a gamemode that turned the chat off, and a
+    -- latched `opened` left behind by a close that never ran.
+    if not chat then
+        print("[open77_chat] open refused: the chat document was never created")
+        return
+    end
+    if not enabled then
+        print("[open77_chat] open refused: the chat is disabled by the server")
+        return
+    end
+    if opened then
+        print("[open77_chat] open ignored: already open")
+        return
+    end
+    -- Focus BEFORE the page is told to open, and that order is the point.
+    -- `setFocus` reaches the WebHost as `CefBrowserHost::SetFocus`, while
+    -- `chat:open` reaches the page as a script that ends up calling
+    -- `input.focus()`. Both travel the same ordered pipe, so asking for browser
+    -- focus first means the element focus lands in a browser that already has
+    -- it, instead of racing a browser that does not yet.
+    local focused = chat:setFocus(true, false)
+    if not focused then
+        print("[open77_chat] open deferred: NativeUI focus is unavailable")
+        return
+    end
+    opened = true
+    send("chat:open", {})
+    TriggerEvent("open77:chat:visibility", true)
+    requestSuggestions()
+end
+
+local function addMessage(message)
+    if type(message) == "string" then message = { text = message } end
+    if type(message) ~= "table" then return false end
+    -- Keep the same 48-message window as the page, with an additional byte
+    -- bound. The Lua owner survives a browser crash; the lost DOM does not.
+    local ok, encoded = pcall(Open77.json.encode, message)
+    if ok and type(encoded) == "string" and #encoded <= 262144 then
+        messageHistory[#messageHistory + 1] = encoded
+        messageHistoryBytes = messageHistoryBytes + #encoded
+        while #messageHistory > 48 or messageHistoryBytes > 262144 do
+            messageHistoryBytes = messageHistoryBytes - #table.remove(messageHistory, 1)
+        end
+    end
+    send("chat:addMessage", message)
+    return true
+end
+
+RegisterNetEvent("chat:addMessage", addMessage)
+RegisterNetEvent("chat:addSuggestion", function(command, help, parameters)
+    send("chat:addSuggestion", {
+        command = tostring(command or ""),
+        help = tostring(help or ""),
+        parameters = parameters or {}
+    })
+end)
+RegisterNetEvent("chat:addSuggestions", function(suggestions)
+    local count = type(suggestions) == "table" and #suggestions or 0
+    suggestionCount = suggestionCount + count
+    print(string.format("[open77_chat] received %d suggestions (total deliveries=%d)", count, suggestionCount))
+    send("chat:addSuggestions", { suggestions = suggestions or {} })
+end)
+RegisterNetEvent("chat:removeSuggestion", function(command)
+    send("chat:removeSuggestion", { command = tostring(command or "") })
+end)
+RegisterNetEvent("chat:clearSuggestions", function() send("chat:clearSuggestions", {}) end)
+RegisterNetEvent("chat:addTemplate", function(id, template)
+    send("chat:addTemplate", { id = tostring(id or ""), template = tostring(template or "") })
+end)
+local function clearMessages()
+    messageHistory, messageHistoryBytes = {}, 0
+    send("chat:clear", {})
+end
+RegisterNetEvent("chat:clear", clearMessages)
+RegisterNetEvent("chat:setEnabled", function(value)
+    enabled = value ~= false
+    if not enabled then closeChat() end
+    send("chat:state", { enabled = enabled })
+end)
+
+RegisterNetEvent("open77:command:result", function(raw, accepted, message)
+    raw, message = tostring(raw or ""), tostring(message or "")
+    -- The dispatcher acknowledges queueing immediately. Commands that need to
+    -- show output send a second, useful result; do not spam the HUD with both.
+    if accepted and string.match(message, "^queued by ") then return end
+
+    local text = message
+    if not accepted and message == "unknown_command" then
+        text = "Unknown command: /" .. raw
+    elseif not accepted and string.match(message, "^permission_denied:") then
+        text = "You do not have permission to run /" .. raw
+    elseif text == "" then
+        text = accepted and "Command completed." or "Command failed."
+    end
+    addMessage({
+        type = accepted and "system" or "error",
+        author = "COMMAND",
+        text = text,
+        color = accepted and { 0, 229, 255 } or { 255, 76, 92 }
+    })
+end)
+
+-- Other HUDs may reserve the left-hand space while the composer is open.
+-- Publish actual state, not the input intent (which may be refused).
+AddEventHandler("open77:chat:requestVisibility", function()
+    TriggerEvent("open77:chat:visibility", opened == true)
+end)
+
+-- Native Escape is swallowed before CEF sees it. Release this modal directly.
+AddEventHandler("open77:pauseKey", closeChat)
+AddEventHandler("open77:chat:open", openChat)
+AddEventHandler("chat:open", openChat)
+AddEventHandler("chat:close", closeChat)
+
+exports("addMessage", addMessage)
+exports("clear", function() clearMessages() return true end)
+exports("addSuggestion", function(command, help, parameters)
+    send("chat:addSuggestion", {
+        command = tostring(command or ""),
+        help = tostring(help or ""),
+        parameters = parameters or {}
+    })
+    return true
+end)
+exports("removeSuggestion", function(command)
+    send("chat:removeSuggestion", { command = tostring(command or "") })
+    return true
+end)
+exports("setEnabled", function(value)
+    enabled = value ~= false
+    if not enabled then closeChat() end
+    send("chat:state", { enabled = enabled })
+    return true
+end)
+exports("isEnabled", function() return enabled end)
+
+AddEventHandler("onClientResourceStart", function(name)
+    if name ~= GetCurrentResourceName() then return end
+    local reason
+    -- NativeUI (client/native.lua, ui/chat.rml): the page API this file always used
+    chat, reason = ChatNative.create()
+    if not chat then
+        print("Open77 chat NativeUI failed: " .. tostring(reason))
+        return
+    end
+    chat:on("chat:ready", function()
+        closeChat()
+        send("chat:state", { enabled = enabled })
+        for _, encoded in ipairs(messageHistory) do
+            send("chat:addMessage", Open77.json.decode(encoded))
+        end
+        if not connectedOnce then addMessage({
+            type = "system",
+            author = "OPEN77",
+            text = "Chat connected — press T to type",
+            color = { 0, 229, 255 }
+        }) end
+        connectedOnce = true
+        requestSuggestions()
+        SetTimeout(1000, requestSuggestions)
+    end)
+    chat:on("chat:requestSuggestions", requestSuggestions)
+    chat:on("chat:close", closeChat)
+    chat:on("chat:submit", function(payload)
+        local text = payload and tostring(payload.text or "") or ""
+        if #text > 0 then
+            local event, arguments = "chat:submit", { text }
+            if text:sub(1, 1) == "/" then
+                local tokens, parseError = commandTokens(text)
+                if tokens == nil then
+                    addMessage({
+                        type = "error",
+                        author = "COMMAND",
+                        text = parseError,
+                        color = { 255, 76, 92 }
+                    })
+                    return
+                end
+                event, arguments = "open77:command:execute", tokens
+                TriggerEvent("chat:commandSubmitted", text, tokens)
+
+                -- A8: client commands resolve first. `unknown_command` is the
+                -- signal to forward, and is not an error; any other refusal is
+                -- a real one and stops here rather than being sent to a server
+                -- that would answer `unknown_command` a second time.
+                if type(ExecuteCommand) == "function" then
+                    local handled, reason = ExecuteCommand(text)
+                    if handled then
+                        closeChat()
+                        return
+                    end
+                    if reason ~= nil and reason ~= "unknown_command" then
+                        addMessage({
+                            type = "error",
+                            author = "COMMAND",
+                            text = reason == "command_restricted"
+                                and ("/" .. tokens[1] .. " is restricted and cannot run on the client.")
+                                or ("Command refused: " .. tostring(reason)),
+                            color = { 255, 76, 92 }
+                        })
+                        closeChat()
+                        return
+                    end
+                end
+            end
+
+            local accepted, errorMessage = TriggerServerEvent(event, table.unpack(arguments))
+            if not accepted then
+                addMessage({
+                    type = "error",
+                    author = "NETWORK",
+                    text = tostring(errorMessage or "Message could not be sent."),
+                    color = { 255, 76, 92 }
+                })
+            end
+        end
+        closeChat()
+    end)
+end)
+
+AddEventHandler("onClientResourceStop", function(name)
+    if name ~= GetCurrentResourceName() then return end
+    opened = false
+    chat = nil
+    TriggerEvent("open77:chat:visibility", false)
+end)
+-- The chat on NativeUI (ui/chat.rml): client/main.lua keeps its logic (commands, history
+-- owner, suggestions from the server, exports) and talks to this module with the page API
+-- it always used: chat:send(name, payload), chat:on(name, fn), chat:setFocus(kb, cursor).
+ChatNative = {}
+local N = ChatNative
+
+local MAX_MESSAGES = 48
+local MAX_LENGTH = 4096
+local STALE_DELAY = 8500
+local CLOSED_ROWS = 6   -- rows shown while the chat is closed (the newest)
+local KINDS = { message = true, system = true, announce = true, warning = true, error = true, action = true, join = true, leave = true }
+local CHANNELS = {
+    global = { label = "GLOBAL", color = "#22d8e2" },
+    ["local"] = { label = "LOCAL", color = "#8a94a2" },
+    squad = { label = "SQUAD", color = "#2be58b" },
+    whisper = { label = "WHISPER", color = "#7c5cff" },
+    ooc = { label = "OOC", color = "#ffb020" },
+    admin = { label = "ADMIN", color = "#ff3b4e" },
+}
+
+local function bounded(v, max) return tostring(v == nil and "" or v):sub(1, max or MAX_LENGTH) end
+local function esc(s) return (tostring(s or ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;")) end
+local function token(v, fallback)
+    local t = bounded(v, 24):lower():gsub("[^a-z0-9_-]", "")
+    return t ~= "" and t or fallback
+end
+local function rgb(v, fallback)
+    if type(v) ~= "table" or #v < 3 then return fallback end
+    local function c(i) return math.max(0, math.min(255, math.floor((tonumber(v[i]) or 0) + 0.5))) end
+    return ("#%02x%02x%02x"):format(c(1), c(2), c(3))
+end
+
+--- A message table (the chat API's: text/args/author/type/channel/color/segments/...) as row RML.
+function N.normalize(raw, templates)
+    if type(raw) == "string" then raw = { text = raw } end
+    if type(raw) ~= "table" then return nil end
+    local args = type(raw.args) == "table" and raw.args or {}
+    local author = bounded(raw.author or (#args > 1 and args[1] or ""), 96)
+    local text = raw.text or raw.message
+    if text == nil then
+        if #args > 1 then
+            local rest = {}
+            for i = 2, #args do rest[#rest + 1] = tostring(args[i]) end
+            text = table.concat(rest, " ")
+        else
+            text = args[1]
+        end
+    end
+    text = bounded(text, MAX_LENGTH)
+    if raw.templateId and templates and templates[tostring(raw.templateId)] then
+        text = templates[tostring(raw.templateId)]:gsub("{(%d+)}", function(i) return bounded(args[tonumber(i) + 1] or "", 1024) end)
+    end
+    local kind = token(raw.kind or raw.type, "message")
+    if kind == "player" or kind == "default" then kind = "message" end
+    if kind == "announcement" then kind = "announce" end
+    if not KINDS[kind] then kind = "message" end
+    local channel = CHANNELS[raw.channel] and raw.channel or (kind == "warning" and "admin" or "global")
+    return {
+        author = author, text = text, kind = kind, channel = channel,
+        channelColor = CHANNELS[channel].color, color = rgb(raw.color, CHANNELS[channel].color),
+        playerId = bounded(raw.playerId, 20), role = token(raw.role, ""), time = raw.time and bounded(raw.time, 16) or nil,
+        segments = type(raw.segments) == "table" and raw.segments or {},
+        mention = raw.mention == true or raw.mentioned == true, title = bounded(raw.title, 96),
+        duration = tonumber(raw.duration),
+    }
+end
+
+local function textRml(m)
+    if #m.segments > 0 then
+        local out = {}
+        for i = 1, math.min(32, #m.segments) do
+            local s = m.segments[i]
+            if type(s) == "table" then
+                local style = s.color and (' style="color: %s;"'):format(rgb(s.color, "#e6eaec")) or ""
+                out[#out + 1] = ('<span class="%s"%s>%s</span>'):format(s.bold and "bold" or "", style, esc(bounded(s.text, 1024)))
+            end
+        end
+        return ('<span class="text">%s</span>'):format(table.concat(out))
+    end
+    return ('<span class="text">%s</span>'):format(esc(m.text))
+end
+
+function N.rowRml(m)
+    local time = m.time and ('<span class="time">%s</span>'):format(esc(m.time)) or ""
+    if m.kind == "announce" then
+        return ('<span class="announce-head">// %s</span>%s%s'):format(esc(m.title ~= "" and m.title or "SERVER ANNOUNCEMENT"), time, textRml(m))
+    end
+    if m.kind == "system" or m.kind == "error" or m.kind == "warning" then
+        local marker = m.kind == "error" and "!" or (m.kind == "warning" and "▲" or "›")
+        local source = m.author ~= "" and ('<span class="source">%s</span>'):format(esc(m.author)) or ""
+        return ('%s<span class="marker">%s</span>%s%s'):format(time, marker, source, textRml(m))
+    end
+    if m.kind == "join" or m.kind == "leave" then
+        local what = m.kind == "join" and "connected" or "disconnected"
+        local extra = m.text ~= "" and (" · " .. m.text) or ""
+        return ('%s<span class="dot">●</span><span class="text">%s %s%s</span>'):format(time, esc(m.author ~= "" and m.author or "Player"), what, esc(extra))
+    end
+    if m.kind == "action" then
+        return ('%s<span class="text">* %s %s</span>'):format(time, esc(m.author ~= "" and m.author or "Player"), esc(m.text))
+    end
+    local tag = ('<span class="tag" style="color: %s; border-color: %s66;">%s</span>'):format(m.channelColor, m.channelColor, CHANNELS[m.channel].label)
+    local pid = m.playerId:match("^%d+$") and ('<span class="pid">[%s]</span>'):format(m.playerId) or ""
+    local author = ""
+    if m.author ~= "" then
+        local roleClass = (m.role == "admin" or m.role == "mod") and (" " .. m.role) or ""
+        local role = m.role ~= "" and ('<span class="role">%s</span>'):format(esc(m.role:upper())) or ""
+        author = ('<span class="author%s" style="color: %s;">%s%s</span>'):format(roleClass, m.color, esc(m.author), role)
+    end
+    return time .. tag .. pid .. author .. textRml(m)
+end
+
+local function clamp(v, a, b) return v < a and a or (v > b and b or v) end
+
+local function cameraAngles()
+    if type(Open77.camera) ~= "table" or type(Open77.camera.view) ~= "function" then return nil end
+    local ok, v = pcall(Open77.camera.view)
+    local f = ok and type(v) == "table" and v.forward
+    if type(f) ~= "table" or (math.abs(f.x or 0) + math.abs(f.y or 0)) < 1e-4 then return nil end
+    return math.deg(math.atan(-f.x, f.y)), math.deg(math.asin(clamp(f.z or 0, -1, 1)))
+end
+
+--- The chat floats in the game like the HUD: it trails the camera's turns with some inertia,
+--- breathes, and takes the kick of each shot; while typing it holds almost still.
+local function startFloat(ui, isOpen, alive)
+    CreateThread(function()
+        local yaw0, pitch0, at0 = nil, nil, GetGameTimer()
+        local sx, sy, rx, ry, kick = 0, 0, 0, 0, 0
+        local shots, generation, sent = nil, nil, nil
+        local counters = type(Open77.weapons) == "table" and Open77.weapons.shotCounters or nil
+        while alive() do
+            Wait(0)
+            local at = GetGameTimer()
+            local dt = math.max(0.001, math.min(0.1, (at - at0) / 1000))
+            at0 = at
+            local calm = isOpen() and 0.25 or 1
+            local yaw, pitch = cameraAngles()
+            local yawVel, pitchVel = 0, 0
+            if yaw and yaw0 then
+                yawVel, pitchVel = ((yaw - yaw0 + 540) % 360 - 180) / dt, (pitch - pitch0) / dt
+            end
+            yaw0, pitch0 = yaw, pitch
+            if counters then
+                local ok, c = pcall(counters)
+                if ok and type(c) == "table" and tonumber(c.total) then
+                    local total = tonumber(c.total)
+                    if shots and generation == c.generation and total > shots then
+                        kick = math.min(1.6, kick + 0.7 * math.min(3, total - shots))
+                    end
+                    shots, generation = total, c.generation
+                end
+            end
+            kick = kick * math.exp(-dt * 14)
+            local k = 1 - math.exp(-dt * 6)
+            sx = sx + (clamp(yawVel * 0.09, -22, 22) * calm - sx) * k
+            sy = sy + (clamp(-pitchVel * 0.07, -15, 15) * calm - sy) * k
+            ry = ry + (clamp(-yawVel * 0.02, -3, 3) * calm - ry) * k
+            rx = rx + (clamp(pitchVel * 0.016, -2, 2) * calm - rx) * k
+            local kk = kick * calm
+            local fy = math.sin(at / 1000 * 0.8) * 1.8 * calm
+            local jx = kk > 0.01 and (math.random() * 2 - 1) * kk * 2 or 0
+            local spec = {
+                rotateX = math.floor((rx + kk * 1.4) * 100 + 0.5) / 100, rotateY = math.floor(ry * 100 + 0.5) / 100,
+                rotateZ = math.floor((math.random() * 2 - 1) * kk * 30 + 0.5) / 100,
+                offset = { math.floor((sx + jx) * 10 + 0.5) / 10, math.floor((sy + fy + kk * 4) * 10 + 0.5) / 10, math.floor(-kk * 32 * 10 + 0.5) / 10 },
+                perspective = 1600, origin = { 0.2, 0.2 },
+            }
+            local key = ("%.2f %.2f %.2f %.1f %.1f %.1f"):format(spec.rotateX, spec.rotateY, spec.rotateZ, spec.offset[1], spec.offset[2], spec.offset[3])
+            if key ~= sent then
+                sent = key
+                ui:projection(spec)
+            end
+        end
+    end)
+end
+
+--- The chat surface with the page API client/main.lua uses.
+function N.create()
+    if type(Open77.ui) ~= "table" or type(Open77.ui.create) ~= "function" then return nil, "nativeui_unavailable" end
+    local ui, why = Open77.ui.create({ document = "ui/chat.rml", layer = "hud", zIndex = 30, visible = true })
+    if not ui then return nil, why end
+    local page = { handlers = {} }
+    local rows = {}            -- { serial, delay, token }
+    local suggestions = {}     -- lower command -> { command, help, parameters }
+    local templates = {}
+    local history, historyIndex = {}, 1
+    local open, enabled = false, true
+    local value = ""
+    local visible, selected = {}, 1
+    local staleToken = 0
+    local alive = true
+    local openedAt = nil       -- when the composer took the focus (the opening key's character follows)
+
+    local function emit(name, payload)
+        local fn = page.handlers[name]
+        if fn then fn(payload or {}) end
+    end
+
+    local function updateCount()
+        ui:text("#count", ("%02d"):format(#rows))
+        ui:class("#root", "empty", #rows == 0)
+    end
+
+    local function schedule(row)
+        staleToken = staleToken + 1
+        row.token = staleToken
+        local tokenAt = row.token
+        ui:class(row.serial, "stale", false)
+        if open then return end
+        CreateThread(function()
+            Wait(row.delay)
+            if row.token == tokenAt and not open and ui then ui:class(row.serial, "stale", true) end
+        end)
+    end
+
+    local function latest()
+        local last = rows[#rows]
+        if not last then return end
+        ui:scrollTo(last.serial, false)
+        -- the class change that opens the log lays it out on the next frames: pin again then
+        CreateThread(function()
+            for _ = 1, 2 do Wait(0) end
+            if alive and rows[#rows] == last then ui:scrollTo(last.serial, false) end
+        end)
+    end
+
+    local function markOld()
+        for i, row in ipairs(rows) do
+            local old = i <= #rows - CLOSED_ROWS
+            if row.old ~= old then row.old = old; ui:class(row.serial, "old", old) end
+        end
+    end
+
+    local function addMessage(raw)
+        local m = N.normalize(raw, templates)
+        if not m or (m.text == "" and #m.segments == 0) then return end
+        local classes = "msg k-" .. m.kind .. (m.mention and " mention" or "")
+        local style = (m.kind == "message") and ("border-left-color: " .. m.color .. ";") or nil
+        local serial = ui:create("#messages", { tag = "div", class = classes, rml = N.rowRml(m), style = style and { ["border-left-color"] = m.color } or nil })
+        local row = { serial = serial, delay = math.max(2500, m.duration or STALE_DELAY) }
+        rows[#rows + 1] = row
+        while #rows > MAX_MESSAGES do
+            local old = table.remove(rows, 1)
+            ui:remove(old.serial)
+        end
+        markOld()
+        updateCount()
+        latest()
+        schedule(row)
+    end
+
+    local function renderSuggestions()
+        local query = value:gsub("^%s+", ""):lower()
+        if query:sub(1, 1) ~= "/" then
+            visible = {}
+            ui:class("#suggestions", "on", false)
+            return
+        end
+        local command = query:match("^(%S*)")
+        local list = {}
+        for key, item in pairs(suggestions) do
+            if key:sub(1, #command) == command then list[#list + 1] = item end
+        end
+        table.sort(list, function(a, b)
+            if #a.command ~= #b.command then return #a.command < #b.command end
+            return a.command < b.command
+        end)
+        visible = {}
+        for i = 1, math.min(7, #list) do visible[i] = list[i] end
+        selected = math.max(1, math.min(selected, #visible))
+        if #visible == 0 then ui:class("#suggestions", "on", false) return end
+        local out = { ('<div class="sg-head"><span>// COMMANDS</span><span class="grow"></span><span>%d %s</span></div>'):format(#visible, #visible == 1 and "MATCH" or "MATCHES") }
+        for i, item in ipairs(visible) do
+            local params = {}
+            for p = 1, math.min(8, #(item.parameters or {})) do
+                local param = item.parameters[p]
+                local name = bounded(type(param) == "table" and param.name or param, 40)
+                params[#params + 1] = (type(param) == "table" and param.optional) and ("[" .. name .. "]") or ("<" .. name .. ">")
+            end
+            out[#out + 1] = ('<div id="sg-' .. i .. '" class="sg%s"><span class="sg-cmd">%s</span><span class="sg-params">%s</span><span class="sg-help">%s</span></div>')
+                :format(i == selected and " sel" or "", esc(item.command), esc(table.concat(params, " ")), esc(bounded(item.help, 240)))
+        end
+        ui:rml("#suggestions", table.concat(out))
+        ui:class("#suggestions", "on", true)
+    end
+
+    local function setValue(text)
+        value = text
+        ui:value("#input", text)
+        ui:text("#chars", #text .. "/256")
+        ui:class("#chars", "near", #text >= 224)
+        renderSuggestions()
+    end
+
+    local function complete()
+        local item = visible[selected]
+        if not item then return false end
+        local suffix = value:match("^%s*/%S*(.*)$") or ""
+        setValue(item.command .. (suffix:match("%S") and suffix or " "))
+        selected = 1
+        return true
+    end
+
+    local function setOpen(v)
+        open = v == true
+        ui:class("#root", "open", open)
+        for _, row in ipairs(rows) do schedule(row) end
+        if open then
+            openedAt = GetGameTimer()
+            ui:focusElement("#input")
+            latest()
+            emit("chat:requestSuggestions", {})
+        else
+            ui:blurElement("#input")
+            setValue("")
+            selected = 1
+            latest()
+        end
+    end
+
+    local function submit()
+        local text = value:match("^%s*(.-)%s*$")
+        if text == "" then emit("chat:close", {}) return end
+        history[#history + 1] = text
+        if #history > 50 then table.remove(history, 1) end
+        historyIndex = #history + 1
+        ui:class("#root", "sending", false)
+        CreateThread(function() Wait(0); if ui then ui:class("#root", "sending", true) end end)
+        emit("chat:submit", { text = text })
+    end
+
+    ui:onEvent("loaded", function()
+        updateCount()
+        emit("chat:ready", {})
+    end)
+    ui:onEvent("error", function(name, detail) print("[open77_chat] ui " .. tostring(name) .. ": " .. tostring(detail and detail.message)) end)
+
+    ui:on("change", "#input", function(e)
+        if not open then return end
+        value = tostring(e.value or "")
+        -- the key that opened the chat (T) is still typed: its character reaches the
+        -- composer that just took the focus. A single character in the first moments is it.
+        if openedAt and #value == 1 and GetGameTimer() - openedAt < 150 then
+            openedAt = nil
+            setValue("")
+            return
+        end
+        openedAt = nil
+        selected = 1
+        ui:text("#chars", #value .. "/256")
+        ui:class("#chars", "near", #value >= 224)
+        renderSuggestions()
+    end)
+    ui:on("keydown", function(e)
+        if not open then return end
+        local key = tostring(e.key or "")
+        if e.value ~= nil then value = tostring(e.value) end
+        if key == "escape" then emit("chat:close", {})
+        elseif key == "enter" or key == "return" then submit()
+        elseif key == "tab" then
+            complete()
+            ui:focusElement("#input")
+        elseif key == "up" then
+            if #visible > 0 then selected = (selected - 2) % #visible + 1; renderSuggestions()
+            elseif #history > 0 then historyIndex = math.max(1, historyIndex - 1); setValue(history[historyIndex] or "") end
+        elseif key == "down" then
+            if #visible > 0 then selected = selected % #visible + 1; renderSuggestions()
+            elseif #history > 0 then historyIndex = math.min(#history + 1, historyIndex + 1); setValue(history[historyIndex] or "") end
+        end
+    end)
+    ui:on("click", ".sg", function(e)
+        local i = tonumber(tostring(e.id or ""):match("sg%-(%d+)"))
+        if i then selected = i end
+        complete()
+        ui:focusElement("#input")
+    end)
+
+    local function addSuggestion(item)
+        if type(item) ~= "table" or not item.command or item.command == "" then return end
+        local command = tostring(item.command)
+        if command:sub(1, 1) ~= "/" then command = "/" .. command end
+        suggestions[command:lower()] = { command = command, help = item.help, parameters = item.parameters }
+    end
+
+    function page.on(_, name, fn) page.handlers[name] = fn end
+    function page.setFocus(_, keyboard, cursor)
+        if keyboard or cursor then ui:focus({ keyboard = true, cursor = cursor == true }) else ui:blur() end
+        return true
+    end
+    function page.send(_, name, p)
+        p = type(p) == "table" and p or {}
+        if name == "chat:open" then setOpen(true)
+        elseif name == "chat:close" then setOpen(false)
+        elseif name == "chat:state" then
+            enabled = p.enabled ~= false
+            ui:class("#chat", "disabled", not enabled)
+            if not enabled then setOpen(false) end
+        elseif name == "chat:addMessage" then addMessage(p)
+        elseif name == "chat:clear" then
+            for _, row in ipairs(rows) do ui:remove(row.serial) end
+            rows = {}
+            updateCount()
+        elseif name == "chat:clearSuggestions" then suggestions = {}; renderSuggestions()
+        elseif name == "chat:addTemplate" then if p.id then templates[tostring(p.id)] = bounded(p.template) end
+        elseif name == "chat:addSuggestion" then addSuggestion(p); renderSuggestions()
+        elseif name == "chat:addSuggestions" then
+            for _, item in ipairs(p.suggestions or {}) do addSuggestion(item) end
+            renderSuggestions()
+        elseif name == "chat:removeSuggestion" then
+            local command = tostring(p.command or "")
+            if command:sub(1, 1) ~= "/" then command = "/" .. command end
+            suggestions[command:lower()] = nil
+            renderSuggestions()
+        end
+    end
+    function page.destroy() alive = false; pcall(ui.destroy, ui) end
+    startFloat(ui, function() return open end, function() return alive end)
+    return page
+end
+resource "open77_chat"
+version "0.6.0"
+open77_version ">=0.0.1"
+auto_start true
+reload_policy "local"
+
+client_script "client/native.lua"
+client_script "client/main.lua"
+server_script "server/main.lua"
+
+files { "ui/chat.rml", "ui/chat.rcss" }
+
+permissions { "network.events", "local.events", "clipboard.write", "player.weapons.read" } -- shots kick the floating chat
+/* Open//77 chat on NativeUI. Closed: the last messages float top-left, each on its own
+   dark, opaque strip, and fade after a while. Open: a solid panel (header, log, composer,
+   command index); the left of the screen softens behind it. 1 dp = 1 px at 1080p. */
+
+body { pointer-events: none; }
+#root { position: absolute; left: 0; top: 0; right: 0; bottom: 0; perspective: 1500dp; perspective-origin: 50% 20%; font-family: Rajdhani; font-weight: bold; color: #e6eaec; }
+.grow { flex: 1 1 auto; }
+
+/* ---- the focus veil: blur and dim the left of the screen while typing ----------------- */
+#focus-veil
+{
+    position: absolute; left: 0; top: 0; bottom: 0; width: 52%;
+    backdrop-filter: blur(7dp) saturate(0.85);
+    decorator: linear-gradient(90deg, #05070bb8 0%, #05070b70 45%, #05070b00 100%);
+    mask-image: linear-gradient(90deg, #ffffffff 0%, #ffffffff 50%, #ffffff00 100%);
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.22s cubic-out;
+}
+#root.open #focus-veil { opacity: 1; visibility: visible; }
+
+/* ---- the chat column ------------------------------------------------------------------ */
+#chat { position: absolute; left: 30dp; top: 28dp; width: 580dp; transform: rotateY(14deg); transform-origin: 0% 0%; transition: transform 0.25s cubic-out; }
+#root.open #chat { transform: rotateY(7deg); } /* flatter while typing: easier to read */
+#chat.disabled { display: none; }
+#panel { position: relative; padding: 0; transition: padding 0.18s cubic-out; }
+#root.open #panel
+{
+    padding: 0 0 10dp 0;
+    background-color: #0a0d13f0;
+    border-width: 1dp; border-color: #22d8e238;
+    box-shadow: #00000099 0 18dp 46dp 0;
+    animation: 0.2s cubic-out panel-in;
+}
+@keyframes panel-in { from { opacity: 0; transform: translateY(-6dp); } to { opacity: 1; transform: translateY(0dp); } }
+#root.open #panel:after { }
+
+/* header (open only) */
+#head { display: none; flex-direction: row; align-items: center; height: 34dp; padding: 0 14dp; border-bottom-width: 1dp; border-bottom-color: #ffffff10; }
+#root.open #head { display: flex; }
+.slash { font-family: "Chakra Petch"; font-size: 14dp; color: #22d8e2; margin-right: 8dp; }
+.title { font-family: "Chakra Petch"; font-size: 13dp; letter-spacing: 0.22em; color: #f7f9fb; margin-right: 10dp; }
+.channel { font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.2em; color: #05262a; background-color: #22d8e2; padding: 2dp 7dp; }
+.live { display: flex; flex-direction: row; align-items: center; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.22em; color: #2be58b; margin-right: 10dp; }
+.live-dot { width: 6dp; height: 6dp; border-radius: 3dp; background-color: #2be58b; margin-right: 6dp; animation: 1.6s sine-in-out infinite live-blink; }
+@keyframes live-blink { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+.count { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #8a94a2; }
+
+/* the log */
+#log { position: relative; }
+#root.open #log { max-height: 330dp; overflow-y: auto; padding: 8dp 8dp 4dp 8dp; }
+#messages { }
+#empty { display: none; padding: 26dp 0; text-align: center; font-size: 13dp; letter-spacing: 0.14em; color: #5a6472; }
+#root.open.empty #empty { display: block; }
+
+/* one message */
+.msg
+{
+    display: block; margin-bottom: 3dp; padding: 5dp 12dp 5dp 10dp;
+    background-color: #0a0d13d9;
+    border-left-width: 2dp; border-left-color: #22d8e2;
+    font-size: 16dp; line-height: 20dp;
+    transition: opacity transform 0.6s cubic-in-out;
+    animation: 0.26s cubic-out msg-in;
+}
+@keyframes msg-in { from { opacity: 0; transform: translateX(-16dp); } to { opacity: 1; transform: translateX(0dp); } }
+.msg.stale { opacity: 0; transform: translateX(-10dp); }
+#root.open .msg.stale { opacity: 1; transform: translateX(0dp); }
+.msg.old { display: none; }  /* closed: only the newest rows show */
+#root.open .msg.old { display: block; }
+#root.open .msg { background-color: #ffffff06; }
+#root.open .msg:hover { background-color: #ffffff0f; }
+.msg.mention { background-color: #ffb0201f; border-left-color: #ffb020; }
+
+.time { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #5a6472; margin-right: 8dp; }
+.tag { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.16em; padding: 1dp 5dp; margin-right: 7dp; border-width: 1dp; }
+.pid { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #8a94a2; margin-right: 5dp; }
+.author { font-weight: bold; margin-right: 7dp; }
+.role { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.14em; margin-left: 4dp; color: #8a94a2; }
+.author.admin { color: #ff3b4e; }
+.author.mod { color: #ffb020; }
+.text { color: #e6eaec; font-weight: normal; }
+.bold { font-weight: bold; }
+
+/* system, error, warning, presence, action, announcement */
+.k-system { border-left-color: #22d8e2; }
+.k-error { border-left-color: #ff3b4e; background-color: #2a0b10e0; }
+.k-warning { border-left-color: #ffb020; background-color: #241a08e0; }
+.marker { font-family: "Chakra Petch"; margin-right: 6dp; color: #22d8e2; }
+.k-error .marker, .k-error .source { color: #ff6b7a; }
+.k-warning .marker, .k-warning .source { color: #ffb020; }
+.source { font-family: "Chakra Petch"; font-size: 11dp; letter-spacing: 0.16em; color: #22d8e2; margin-right: 8dp; }
+.k-system .text { color: #c2cad3; }
+.k-join, .k-leave { border-left-color: #2be58b; font-size: 14dp; }
+.k-leave { border-left-color: #5a6472; }
+.dot { font-family: "Chakra Petch"; margin-right: 6dp; color: #2be58b; }
+.k-leave .dot { color: #5a6472; }
+.k-join .text, .k-leave .text { color: #8a94a2; }
+.k-action { border-left-color: #ffb020; }
+.k-action .text { color: #ffcf7a; font-style: italic; }
+.k-announce { border-left-width: 3dp; border-left-color: #ff2e88; background-color: #1d0a17eb; padding-top: 7dp; padding-bottom: 8dp; }
+.announce-head { display: block; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.22em; color: #ff2e88; margin-bottom: 3dp; }
+.k-announce .text { color: #f7f9fb; font-size: 17dp; }
+
+/* new messages below while scrolled up */
+#latest { display: none; position: absolute; right: 16dp; bottom: 112dp; padding: 4dp 10dp; background-color: #22d8e2; color: #05262a; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.14em; }
+#root.open #latest.on { display: block; animation: 0.2s cubic-out msg-in; }
+
+/* the composer */
+#composer { display: none; flex-direction: row; align-items: center; height: 42dp; margin: 6dp 10dp 0 10dp; padding: 0 12dp; background-color: #05070b; border-width: 1dp; border-color: #ffffff1a; transition: border-color 0.15s cubic-out; }
+#root.open #composer { display: flex; border-color: #22d8e299; }
+.prompt { font-family: "Chakra Petch"; font-size: 20dp; color: #22d8e2; margin-right: 10dp; }
+#input { flex: 1 1 auto; height: 22dp; font-family: Rajdhani; font-weight: bold; font-size: 17dp; color: #f7f9fb; background-color: transparent; border-width: 0; padding: 0; }
+#input:focus { border-width: 0; }
+.chars { font-family: "Roboto Mono"; font-weight: normal; font-size: 10dp; color: #5a6472; margin-left: 10dp; }
+.chars.near { color: #ffb020; }
+#root.sending #composer { animation: 0.32s cubic-out send-flash; }
+@keyframes send-flash { 0% { background-color: #22d8e244; } 100% { background-color: #05070b; } }
+
+/* the command index */
+#suggestions { display: none; margin: 6dp 10dp 0 10dp; background-color: #05070b; border-width: 1dp; border-color: #22d8e244; }
+#root.open #suggestions.on { display: block; animation: 0.16s cubic-out panel-in; }
+.sg-head { display: flex; flex-direction: row; padding: 5dp 10dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.22em; color: #5a6472; border-bottom-width: 1dp; border-bottom-color: #ffffff10; }
+.sg { display: flex; flex-direction: row; align-items: center; padding: 5dp 10dp; }
+.sg.sel { background-color: #22d8e21f; border-left-width: 2dp; border-left-color: #22d8e2; }
+.sg-cmd { font-family: "Roboto Mono"; font-weight: normal; font-size: 13dp; color: #4ee6ee; margin-right: 6dp; white-space: nowrap; }
+.sg-params { font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #8a94a2; margin-right: 10dp; white-space: nowrap; }
+.sg-help { flex: 1 1 auto; text-align: right; font-size: 13dp; color: #8a94a2; white-space: nowrap; overflow: hidden; }
+
+/* the foot */
+#foot { display: none; flex-direction: row; align-items: center; margin: 8dp 12dp 0 12dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.18em; color: #5a6472; }
+#root.open #foot { display: flex; }
+#foot > span { margin-right: 14dp; }
+.key { font-family: "Roboto Mono"; font-weight: normal; font-size: 9dp; color: #22d8e2; border-width: 1dp; border-color: #22d8e244; padding: 0 4dp; margin-right: 5dp; }
+
+scrollbarvertical { width: 3dp; }
+scrollbarvertical slidertrack { background-color: transparent; }
+scrollbarvertical sliderbar { background-color: #22d8e266; }
+<rml>
+<head>
+    <title>Open//77 chat</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="chat.rcss"/>
+</head>
+<body>
+<div id="root">
+<!-- the left of the screen softens while typing: the eye goes to the chat -->
+<div id="focus-veil"></div>
+<div id="chat">
+    <div id="panel">
+        <div id="head">
+            <span class="slash">//</span>
+            <span class="title">CHAT</span>
+            <span id="channel" class="channel">GLOBAL</span>
+            <span class="grow"></span>
+            <span class="live"><span class="live-dot"></span><span>LIVE</span></span>
+            <span id="count" class="count">00</span>
+        </div>
+        <div id="log">
+            <div id="messages"></div>
+            <div id="empty">No messages yet</div>
+        </div>
+        <div id="latest"><span id="unread">0</span><span> new below</span></div>
+        <div id="composer">
+            <span class="prompt">›</span>
+            <input id="input" type="text" maxlength="256" placeholder="Message everyone, or type / for commands"/>
+            <span id="chars" class="chars">0/256</span>
+        </div>
+        <div id="suggestions"></div>
+        <div id="foot">
+            <span><span class="key">ENTER</span>Send</span>
+            <span><span class="key">TAB</span>Complete</span>
+            <span><span class="key">UP/DN</span>History</span>
+            <span class="grow"></span>
+            <span><span class="key">ESC</span>Close</span>
+        </div>
+    </div>
+</div>
+</div>
+</body>
+</rml>

@@ -1,0 +1,1229 @@
+local page
+local enabled = true
+-- True once the plugin confirmed it is drawing the plates itself. When it is,
+-- this resource creates no page at all: see the long note at the bottom.
+local nativeRender = false
+
+local function pushSnapshot()
+    if not page then return end
+    if not enabled then
+        page:send("nameplates:update", { players = {} })
+        return
+    end
+    local players, reason = Open77.nameplates.snapshot()
+    if players == nil then
+        print("[open77_nameplates] snapshot failed: " .. tostring(reason))
+        return
+    end
+    page:send("nameplates:update", { players = players })
+end
+
+exports("setEnabled", function(value)
+    enabled = value ~= false
+    if nativeRender then
+        -- The native drawer has no idea what "enabled" means here; turning it
+        -- off is turning it off.
+        Open77.nameplates.render(enabled)
+        return true
+    end
+    pushSnapshot()
+    return true
+end)
+
+exports("isEnabled", function() return enabled end)
+
+exports("set", function(playerId, options)
+    return Open77.nameplates.set(tostring(playerId), options or {})
+end)
+
+exports("remove", function(playerId)
+    return Open77.nameplates.remove(tostring(playerId))
+end)
+
+-- Every override this resource holds goes, the policy's included (same owner),
+-- so the policy is told to forget what it believes it applied: its signature
+-- cache would otherwise skip re-applying an unchanged override, and in a fight
+-- an enemy hidden by the policy would get his default plate back.
+exports("clear", function()
+    local ok, reason = Open77.nameplates.clear()
+    -- Clients before 2026-11-07 also switched the native drawer off here.
+    if nativeRender then Open77.nameplates.render(enabled) end
+    TriggerEvent("open77_nameplates:overridesCleared")
+    return ok, reason
+end)
+
+AddEventHandler("onClientResourceStart", function(name)
+    if name ~= GetCurrentResourceName() then return end
+
+    -- Native drawing first, and no page at all when it works.
+    --
+    -- `stream` had already taken Lua out of the per-frame path -- the plugin
+    -- projected and published every frame -- and plates still trailed the world.
+    -- A battle test measured one 418 px (about 15 degrees of view) behind the
+    -- body it labelled during a camera whip, with the ground circle and the
+    -- interaction prompt trailing by different amounts again. What was left is
+    -- the CEF chain itself: IPC, a page repaint on the page's own timer, an
+    -- offscreen raster, a shared-texture handoff, then the composite. Every
+    -- stage buffers, and the staleness tracked each page's declared frame rate.
+    --
+    -- `render()` draws the plate in the frame that presents it, from a
+    -- projection taken on the same frame. There is nothing left to buffer.
+    -- The page below stays as the fallback for a client too old to have it.
+    -- `and` rather than a bare call: a client older than the native drawer has
+    -- no `render` at all, and indexing nil would take the whole resource down
+    -- instead of falling back to the page.
+    local rendered = Open77.nameplates.render ~= nil and Open77.nameplates.render(true)
+    if rendered then
+        nativeRender = true
+        Open77.nameplates.render(enabled)
+        return
+    end
+
+    local reason
+    page, reason = WebUI.create({
+        entry = "web/index.html",
+        layer = "hud",
+        width = 1920,
+        height = 1080,
+        fps = 60,
+        zIndex = 640,
+        transparent = true,
+        visible = true
+    })
+    if not page then
+        print("[open77_nameplates] WebUI failed: " .. tostring(reason))
+        return
+    end
+    page:on("nameplates:ready", pushSnapshot)
+
+    -- Per-frame delivery, native.
+    --
+    -- This used to be a `while page do pushSnapshot(); Wait(33) end` loop: the
+    -- projection was already native (Open77.nameplates.snapshot returns screen
+    -- coordinates), but *relaying* it rode the Lua scheduler, so plates lagged,
+    -- froze and slid behind the camera when it moved quickly. Nothing on a
+    -- per-frame path may pass through Lua.
+    --
+    -- `stream` hands the same already-projected vector to the same
+    -- `nameplates:update` event, published by C++ every frame. Lua now only
+    -- decides *what* is labelled; C++ decides where it is on screen this frame.
+    local streamed, streamError = Open77.nameplates.stream(page)
+    if not streamed then
+        -- Older client without the native stream: fall back to polling rather
+        -- than showing nothing at all.
+        print("[open77_nameplates] native stream unavailable (" ..
+            tostring(streamError) .. "); falling back to the Lua poll loop")
+        CreateThread(function()
+            while page do
+                pushSnapshot()
+                Wait(33)
+            end
+        end)
+    end
+end)
+
+-- Native world exit clears both draw and stream ownership. The Lua resource
+-- may survive that transition, so restore its existing request at world entry.
+AddEventHandler("open77:worldReady", function()
+    if nativeRender then
+        Open77.nameplates.render(enabled)
+    elseif page then
+        Open77.nameplates.stream(page)
+        pushSnapshot()
+    end
+end)
+
+AddEventHandler("onClientResourceStop", function(name)
+    if name ~= GetCurrentResourceName() then return end
+    if nativeRender then
+        -- Release is idempotent and the host calls it anyway on stop; asking
+        -- explicitly is what keeps a reload from leaving one frame painted.
+        Open77.nameplates.render(false)
+        nativeRender = false
+        return
+    end
+    -- Stop the native stream explicitly. Generation teardown would release it
+    -- anyway, but leaving a stream pointed at a page that is about to be
+    -- destroyed is exactly the kind of dangling reference worth not writing.
+    Open77.nameplates.stopStream()
+    page = nil
+end)
+-- Who gets a plate, and what it says.
+--
+-- ---------------------------------------------------------------------------
+-- WHY THIS FILE EXISTS: A NAMEPLATE IS A WALLHACK.
+--
+-- `client/main.lua` beside this one turns the native drawer on and then leaves
+-- it alone, and the native drawer labels EVERY attached remote player within
+-- `maximumDistance` (35 m by default, client/src/api/Nameplates.hpp). Until
+-- 2026-11-07 its culling was depth and viewport only -- `Api::Nameplates::
+-- Snapshot` tested the camera plane, the distance and the NDC box, and NOTHING
+-- ELSE, so the plate was drawn through walls, floors and buildings.
+--
+-- The native pass now tests a line of sight to every player (Static + Dynamic +
+-- Terrain -- walls, floors, doors, ground -- with hysteresis) and hides a plate whose body the camera cannot see. That
+-- removes the wallhack for every server, but not the reason for this file: a
+-- bright name over a figure 35 m away in the open is still a spotting aid the
+-- eye alone would not have, which is what a battle royale is decided on. So the
+-- policy below still decides WHO is labelled; the drawer decides only whether
+-- the labelled body is in view. Squadmates are the deliberate exception and ask
+-- for `throughWalls = true`: finding your own squad behind a wall is the point.
+--
+-- In a free-for-all, and worse in a battle royale, that is not a label. It is a
+-- position broadcast with the geometry taken out, and it is widest exactly
+-- where a fight is decided: 35 m is inside a room, around a corner, one floor
+-- up. `resources/gamemodes/pursuit` reached the same conclusion first and switched the
+-- whole thing off for the length of a match (shared/config.lua,
+-- `hideOpponentNameplates`, with the measurement written out).
+--
+-- Off is right for a duel. It is wrong for a SQUAD battle royale: Cordon's
+-- default format is Squad(4), it already colours squads and draws a squad
+-- panel, and a player who cannot pick their own squad out of a street is
+-- playing four solos. So the answer is not "no plates", it is:
+--
+--     squadmates      keep a plate, deliberately through walls
+--     everyone else   no plate at all
+--     someone you
+--     have just hit   a bare HP/shield readout over the body, briefly
+--
+-- ---------------------------------------------------------------------------
+-- WHY THE ENEMY READOUT IS GATED ON DAMAGE AND NOT ON AIM.
+--
+-- The obvious reading of the request -- "like the NPCs" -- is vanilla's
+-- behaviour: aim at somebody, see their health. Vanilla can do that because the
+-- engine's targeting ray is LOS-tested. We cannot reach it from here:
+-- `gametargetingTargetingSystem::GetLookAtObject` is wrapped by
+-- `Api::Inspector`, and the only thing it hands Lua is an ENGINE entity id
+-- (`Open77.inspector.target().engineId`). There is no engine-entity-to-player
+-- mapping in the client Lua API, so an aim gate would need a C++ change.
+--
+-- The cheap substitute -- "is the projected plate near the middle of the
+-- screen" -- is worse than useless. It is aim-shaped but not occlusion-tested,
+-- so sweeping the crosshair across a building would still read the health of
+-- everyone inside it. That is the same wallhack with a smaller cone.
+--
+-- Damage is the gate that leaks nothing at all. If you have just hit somebody
+-- you already know exactly where they are; the readout tells you only how much
+-- of them is left, which is what the hitmarker was already implying. It is also
+-- what the genre does. The window is short and refreshed by each hit, so it
+-- cannot be used to TRACK a target who breaks contact -- see `enemyVitalsSeconds`.
+--
+-- ---------------------------------------------------------------------------
+-- WHAT THE CLIENT ALREADY KNOWS, AND WHY THIS IS NOT A SECRECY FEATURE.
+--
+-- Every client is already told every other player's exact health.
+-- `SessionManager.AuthenticateAndWelcome` seeds a joining player with
+-- `SendHealthStateAction` for every existing player in the bucket ("A joining
+-- player is given the whole bucket regardless of distance"), and
+-- `ServerApplication` then broadcasts `SendHealthState(-1, ...)` on every
+-- change. `CombatReplication` keeps the lot in `s_healthStates`, and this file
+-- reads it back through `Open77.players.allHealthStates()`.
+--
+-- So a modified client can already draw a perfect health bar on everyone, with
+-- or without this file. NOTHING here is an anti-cheat measure. What it changes
+-- is the HONEST player's screen: today the platform hands him a through-wall
+-- position marker whether he wants one or not, and after this it does not.
+-- Making enemy health genuinely secret would be a server change (health states
+-- culled to the interest set), not a client one.
+--
+-- ---------------------------------------------------------------------------
+-- WHY THE NAMEPLATE API AND NOT open77_worldui / open77_markers.
+--
+-- Both of those anchor to a WORLD POINT, so following a running player means
+-- pushing a new position from Lua every frame -- precisely the path
+-- `Api::Nameplates` was rewritten to escape (the 418 px lag measured in
+-- client/src/webui/WorldOverlay.hpp). A nameplate override anchors to the
+-- player's HEAD and is re-projected natively in the frame that presents it.
+--
+-- The cost of this file is therefore one `Open77.nameplates.set` per player
+-- PER CHANGE, not per frame. In a steady state -- nobody shooting, nobody
+-- joining -- the loop below calls nothing at all. The drawing stays where it
+-- already was: native, in the present hook, with no CEF surface. That matters
+-- at 64: docs/research/battle-royale-and-scale.md, 2026-09-02, records two
+-- clients falling to 0.2 Hz and then vanishing under three full-screen HUD
+-- surfaces each. This adds none.
+-- ---------------------------------------------------------------------------
+
+local RESOURCE = "open77_nameplates"
+
+-- Squad cyan, amber for a body worth walking to, red for someone bleeding.
+local FRIEND_COLOR = "#5AD1FF"
+local DOWNED_COLOR = "#FFB020"
+local ENEMY_COLOR = "#FF5A4A"
+
+-- What a server that never answers gets: today's behaviour, exactly.
+local DEFAULTS = {
+    policy = "auto",
+    friendlyPlates = true,
+    friendlyDistance = 200,
+    friendlyVitals = true,
+    enemyVitals = "engaged",
+    enemyVitalsSeconds = 2.5,
+    enemyVitalsDistance = 120,
+}
+
+local config = {}
+for key, value in pairs(DEFAULTS) do config[key] = value end
+
+-- `competitive` latches. Once a gamemode on this server has identified itself
+-- as competitive, it stays competitive for the session even if its state push
+-- stops, because the failure direction matters: losing squad plates is an
+-- annoyance, silently restoring a through-wall plate on every enemy because a
+-- mode hiccuped is the bug this file exists to prevent. Only an explicit signal
+-- -- a lobby phase, leaving an instance, `setPolicy("open")` -- widens it again.
+local competitive = false
+local inFight = false
+local friends = {}        -- [playerId] = { name = , alive = , downed = }
+local applied = {}        -- [playerId] = signature of the override we last set
+local engagedUntil = {}   -- [playerId] = monotonic seconds
+local lastRevision = {}   -- [playerId] = health revision last seen
+local primed = false      -- first pass seeds revisions without opening windows
+local selfId = 0
+local running = true
+local complained = false
+
+local function available()
+    return type(Open77) == "table"
+        and type(Open77.nameplates) == "table"
+        and type(Open77.nameplates.set) == "function"
+        and type(Open77.nameplates.remove) == "function"
+        and type(Open77.players) == "table"
+        and type(Open77.players.allHealthStates) == "function"
+        and type(Open77.players.getHealthState) == "function"
+        and type(Open77.time) == "table"
+        and type(Open77.time.monotonic) == "function"
+end
+
+-- Seconds, monotonic, as a double. There is deliberately no `os.clock`
+-- fallback: the sandboxed client Lua does not publish `os`, so a fallback would
+-- turn a missing clock into a nil-index error instead of the clean "this client
+-- is too old" path `available()` already gives.
+local function now()
+    return Open77.time.monotonic()
+end
+
+local function id(value)
+    local number = tonumber(value)
+    if number == nil then return nil end
+    number = math.floor(number)
+    if number <= 0 then return nil end
+    return number
+end
+
+local function clampNumber(value, low, high, fallback)
+    local number = tonumber(value)
+    if number == nil then return fallback end
+    if number < low then return low end
+    if number > high then return high end
+    return number
+end
+
+-- ---------------------------------------------------------------------------
+-- CONFIGURATION, as pushed by server/main.lua from its declared tunables.
+-- Every field is clamped HERE as well as there: a client must not be able to
+-- refuse a plate because a server sent it a maxDistance of 400, which
+-- `Api::Nameplates::Set` rejects outright (1..250).
+-- ---------------------------------------------------------------------------
+local function applyConfig(payload)
+    if type(payload) ~= "table" then return end
+    local policy = tostring(payload.policy or config.policy)
+    if policy ~= "auto" and policy ~= "open" and policy ~= "competitive" then
+        policy = DEFAULTS.policy
+    end
+    config.policy = policy
+    config.friendlyPlates = payload.friendlyPlates ~= false
+    config.friendlyVitals = payload.friendlyVitals ~= false
+    config.friendlyDistance =
+        math.floor(clampNumber(payload.friendlyDistance, 5, 250, DEFAULTS.friendlyDistance))
+    local enemyVitals = tostring(payload.enemyVitals or config.enemyVitals)
+    -- Deliberately only two choices. "Anyone in view" is not offered because it
+    -- is the wallhack this file removes, wearing a different hat: a health bar
+    -- drawn through a wall gives away the position just as completely as a name
+    -- drawn through the same wall. A configuration that cannot express the
+    -- unsafe option cannot be misconfigured into it.
+    if enemyVitals ~= "off" and enemyVitals ~= "engaged" then
+        enemyVitals = DEFAULTS.enemyVitals
+    end
+    config.enemyVitals = enemyVitals
+    config.enemyVitalsSeconds =
+        clampNumber(payload.enemyVitalsSeconds, 0.5, 10.0, DEFAULTS.enemyVitalsSeconds)
+    config.enemyVitalsDistance =
+        math.floor(clampNumber(payload.enemyVitalsDistance, 5, 250, DEFAULTS.enemyVitalsDistance))
+end
+
+-- ---------------------------------------------------------------------------
+-- OVERRIDES. One `set` per player per CHANGE, never per frame: the signature
+-- below is what makes a settled match cost nothing.
+-- ---------------------------------------------------------------------------
+local function signatureOf(options)
+    if options == nil then return "-" end
+    return table.concat({
+        options.label, tostring(options.color), tostring(options.accent), tostring(options.maxDistance),
+        options.visible and "1" or "0", options.showDistance and "1" or "0",
+        options.throughWalls and "1" or "0",
+    }, "\1")
+end
+
+local function apply(playerId, options)
+    local signature = signatureOf(options)
+    if applied[playerId] == signature then return end
+    local ok, reason
+    if options == nil then
+        ok, reason = Open77.nameplates.remove(playerId)
+    else
+        ok, reason = Open77.nameplates.set(playerId, options)
+    end
+    if not ok then
+        -- Once, not per tick: a refused override repeats every 250 ms and would
+        -- otherwise be the loudest thing in the log.
+        if not complained then
+            complained = true
+            print(("[%s] override for %d refused: %s")
+                :format(RESOURCE, playerId, tostring(reason)))
+        end
+        return
+    end
+    applied[playerId] = signature
+end
+
+--- Drop every override this resource holds, one at a time.
+---
+--- NOT `Open77.nameplates.clear()`. Until 2026-11-07 that was
+--- `Api::Nameplates::Release`, which also called `StopStream` and
+--- `Render(owner, false)` for the same owner -- and the owner is this very
+--- resource, so clearing the overrides switched the native drawer OFF and left
+--- the world with no plates at all. Newer clients clear the overrides only, but
+--- this resource still runs on the older ones.
+local function restore()
+    for playerId in pairs(applied) do
+        pcall(Open77.nameplates.remove, playerId)
+    end
+    applied = {}
+end
+
+-- ---------------------------------------------------------------------------
+-- LABELS. Latin-1 only, one line, at most 96 bytes.
+--
+-- `WorldOverlay` bakes its atlas with `GetGlyphRangesDefault()` (U+0020-U+00FF)
+-- so a block-drawing bar would render as the fallback glyph, and
+-- `Api::Nameplates::Set` REFUSES any label containing a byte below 0x20, so a
+-- two-line plate is not a layout choice -- it is an `invalid_argument`.
+-- Numbers it is.
+-- ---------------------------------------------------------------------------
+local function vitalsText(state)
+    if type(state) ~= "table" then return nil end
+    local health = math.floor((tonumber(state.health) or 0) + 0.5)
+    if health < 0 then health = 0 end
+    local armor = math.floor((tonumber(state.armor) or 0) + 0.5)
+    if armor > 0 then
+        return ("%d +%d"):format(health, armor)
+    end
+    return tostring(health)
+end
+
+local function safeName(name)
+    local text = tostring(name or "")
+    text = text:gsub("%c", " ")
+    if #text > 32 then text = text:sub(1, 32) end
+    if #text == 0 then text = "?" end
+    return text
+end
+
+-- ---------------------------------------------------------------------------
+-- THE PASS.
+-- ---------------------------------------------------------------------------
+local function healthByPlayer()
+    local ok, list = pcall(Open77.players.allHealthStates)
+    if not ok or type(list) ~= "table" then return nil end
+    local map = {}
+    for _, entry in ipairs(list) do
+        local playerId = type(entry) == "table" and id(entry.playerId) or nil
+        if playerId ~= nil then map[playerId] = entry end
+    end
+    return map
+end
+
+local function resolveSelf(states)
+    if selfId ~= 0 and states[selfId] ~= nil then return end
+    local ok, mine = pcall(Open77.players.getHealthState)
+    if ok and type(mine) == "table" then
+        selfId = id(mine.playerId) or 0
+    end
+end
+
+-- No colour: an empty colour is the server's theme (`Open77.nameplates.style`),
+-- and a hidden plate has nothing to colour anyway.
+local HIDDEN = {
+    label = "", maxDistance = 250,
+    visible = false, showDistance = false,
+}
+
+local function friendlyOverride(playerId, entry, states)
+    -- HIDDEN, not nil. `nil` means "hold no override", which hands the player
+    -- back to the native default -- their NAME, through walls, at 35 m. An
+    -- operator turning squad plates off in a competitive mode is asking for
+    -- fewer plates, not for the platform default to come back on his own squad.
+    if not config.friendlyPlates then return HIDDEN end
+    if entry.downed == true then
+        return {
+            label = safeName(entry.name) .. "  DOWN",
+            color = DOWNED_COLOR, accent = DOWNED_COLOR, maxDistance = config.friendlyDistance,
+            visible = true, showDistance = true,
+            -- A body worth walking to is worth seeing through the wall it is
+            -- behind; it is your own squad, not a spotted enemy.
+            throughWalls = true,
+        }
+    end
+    -- A squadmate who is dead and past their revive window is not somewhere you
+    -- need to go; the mode's own panel still lists them.
+    if entry.alive == false then return HIDDEN end
+    local label = safeName(entry.name)
+    if config.friendlyVitals then
+        local text = vitalsText(states[playerId])
+        if text ~= nil then label = label .. "  " .. text end
+    end
+    return {
+        label = label, color = FRIEND_COLOR, accent = FRIEND_COLOR, maxDistance = config.friendlyDistance,
+        visible = true, showDistance = true,
+        throughWalls = true,
+    }
+end
+
+local function enemyOverride(playerId, states, nowSeconds)
+    if config.enemyVitals ~= "engaged" then return HIDDEN end
+    local until_ = engagedUntil[playerId]
+    if until_ == nil or nowSeconds > until_ then return HIDDEN end
+    local text = vitalsText(states[playerId])
+    if text == nil then return HIDDEN end
+    return {
+        -- NO NAME. The identity is the half that was removed; what is left is
+        -- the readout, which is why an enemy plate does not look like a
+        -- nameplate with extra text on it. The distance line is off for the
+        -- same reason: a metre count is a range-finder.
+        -- Occluded like any plate: once he breaks line of sight, the readout
+        -- goes with him rather than tracking him through the wall.
+        label = text, color = ENEMY_COLOR, accent = ENEMY_COLOR,
+        -- The distance gate is the NATIVE one. `Api::Nameplates::Snapshot`
+        -- culls on `maximumDistance` before projecting, so setting it here is
+        -- both the gate and its enforcement -- and it is why this file never
+        -- needs a position or a distance from Lua at all.
+        maxDistance = config.enemyVitalsDistance,
+        visible = true, showDistance = false,
+    }
+end
+
+local function pass()
+    local states = healthByPlayer()
+    if states == nil then return end
+    resolveSelf(states)
+    local nowSeconds = now()
+    local window = config.enemyVitalsSeconds
+
+    -- ENGAGEMENT. `PlayerHealthState.LastAttackerId` is documented as zero when
+    -- the latest change was not damage (heal, resync, respawn), so
+    -- "lastAttacker is me AND the revision moved" is exactly "I just hit them".
+    -- The first pass seeds revisions without opening a window, otherwise a hot
+    -- reload in the middle of a fight would resurrect a stale attribution.
+    for playerId, state in pairs(states) do
+        local revision = tonumber(state.revision) or 0
+        if primed and playerId ~= selfId and selfId ~= 0
+            and revision ~= lastRevision[playerId]
+            and id(state.lastAttacker) == selfId then
+            engagedUntil[playerId] = nowSeconds + window
+        end
+        lastRevision[playerId] = revision
+    end
+    primed = true
+
+    -- The union of everyone we know about and everyone we have already touched,
+    -- so a player who leaves the roster has their override withdrawn instead of
+    -- being hidden forever on a recycled id.
+    local seen = {}
+    for playerId in pairs(states) do seen[playerId] = true end
+    for playerId in pairs(friends) do seen[playerId] = true end
+    local stale = {}
+    for playerId in pairs(applied) do
+        if not seen[playerId] then stale[#stale + 1] = playerId end
+    end
+
+    for playerId in pairs(seen) do
+        if playerId ~= selfId then
+            local friend = friends[playerId]
+            local options
+            if friend ~= nil then
+                options = friendlyOverride(playerId, friend, states)
+            else
+                options = enemyOverride(playerId, states, nowSeconds)
+            end
+            apply(playerId, options)
+        end
+    end
+    for _, playerId in ipairs(stale) do
+        apply(playerId, nil)
+        applied[playerId] = nil
+        engagedUntil[playerId] = nil
+        lastRevision[playerId] = nil
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- THE LOOP. 4 Hz while a fight is on, 1 Hz while it is not, and on a server
+-- with no competitive mode it wakes once a second, finds nothing to do and
+-- sleeps again. Nothing here is per-frame; the DRAWING is per-frame and it is
+-- native (see the header).
+-- ---------------------------------------------------------------------------
+CreateThread(function()
+    while running do
+        if competitive and inFight then
+            local ok, err = pcall(pass)
+            if not ok and not complained then
+                complained = true
+                print(("[%s] policy pass failed: %s"):format(RESOURCE, tostring(err)))
+            end
+            Wait(250)
+        else
+            if next(applied) ~= nil then pcall(restore) end
+            Wait(1000)
+        end
+    end
+end)
+
+-- ---------------------------------------------------------------------------
+-- THE CONTRACT. A gamemode's CLIENT drives this directly; the two adapters
+-- below are shipped defaults for the two modes that exist, not the mechanism.
+--
+-- `pursuit` already reaches for `setEnabled` through `callExport`, so this is
+-- the same shape it already knows.
+-- ---------------------------------------------------------------------------
+local function setFriends(list)
+    local next_ = {}
+    if type(list) == "table" then
+        for key, value in pairs(list) do
+            -- Accepts both { 4, 7, 9 } and { [4] = { name = "Vik" }, ... }.
+            local playerId, entry
+            if type(value) == "table" then
+                playerId = id(value.playerId) or id(key)
+                entry = value
+            else
+                playerId = id(value) or id(key)
+                entry = { name = tostring(value) }
+            end
+            if playerId ~= nil and playerId ~= selfId then
+                next_[playerId] = {
+                    name = entry.name,
+                    alive = entry.alive,
+                    downed = entry.downed,
+                }
+            end
+        end
+    end
+    friends = next_
+end
+
+exports("setPolicy", function(policy)
+    policy = tostring(policy or "auto")
+    if policy ~= "auto" and policy ~= "open" and policy ~= "competitive" then
+        return false, "invalid_policy"
+    end
+    config.policy = policy
+    if policy == "open" then
+        competitive, inFight = false, false
+    elseif policy == "competitive" then
+        competitive, inFight = true, true
+    end
+    return true
+end)
+
+--- Declare the set of players who may keep a plate, and put the client in the
+--- competitive shape. `inFight` false restores open plates without forgetting
+--- that this server is competitive -- that is the lobby.
+exports("setFriendlies", function(list, options)
+    if config.policy == "open" then return false, "policy_open" end
+    setFriends(list)
+    competitive = true
+    if type(options) == "table" and options.inFight ~= nil then
+        inFight = options.inFight ~= false
+    else
+        inFight = true
+    end
+    return true
+end)
+
+--- Introspection, for a console command or a test. Counts and a COPY of the
+--- configuration -- handing out `applied` or `config` by reference would let a
+--- caller edit this resource's state through a getter.
+exports("policy", function()
+    local friendCount, overrideCount = 0, 0
+    for _ in pairs(friends) do friendCount = friendCount + 1 end
+    for _ in pairs(applied) do overrideCount = overrideCount + 1 end
+    local snapshot = {}
+    for key, value in pairs(config) do snapshot[key] = value end
+    return {
+        policy = config.policy,
+        competitive = competitive,
+        inFight = inFight,
+        friendlies = friendCount,
+        overrides = overrideCount,
+        config = snapshot,
+    }
+end)
+
+-- ---------------------------------------------------------------------------
+-- SHIPPED ADAPTERS.
+--
+-- Neither Cordon nor the deathmatch is edited by this resource, and neither had
+-- to be: `ResourceHost::Tick` fans a network event to EVERY running resource
+-- holding `network.events` that registered a handler for that name (the loop
+-- around `DispatchNetworkToInstance`). So the state push each mode already
+-- sends to its own HUD arrives here as well, and the squad/team it already
+-- computed is reused rather than re-invented.
+--
+-- The cost is one extra handler per push, at the mode's own rate (~2 Hz), on a
+-- payload that was going to be decoded anyway.
+-- ---------------------------------------------------------------------------
+
+--- CORDON. `server/main.lua` -> `stateFor` -> `TriggerClientEvent("cordon:state")`.
+--- `squad.members` is built from `record.squad`, so a player never receives a
+--- member list for anyone outside their own squad -- the boundary this needs is
+--- already enforced on the server.
+---
+--- Plates stay OPEN in staging and once the match resolves, and close for the
+--- three phases where the map is contested. That is pursuit's rule (lobby yes,
+--- match no) applied to Cordon's phase machine (server/match.lua).
+RegisterNetEvent("cordon:state", function(state)
+    if config.policy == "open" or type(state) ~= "table" then return end
+    competitive = true
+    local phase = tostring(state.phase or "")
+    local wasFighting = inFight
+    local mine = type(state.self) == "table" and state.self or {}
+    if id(mine.playerId) ~= nil then selfId = id(mine.playerId) end
+    if mine.inLobby == true or phase == "staging" or phase == "resolved" then
+        inFight = false
+    elseif phase == "deploy" or phase == "live" or phase == "extraction" then
+        inFight = true
+    end -- Unknown/missing phase must not widen an existing combat policy.
+    if wasFighting and not inFight then
+        pcall(restore)
+        engagedUntil, lastRevision, primed = {}, {}, false
+    end
+    local squad = type(state.squad) == "table" and state.squad or nil
+    local members = squad ~= nil and type(squad.members) == "table" and squad.members or {}
+    local next_ = {}
+    for _, member in ipairs(members) do
+        local playerId = type(member) == "table" and id(member.playerId) or nil
+        -- Bots are NPCs, not replicated players: they never had a plate and
+        -- cannot be given one. Skipping them keeps the roster honest.
+        if playerId ~= nil and playerId ~= selfId and member.bot ~= true then
+            next_[playerId] = {
+                name = member.name, alive = member.alive, downed = member.downed,
+            }
+        end
+    end
+    friends = next_
+    if inFight and not wasFighting then pcall(pass) end
+end)
+
+--- DEATHMATCH. `server/main.lua` -> `stateFor` -> `TriggerClientEvent("deathmatch:state")`.
+---
+--- The team model is `server/round.lua`: `DM.setTeam(id, 0)` for free-for-all
+--- and `DM.setTeam(id, side)` for the queued 1v1/2v2/3v3, and the scoreboard
+--- row carries that number. So `team > 0 and team == mine` is the whole rule,
+--- and FREE-FOR-ALL FALLS OUT OF IT: every row is team 0, no row matches, and
+--- nobody in a free-for-all has a plate. That is the owner's "aussi dans le
+--- mode ffa pvp", derived from the mode's own notion of a side rather than
+--- from a second one invented here.
+---
+--- `participant` is membership of an instance, so the lobby keeps its plates:
+--- seeing who you are queueing against is the point of standing in a lobby.
+RegisterNetEvent("deathmatch:state", function(state)
+    if config.policy == "open" or type(state) ~= "table" then return end
+    competitive = true
+    inFight = state.participant == true
+    local mine = type(state.self) == "table" and math.floor(tonumber(state.self.team) or 0) or 0
+    if id(state.playerId) ~= nil then selfId = id(state.playerId) end
+    local next_ = {}
+    if mine > 0 and type(state.rows) == "table" then
+        for _, row in ipairs(state.rows) do
+            local playerId = type(row) == "table" and id(row.id) or nil
+            local team = type(row) == "table" and math.floor(tonumber(row.team) or 0) or 0
+            if playerId ~= nil and playerId ~= selfId and row.bot ~= true and team == mine then
+                next_[playerId] = { name = row.name, alive = true }
+            end
+        end
+    end
+    friends = next_
+end)
+
+-- ---------------------------------------------------------------------------
+-- LIFECYCLE.
+-- ---------------------------------------------------------------------------
+
+--- Ask the server for its policy. The perspective service uses the same shape
+--- (`open77:perspective:ready`): the client announces itself and a server that
+--- has nothing to say stays silent, so a server without this resource's server
+--- half simply leaves the defaults in place.
+local function announce()
+    pcall(TriggerServerEvent, "open77:nameplates:ready")
+end
+
+RegisterNetEvent("open77:nameplates:policy", function(payload)
+    applyConfig(payload)
+    if config.policy == "open" then
+        competitive, inFight = false, false
+        -- Withdraw the overrides HERE rather than leaving it to the loop. The
+        -- loop's idle branch calls `restore` only while `applied` is non-empty,
+        -- so emptying the cache first would strand every override that is
+        -- already set and the plates would never come back.
+        pcall(restore)
+        return
+    end
+    if config.policy == "competitive" then
+        competitive, inFight = true, true
+    end
+    -- A live retune must reach the plates that are already drawn, and the
+    -- signature cache would otherwise swallow it: the desired override changed
+    -- because the CONFIG changed, not because the player did. A sentinel rather
+    -- than an empty table, so the keys survive and a player who has since left
+    -- is still recognised as stale on the next pass.
+    for playerId in pairs(applied) do applied[playerId] = "!" end
+end)
+
+AddEventHandler("onClientResourceStart", function(name)
+    if name ~= GetCurrentResourceName() then return end
+    if not available() then
+        print(("[%s] policy inactive: this client has no nameplate or health API")
+            :format(RESOURCE))
+        running = false
+        return
+    end
+    announce()
+end)
+
+-- A world transition invalidates every id and every attribution.
+--
+-- `Api::Nameplates::OnRunningExit` clears the streams, the render set and the
+-- talking assertions but NOT `s_overrides`, so an override taken out in the
+-- previous world is still in the map when the next one comes up. Withdraw them
+-- before forgetting which ones we hold.
+AddEventHandler("open77:worldReady", function()
+    pcall(restore)
+    friends, engagedUntil, lastRevision = {}, {}, {}
+    primed, selfId = false, 0
+    announce()
+end)
+
+-- The `clear` export (client/main.lua) dropped every override this resource
+-- holds, ours with them. What `applied` remembers is gone: forget it, so the
+-- next pass sets them again instead of finding every signature unchanged --
+-- and run that pass now in a fight, where the gap would show hidden enemies.
+AddEventHandler("open77_nameplates:overridesCleared", function()
+    applied = {}
+    if running and competitive and inFight then pcall(pass) end
+end)
+
+AddEventHandler("onClientResourceStop", function(name)
+    if name ~= GetCurrentResourceName() then return end
+    running = false
+    -- Leave the world as we found it. The host would release the overrides with
+    -- the resource anyway; doing it here is what keeps a RELOAD from leaving one
+    -- frame of stale plates between the two generations.
+    pcall(restore)
+end)
+resource "open77_nameplates"
+version "0.3.0"
+open77_version ">=0.0.1"
+auto_start true
+reload_policy "local"
+
+-- TWO CLIENT SCRIPTS, IN THIS ORDER, EACH LISTED EXPLICITLY.
+--
+--   main.lua    lifecycle: turn the native drawer on, or fall back to the page.
+--               Owns nothing about WHO is labelled.
+--   policy.lua  who gets a plate and what it says. Shares no state with
+--               main.lua and touches only `Open77.nameplates.set/remove`, never
+--               `clear()`: on clients before 2026-11-07 `clear` was
+--               `Api::Nameplates::Release` and switched off the native drawer
+--               main.lua had just enabled. The one link is the event
+--               `open77_nameplates:overridesCleared`, raised by main.lua's
+--               `clear` export, which empties policy.lua's signature cache.
+--
+-- `client/**/*.lua` would match NOTHING here (`**` requires an intermediate
+-- directory) and the client then refuses the WHOLE session resource set with
+-- `script_pattern_empty` -- nobody connects. Never glob a script entry.
+client_script "client/main.lua"
+client_script "client/policy.lua"
+
+-- The operator's switch. Declares the policy tunables and pushes them to each
+-- client; a host without tunable support degrades to the declared defaults.
+server_script "server/main.lua"
+
+web_ui_page "web/index.html"
+web_ui_auto_create false
+web_files { "web/**" }
+
+permissions {
+    "ui.nameplates",
+
+    -- policy.lua listens for the gamemode state pushes it uses to learn who is
+    -- on your side (`cordon:state`, `deathmatch:state`) and asks the server
+    -- half for the policy; server/main.lua answers and broadcasts retunes.
+    -- Without this `RegisterNetEvent` returns permission_denied:network.events.
+    "network.events",
+
+    -- `Open77.players.allHealthStates()` on the CLIENT, gated by CanReadLife in
+    -- scripting/src/ResourceHost.cpp. It is read-only there by construction --
+    -- damage, heals and god mode are server Lua -- and it reads a ledger this
+    -- client was already sent: SessionManager seeds a joining player with every
+    -- other player's PlayerHealthState and ServerApplication broadcasts every
+    -- change to the whole bucket. This permission grants no new information; it
+    -- grants Lua access to information the client already holds.
+    "players.life.read",
+}
+/* Nameplate fallback page.
+ *
+ * DEAD ON ANY CURRENT CLIENT. `client/main.lua:67-72` calls
+ * `Open77.nameplates.render(true)` and returns before `WebUI.create` whenever
+ * the native path is available, so this page only ever paints on a client old
+ * enough to lack `Open77.nameplates.render`. It is kept in the system so that
+ * fallback does not look like a different product, and it is kept visually in
+ * step with the native Plate so the two are interchangeable — but the plate the
+ * player actually sees is drawn in C++ and styled by the spec in
+ * `docs/ui-design-system.md`, not by this file.
+ *
+ * Tokens come from `open77-ui.css`.
+ */
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body, #nameplates {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+body { background: transparent; font-family: var(--op77-font-display); }
+
+.nameplate {
+  --plate-color: var(--op77-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--op77-space-2);
+  max-width: 300px;
+  padding: var(--op77-space-1) var(--op77-space-3);
+  color: var(--plate-color);
+  /* Solid, not a fade to 0.58. A nameplate is read at a glance against
+     whatever is behind the other player, and the native Plate it stands in for
+     also uses a flat fill. */
+  background: var(--op77-panel);
+  border: 1px solid color-mix(in srgb, var(--plate-color) 28%, transparent);
+  border-left: 2px solid var(--plate-color);
+  border-radius: var(--op77-radius-sm);
+  box-shadow: var(--op77-shadow);
+  transform: translate(-50%, calc(-100% - 10px));
+  transition: opacity 90ms linear, transform 90ms ease-out;
+  white-space: nowrap;
+  opacity: var(--plate-opacity, 1);
+}
+/* The diamond pip — the same mark the server browser puts beside a live row. */
+.nameplate::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  background: var(--plate-color);
+  transform: rotate(45deg);
+}
+.nameplate-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--op77-font-display);
+  font-size: var(--op77-fs-lead);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+}
+
+/* Fallback-only speaker. The current client draws the same shape directly in
+   WorldOverlay; keeping it geometric here avoids depending on an icon font. */
+.nameplate-voice {
+  display: none;
+  position: relative;
+  width: 16px;
+  height: 14px;
+  flex: 0 0 16px;
+}
+.nameplate--talking .nameplate-voice { display: block; }
+.nameplate-voice::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 4px;
+  height: 6px;
+  background: var(--plate-color);
+  clip-path: polygon(0 20%, 45% 20%, 100% 0, 100% 100%, 45% 80%, 0 80%);
+}
+.nameplate-voice::after {
+  content: "))";
+  position: absolute;
+  left: 6px;
+  top: -1px;
+  color: var(--plate-color);
+  font: 700 11px/14px var(--op77-font-mono);
+  letter-spacing: -2px;
+}
+(() => {
+  "use strict";
+  const root = document.getElementById("nameplates");
+  const nodes = new Map();
+  const safeColor = value => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(String(value || ""))
+    ? String(value) : "#f2f6f8";  // --op77-text
+
+  function update(payload = {}) {
+    const seen = new Set();
+    for (const player of Array.isArray(payload.players) ? payload.players : []) {
+      const id = String(player && player.id || "");
+      if (!id) continue;
+      seen.add(id);
+      let node = nodes.get(id);
+      if (!node) {
+        node = document.createElement("div");
+        node.className = "nameplate";
+        const voice = document.createElement("span");
+        voice.className = "nameplate-voice";
+        voice.setAttribute("aria-hidden", "true");
+        const name = document.createElement("span");
+        name.className = "nameplate-name";
+        node.append(voice, name);
+        root.append(node);
+        nodes.set(id, node);
+      }
+      const x = Math.max(0, Math.min(1, Number(player.x) || 0));
+      const y = Math.max(0, Math.min(1, Number(player.y) || 0));
+      const distance = Math.max(0, Number(player.distance) || 0);
+      node.style.left = `${x * 100}%`;
+      node.style.top = `${y * 100}%`;
+      node.style.setProperty("--plate-color", safeColor(player.color));
+      // `alpha` is the native appear / occlusion fade (absent on older clients).
+      const alpha = typeof player.alpha === "number" ? Math.max(0, Math.min(1, player.alpha)) : 1;
+      node.style.setProperty("--plate-opacity", String(Math.max(.42, 1 - distance / 80) * alpha));
+      node.classList.toggle("nameplate--talking", player.talking === true);
+      node.querySelector(".nameplate-name").textContent =
+        String(player.label || "Player").slice(0, 96);
+    }
+    for (const [id, node] of nodes) {
+      if (seen.has(id)) continue;
+      node.remove();
+      nodes.delete(id);
+    }
+  }
+
+  Open77.on("nameplates:update", update);
+  Open77.ready();
+  Open77.emit("nameplates:ready", {});
+})();
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="open77-ui.css">
+  <link rel="stylesheet" href="app.css">
+  <title>Open77 Nameplates</title>
+</head>
+<body>
+  <main id="nameplates" aria-hidden="true"></main>
+  <script src="app.js"></script>
+</body>
+</html>
+/* =============================================================================
+   OPEN//77 - in-game UI design tokens
+   =============================================================================
+
+   MIRRORED FILE. Every in-game WebUI resource ships a byte-identical copy at
+   `<resource>/web/open77-ui.css`. Do not edit one copy: edit them all, then
+   verify they still match (the one-line check is in `docs/ui-design-system.md`).
+
+   Why a copy and not a shared file: each resource's WebUI runs under its own
+   isolated virtual origin and can only load files declared in its own manifest,
+   so `resources/A/web/index.html` cannot reference a stylesheet that lives in
+   `resources/B/web/`. There is no shared origin to put one file on. The same
+   reasoning is already recorded in the token blocks of `open77_pause` and
+   `open77_debug`; this file replaces those twelve divergent blocks with twelve
+   identical ones.
+
+   Source of truth: the OPEN//77 website design system -
+   `app/references/design-system.md` (the "OPEN SIGNAL" addendum, which the
+   document itself marks as superseding its section 1) and
+   `app/src/styles/legacy/01-tokens.css`. Values below are those values.
+   Deviations are marked `IN-GAME:` and each carries its reason.
+   ========================================================================== */
+
+:root {
+  /* --- FIELD ---------------------------------------------------------------
+     The night. Never pure black: on the site because black reads as a void,
+     in-game because a black panel over a night street disappears. */
+  --op77-void:       #060a12;
+  --op77-bg:         #080e19;
+  --op77-bg-elev:    #0d1624;
+  --op77-surface:    #101b2b;
+  --op77-surface-2:  #132032;
+
+  /* IN-GAME: panel fills drawn over live gameplay.
+     The site can use flat opaque surfaces because nothing moves behind them.
+     A HUD panel sits over a scene that swings from a blown-out white plaza to a
+     black alley, so its backing must stay opaque enough to hold text at either
+     extreme. 0.94 is the floor for anything carrying words; use --op77-panel
+     for read-me-now surfaces and --op77-panel-quiet only for decoration. */
+  --op77-panel:        rgba(10, 18, 32, 0.94);
+  --op77-panel-raised: rgba(16, 27, 43, 0.96);
+  --op77-panel-quiet:  rgba(10, 18, 32, 0.78);
+  --op77-scrim:        rgba(3, 7, 13, 0.72);
+
+  /* --- LINES ---------------------------------------------------------------
+     Blue-gray hairlines, never cyan. Depth comes from borders, not shadows. */
+  --op77-line:        rgba(174, 211, 224, 0.10);
+  --op77-line-strong: rgba(174, 211, 224, 0.19);
+  /* IN-GAME: a 10%-alpha hairline vanishes against a bright frame. Panel
+     outlines that must survive any backdrop use --op77-line-hud. */
+  --op77-line-hud:    rgba(174, 211, 224, 0.30);
+
+  /* --- INK -----------------------------------------------------------------
+     Contrast measured against --op77-surface #101b2b:
+       text       16.2:1   body and headings, any size
+       text-dim    6.2:1   secondary copy, passes AA at any size
+       text-faint  3.6:1   decoration and disabled only - never body copy */
+  --op77-text:       #f2f6f8;
+  --op77-text-dim:   #8d99a8;
+  --op77-text-faint: rgba(141, 153, 168, 0.72);
+  --op77-ink:        #071013;  /* text ON an accent fill - never white */
+
+  /* --- SIGNAL --------------------------------------------------------------
+     One chromatic family with depth. Cyan = platform / active / connected.
+     Coral = live / full / featured / new - semantic only, never a CTA.
+     Budget: if a viewport shows more than ~3 cyan elements, remove some. */
+  --op77-accent:       #22d8e2;   /* OPEN Electric - CTAs, links, active state */
+  --op77-accent-ice:   #70f3f5;   /* OPEN Ice - brand mark and hover peaks     */
+  --op77-accent-deep:  #18c8d4;   /* OPEN Deep - second signal channel         */
+  --op77-accent-soft:  rgba(34, 216, 226, 0.12);
+  --op77-accent-line:  rgba(34, 216, 226, 0.45);
+  --op77-signal:       #ff5964;   /* coral - live / full / featured / new      */
+  --op77-danger:       #ff5c5c;   /* errors, destructive, offline              */
+
+  /* IN-GAME: the site has no success or warning role because a marketing page
+     never has to say "spawned" or "connection degraded". A HUD does. These two
+     are the only colours here with no website counterpart; they are tuned to
+     sit in the same cold family rather than borrowing the game's own palette. */
+  --op77-ok:   #4fe3a9;
+  --op77-warn: #f5c95c;
+
+  /* Reserved for live things only - status dots, a running counter, an active
+     nav state. Never on static decoration. */
+  --op77-glow: 0 0 24px rgba(34, 216, 226, 0.25);
+
+  /* --- TYPE ----------------------------------------------------------------
+     The website self-hosts Rajdhani / Saira / IBM Plex Mono through next/font.
+     In-game there is no network and no font is bundled with any resource, so
+     those three names NEVER resolve and every surface silently fell back to
+     whatever came next in its stack - which is why the twelve surfaces do not
+     look related today. They are kept first in each stack so that bundling a
+     webfont later takes over with no edit here.
+
+     What actually renders is the second name in each stack, chosen to carry the
+     same voice from fonts Windows ships:
+       display  Bahnschrift Condensed  - DIN-derived, squared terminals, the
+                                         closest shipping face to Rajdhani
+       body     Bahnschrift            - same family, normal width
+       mono     Cascadia Mono          - the micro-label and data voice */
+  --op77-font-display: "Rajdhani", "Bahnschrift Condensed", "Bahnschrift SemiCondensed", "Arial Narrow", "Segoe UI", sans-serif;
+  --op77-font-body:    "Saira", "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --op77-font-mono:    "IBM Plex Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  /* HUD type scale. Larger than the website's page scale on purpose: this text
+     is read at arm's length over a moving image, not on a document. */
+  --op77-fs-micro:  9px;    /* mono eyebrow, letter-spacing .18em, UPPERCASE  */
+  --op77-fs-label:  10px;   /* mono labels, keycaps                          */
+  --op77-fs-meta:   11px;   /* mono data, secondary lines                    */
+  --op77-fs-body:   14px;   /* the default                                   */
+  --op77-fs-lead:   16px;   /* the one line that must be read first          */
+  --op77-fs-title:  18px;   /* card and toast titles                         */
+  --op77-fs-head:   26px;   /* panel headings                                */
+  --op77-fs-hero:   40px;   /* countdowns, verdicts                          */
+
+  --op77-track-micro: 0.18em;  /* mono eyebrows */
+  --op77-track-label: 0.12em;  /* mono labels   */
+  --op77-track-head:  0.02em;  /* display heads */
+
+  /* --- SPACE ---------------------------------------------------------------
+     Base-4. Density lives inside panels, not between them. */
+  --op77-space-1: 4px;
+  --op77-space-2: 8px;
+  --op77-space-3: 12px;
+  --op77-space-4: 16px;
+  --op77-space-5: 24px;
+  --op77-space-6: 32px;
+  --op77-space-7: 48px;
+  --op77-space-8: 64px;
+
+  /* IN-GAME: distance from the viewport edge for every HUD surface, so the
+     twelve of them line up instead of each picking its own vh/vw. */
+  --op77-inset-x: 32px;
+  --op77-inset-y: 28px;
+
+  /* --- SHAPE ---------------------------------------------------------------
+     Square-leaning. 6px is the maximum radius anywhere in the system. */
+  --op77-radius-sm: 2px;
+  --op77-radius-md: 6px;
+  --op77-notch: 12px;
+  --op77-notch-clip: polygon(0 0, calc(100% - var(--op77-notch)) 0, 100% var(--op77-notch), 100% 100%, 0 100%);
+  /* Accent rule down the leading edge of a panel - the house marker for
+     "this belongs to Open77". 3px; 2px on small items. */
+  --op77-rule: 3px;
+
+  /* IN-GAME: the site forbids shadows for elevation and it is right - on a flat
+     page a border is enough. Over gameplay a border alone does not separate a
+     panel from a detailed backdrop, so one shadow is allowed, and only this
+     one. It is a separation device, not a depth ramp: there are no levels. */
+  --op77-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+
+  /* --- MOTION --------------------------------------------------------------
+     Functional and fast. No glitch loops, no parallax, no idle animation. */
+  --op77-ease: cubic-bezier(0.2, 0, 0, 1);
+  --op77-dur-fast: 90ms;    /* colour and border changes  */
+  --op77-dur:      150ms;   /* enter, leave, hover        */
+  --op77-dur-slow: 220ms;   /* a whole panel sliding in   */
+}
+
+/* The `//` device. Where it appears, nothing else glows.
+   Use as: <span class="op77-eyebrow">Session</span> */
+.op77-eyebrow {
+  font: 700 var(--op77-fs-micro) / 1 var(--op77-font-mono);
+  letter-spacing: var(--op77-track-micro);
+  text-transform: uppercase;
+  color: var(--op77-text-dim);
+}
+.op77-eyebrow::before {
+  content: "//";
+  margin-right: 0.7em;
+  color: var(--op77-accent);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+}
+
+/* Animation enhances, it never gates: nothing here starts at opacity 0 without
+   a paired end state, and all of it is off when the player asked for less. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}

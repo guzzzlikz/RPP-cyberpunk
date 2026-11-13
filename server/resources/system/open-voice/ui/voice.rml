@@ -1,0 +1,83 @@
+<rml>
+<head>
+    <title>Open//77 Voice</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="voice.rcss"/>
+</head>
+<!-- The voice line, bottom-right, straight on the game (no panel). Everything is
+     bound to one data model, "voice", that client/ui.lua fills from the payload
+     client/main.lua builds; nothing is decided here. -->
+<body data-model="voice">
+<div id="stage">
+<div id="voice" data-class-ready="ready" data-class-shown="shown"
+     data-class-idle="state == 'idle'" data-class-detected="state == 'detected'"
+     data-class-talking="state == 'talking'" data-class-muted="state == 'muted'"
+     data-class-offline="state == 'offline'">
+
+    <!-- a rejected request, for a few seconds -->
+    <div id="error" data-class-on="hasError">
+        <div class="err-tag"><span>!</span></div>
+        <span class="err-text">{{error}}</span>
+    </div>
+
+    <!-- status: what the microphone is doing, and who is heard -->
+    <div id="status">
+        <span class="st-dot"></span>
+        <span class="st-label">{{stateLabel}}</span>
+        <span class="st-mode">{{activation}}</span>
+        <div id="heard" data-class-on="heard > 0">
+            <span class="hd-dot"></span>
+            <span class="hd-count">{{heard}}</span>
+            <span class="hd-label">HEARD</span>
+        </div>
+    </div>
+
+    <!-- the line: mic, input meter, range, cycle key -->
+    <div id="line">
+        <div id="mic">
+            <div class="mic-ring"></div>
+            <div class="mic-badge">
+                <path class="mic-glyph" view-box="0 0 24 24"
+                      d="M12 15.25a3.75 3.75 0 0 0 3.75-3.75V6.25a3.75 3.75 0 1 0-7.5 0v5.25A3.75 3.75 0 0 0 12 15.25Z M5.75 10.75v.75a6.25 6.25 0 0 0 12.5 0v-.75 M12 17.75v3.5 M8.75 21.25h6.5"/>
+                <path class="mic-slash" view-box="0 0 24 24" d="M4 3.5L20 20.5"/>
+            </div>
+        </div>
+
+        <div id="meter">
+            <span class="seg" data-class-lit="lit > 0"></span>
+            <span class="seg" data-class-lit="lit > 1"></span>
+            <span class="seg" data-class-lit="lit > 2"></span>
+            <span class="seg" data-class-lit="lit > 3"></span>
+            <span class="seg" data-class-lit="lit > 4"></span>
+            <span class="seg" data-class-lit="lit > 5"></span>
+            <span class="seg" data-class-lit="lit > 6"></span>
+            <span class="seg" data-class-lit="lit > 7"></span>
+            <span class="seg" data-class-lit="lit > 8"></span>
+            <span class="seg" data-class-lit="lit > 9"></span>
+            <span class="seg hot" data-class-lit="lit > 10"></span>
+            <span class="seg hot peak" data-class-lit="lit > 11"></span>
+        </div>
+
+        <div id="rule" data-style-background-color="color"></div>
+
+        <div id="range">
+            <span id="range-label" data-style-color="color">{{label}}</span>
+            <div id="range-reach">
+                <span id="range-dist">{{distance}}</span>
+                <span class="range-unit">M</span>
+                <div id="pips">
+                    <span class="pip" data-for="p : pips" data-class-used="p.used" data-class-on="p.on"
+                          data-style-background-color="p.on ? color : '#e6eaec26'"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="key"><span>{{key}}</span></div>
+    </div>
+
+    <!-- a hairline in the range colour under the whole line -->
+    <div id="base" data-style-background-color="color"></div>
+</div>
+</div>
+</body>
+</rml>
