@@ -3,50 +3,60 @@
 Нужна для редактора внешности (`/appearance`, создание персонажа) и сохранения
 персонажей в Open77. Сервер подключается к `127.0.0.1:3306`, база `open77`.
 
-В git лежат только скрипты. Бинарники (`server/`), данные (`data/`) и пароли
-(`credentials.txt`) в `.gitignore`.
+## На новом компьютере
 
-## Запуск
+После `git clone` / `git pull` ничего настраивать не нужно: запустите
+`server\Start.cmd`. При первом запуске он сам:
 
-`server/Start.cmd` запускает базу сам. Вручную:
+1. скачает MariaDB 11.4.8 (~90 МБ, контрольная сумма проверяется) в `db\server\`;
+2. создаст базу в `db\data\` и сгенерирует пароли в `db\credentials.txt`;
+3. запустит MariaDB, создаст базу `open77` и пользователя `open77`;
+4. передаст серверу строку подключения (`OP77_DATABASE_CONNECTION`).
 
-- `start-db.cmd` — запустить (если уже запущена, ничего не делает);
-- `stop-db.cmd` — корректно остановить.
+Нужен только интернет при первом запуске. То же самое делает `db\setup-db.ps1`
+(можно запускать сколько угодно раз: готовые шаги пропускаются).
 
-Лог: `data/<имя компьютера>.err`.
+## Что лежит в git, а что нет
 
-Сервер берёт строку подключения из переменной окружения пользователя
-`OP77_DATABASE_CONNECTION`:
+| Путь | В git | Почему |
+|---|---|---|
+| `setup-db.ps1`, `start-db.cmd`, `stop-db.cmd`, `README.md` | да | установка и запуск |
+| `server\` | нет | программа MariaDB, 281 МБ, скачивается скриптом |
+| `data\` | нет | файлы базы: >100 МБ (лимит GitHub), меняются при каждом запуске |
+| `credentials.txt` | нет | пароли |
 
+**База у каждого компьютера своя.** Персонажи, созданные на одном ПК, на другом
+не появятся. Перенести данные: `mariadb-dump` на старом ПК и импорт на новом
+(см. ниже).
+
+## Запуск и остановка
+
+- `server\Start.cmd` — база + сервер (обычный способ);
+- `db\start-db.cmd` — только база (если уже запущена, ничего не делает);
+- `db\stop-db.cmd` — корректно остановить базу.
+
+Лог базы: `db\data\mariadb.err`.
+
+## Смена паролей
+
+Пароли берутся из `db\credentials.txt` (`root=`, `password=` для пользователя `open77`).
+Пароль пользователя `open77` применяется к базе при каждом запуске `setup-db.ps1`.
+Пароль `root` из файла применяется только при создании базы. Чтобы сменить его позже,
+выполните `ALTER USER 'root'@'localhost' IDENTIFIED BY '...'` под старым паролем root.
+
+## Перенос данных между компьютерами
+
+На старом ПК:
 ```
-Server=127.0.0.1;Port=3306;Database=open77;User ID=open77;Password=<из credentials.txt>;
+db\server\bin\mariadb-dump.exe -h 127.0.0.1 -u root -p --databases open77 > open77.sql
 ```
+На новом ПК (после первого запуска `Start.cmd`):
+```
+db\server\bin\mariadb.exe -h 127.0.0.1 -u root -p < open77.sql
+```
+Файл `open77.sql` содержит данные игроков: не коммитьте его.
 
-## Установка с нуля (на другом компьютере)
+## Если перенесли папку репозитория
 
-1. Скачать MariaDB 11.4 LTS (ZIP для Windows x64) с <https://archive.mariadb.org/mariadb-11.4.8/winx64-packages/>
-   и распаковать содержимое папки `mariadb-11.4.8-winx64` в `db/server/`.
-2. Инициализировать данные (пароль root придумать):
-   ```
-   db\server\bin\mariadb-install-db.exe --datadir=<путь к репо>\db\data --password=<root> --port=3306
-   ```
-3. В `db/data/my.ini` в секцию `[mysqld]` добавить:
-   ```
-   bind-address=127.0.0.1
-   character-set-server=utf8mb4
-   collation-server=utf8mb4_unicode_ci
-   ```
-4. Запустить `start-db.cmd` и создать базу и пользователя:
-   ```sql
-   CREATE DATABASE open77 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   CREATE USER 'open77'@'127.0.0.1' IDENTIFIED BY '<пароль>';
-   CREATE USER 'open77'@'localhost' IDENTIFIED BY '<пароль>';
-   GRANT ALL PRIVILEGES ON open77.* TO 'open77'@'127.0.0.1';
-   GRANT ALL PRIVILEGES ON open77.* TO 'open77'@'localhost';
-   ```
-5. Записать `credentials.txt` (`root=`, `user=`, `password=`, `database=`) и задать переменную
-   `OP77_DATABASE_CONNECTION` (Параметры Windows → Переменные среды пользователя).
-6. В `server/server.jsonc`: `"database": { "enabled": true, ... }`.
-
-Таблицы Open77 (`open77_characters`, `open77_player_appearances`, `players`…) создаются сами
-при первом запуске сервера.
+Ничего делать не нужно: `start-db.cmd` при каждом запуске переписывает пути в
+`db\data\my.ini` под текущее расположение.
