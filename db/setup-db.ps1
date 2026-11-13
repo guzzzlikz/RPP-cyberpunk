@@ -52,21 +52,50 @@ function Read-Credentials {
 function Test-Listening {
     [bool](netstat -ano | Select-String "127\.0\.0\.1:$Port\s+.*LISTENING")
 }
-function Wait-Listening([bool]$state) {
-    $deadline = (Get-Date).AddSeconds(30)
+# Processes listening on the port on any address, e.g. an installed MySQL service.
+function Get-PortOwners {
+    $owners = @()
+    foreach ($line in (netstat -ano | Select-String ":$Port\s+\S+\s+LISTENING\s+(\d+)")) {
+        $procId = [int]$line.Matches[0].Groups[1].Value
+        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
+        $owners += [pscustomobject]@{ Id = $procId; Name = "$($proc.ProcessName)"; Path = "$($proc.Path)" }
+    }
+    return $owners | Sort-Object Id -Unique
+}
+function Show-LogTail {
+    if (Test-Path $ErrLog) {
+        Write-Host "[db] last lines of $ErrLog :"
+        Get-Content $ErrLog -Tail 15 | ForEach-Object { Write-Host "      $_" }
+    }
+}
+function Wait-Listening([bool]$state, $process = $null, [int]$seconds = 120) {
+    # 120 s: the first start on a hard disk creates the InnoDB files and can be slow.
+    $deadline = (Get-Date).AddSeconds($seconds)
     while ((Test-Listening) -ne $state) {
+        if ($state -and $process -and $process.HasExited) {
+            Show-LogTail
+            throw "MariaDB exited at start (code $($process.ExitCode)); the reason is in the lines above ($ErrLog)"
+        }
         if ((Get-Date) -gt $deadline) {
-            throw "MariaDB did not $(if ($state) { 'start' } else { 'stop' }) in 30 s; see $ErrLog"
+            if ($state) { Show-LogTail }
+            throw "MariaDB did not $(if ($state) { 'start' } else { 'stop' }) in $seconds s; see $ErrLog"
         }
         Start-Sleep -Milliseconds 500
     }
 }
 function Start-Daemon([string[]]$extra) {
+    $foreign = @(Get-PortOwners | Where-Object { -not ($_.Path -like "$Server*") })
+    if ($foreign.Count -gt 0) {
+        $who = ($foreign | ForEach-Object { "$($_.Name) (PID $($_.Id)) $($_.Path)" }) -join '; '
+        throw ("Port $Port is already taken by another program: $who. Stop it first (an installed " +
+            "MySQL/MariaDB is usually a Windows service: services.msc -> MySQL*/MariaDB -> Stop, " +
+            "startup type Manual), then run again.")
+    }
     $arguments = @("--defaults-file=`"$Ini`"") + $extra
     # Hidden: a visible console window is easy to close by accident, and closing
     # it kills the database (CTRL_CLOSE_EVENT).
-    Start-Process -FilePath $Daemon -ArgumentList $arguments -WindowStyle Hidden | Out-Null
-    Wait-Listening $true
+    $process = Start-Process -FilePath $Daemon -ArgumentList $arguments -WindowStyle Hidden -PassThru
+    Wait-Listening $true $process
 }
 function Stop-Daemon {
     Get-Process mariadbd -ErrorAction SilentlyContinue |
@@ -112,7 +141,22 @@ if (-not (Test-Path $Daemon)) {
 
 # 2. Data directory and passwords ----------------------------------------------
 if (-not (Test-Path (Join-Path $Data 'mysql'))) {
-    if (Test-Path $Data) { throw "$Data exists but is not an initialized MariaDB data directory; remove it and run again." }
+    if (Test-Path $Data) {
+        # A data folder without the `mysql` system schema cannot start. If it holds
+        # no table data either (left over from a failed first run, or emptied by
+        # hand), move it aside and start fresh; otherwise stop and let a human look.
+        $tableData = @(Get-ChildItem $Data -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -eq 'ibdata1' -or $_.Extension -in '.ibd', '.frm', '.MYD', '.MAD' })
+        if ($tableData.Count -gt 0) {
+            $listing = (Get-ChildItem $Data | Select-Object -First 15 | ForEach-Object { $_.Name }) -join ', '
+            throw ("$Data has table files but no 'mysql' system schema, so MariaDB cannot use it. " +
+                "Nothing was changed. Contents: $listing. If you do not need its data, " +
+                "rename or delete the folder and run again; otherwise restore the full folder.")
+        }
+        $aside = "$Data.broken-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        Move-Item $Data $aside
+        Step "db\data had no database in it; moved aside to $(Split-Path $aside -Leaf), creating a new one"
+    }
     if (Test-Path $Credentials) {
         $existing = Read-Credentials
         $root, $app = $existing['root'], $existing['password']
@@ -158,6 +202,12 @@ if ($NoStart) { Step 'done (not started: -NoStart)'; exit 0 }
 if (-not (Test-Listening)) {
     Step 'starting MariaDB...'
     Start-Daemon @()
+} else {
+    $foreign = @(Get-PortOwners | Where-Object { -not ($_.Path -like "$Server*") })
+    if ($foreign.Count -gt 0) {
+        $who = ($foreign | ForEach-Object { "$($_.Name) (PID $($_.Id)) $($_.Path)" }) -join '; '
+        throw "Port $Port is served by another program, not this repository's MariaDB: $who. Stop it and run again."
+    }
 }
 Step "MariaDB listening on 127.0.0.1:$Port"
 
