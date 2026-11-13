@@ -1,2 +1,7 @@
 # Server config: contains the Open77 license key and local addresses
 server/server.jsonc
+
+# Local MariaDB: binaries (download them again, see db/README.md), data and passwords
+db/server/
+db/data/
+db/credentials.txt
