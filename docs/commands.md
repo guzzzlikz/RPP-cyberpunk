@@ -1,0 +1,182 @@
+# Команды сервера
+
+Команды вводятся в чат (клавиша **T**) со слешем: `/passport`. Из консоли сервера
+и через RCON — без слеша: `weather.set rain 30`.
+
+## Как устроены права
+
+- **Игрок** — команда доступна всем.
+- **Админ** — команда зарегистрирована как ограниченная (`restricted`). Чтобы игрок
+  мог её выполнить, ему нужно право `command.<имя команды>` в ACL: например,
+  `command.weather.set`. Права выдаются в Warden (Players → Rights) или в `acl.jsonc`.
+  Шаблон `command.weather.*` даёт все команды группы, но **не** саму `command.weather`.
+- Консоль сервера может выполнять любые команды.
+
+Список собран из исходников ресурсов, загруженных в `server.jsonc` (ноябрь 2026).
+Ресурсы с `auto_start false` (`open77_braindance`, `open77_scenes`) работают,
+только если их запустить командой `ensure <ресурс>` в консоли.
+
+---
+
+## Паспорт жителя — `rpp_identity` (наш мод)
+
+Подробности: [rpp_identity.md](rpp_identity.md).
+
+| Команда | Доступ | Что делает |
+|---|---|---|
+| `/passport` | Игрок | Показать свой номер жителя, имя и число знакомых |
+| `/register` | Игрок | Открыть оформление паспорта, если его ещё нет (или если закрыли форму) |
+| `/accept` | Игрок | Принять последнее предложение знакомства |
+| `/decline` | Игрок | Отклонить все предложения знакомства |
+| `rpp.identity.info <playerId>` | Админ | Кто за номером: аккаунт, номер жителя, имя |
+| `rpp.identity.reset <playerId>` | Админ | Удалить паспорт игрока; он пройдёт регистрацию заново |
+
+Знакомство также доступно в меню **ALT + клик по игроку → «Познакомиться»**.
+
+---
+
+## Чат — `open77_chat`
+
+| Команда | Доступ | Что делает |
+|---|---|---|
+| `/help` | Игрок | Справка по чату и командам |
+| `/clear` | Игрок | Очистить свою историю чата |
+| `/id` | Игрок | Показать свой временный ID сессии (меняется при переподключении) |
+
+Клавиши: **T** — открыть чат, **Enter** — отправить, **Esc** — закрыть, **Tab** — дополнить команду.
+
+## Внешность — `open77_appearance`
+
+> Редактор внешности работает **только с включённой MySQL** (`database.enabled` в `server.jsonc`).
+> Без базы `/appearance` отвечает `database_unavailable`.
+
+| Команда | Доступ | Что делает |
+|---|---|---|
+| `/appearance [ripperdoc\|hairdresser] [male\|female]` | Игрок | Открыть редактор внешности (рипердок — всё тело, парикмахер — причёска) |
+| `/appearance male` / `/appearance female` | Игрок | Полный редактор с выбором тела |
+| `/barber` | Игрок | Редактор причёски |
+| `/gender` | Игрок | Сменить тип тела (только без базы данных; с базой — `/appearance male\|female`) |
+| `/wardrobe` (или **F2**) | Игрок | Гардероб: 7 сохраняемых комплектов одежды |
+| `/appearance.status` | Игрок | Диагностика: готовность тел и внешности соседей |
+
+## Freeroam — `freeroam`
+
+### Для игроков
+
+| Команда | Что делает |
+|---|---|
+| `/freeroam` | Главное меню режима (транспорт, оружие, телепорты, анимации) |
+| `/freeroam.help` | Список команд режима |
+| `/freeroam.status` | Диагностика режима |
+| `/car [модель]` | Заспавнить машину рядом |
+| `/dv [all]` | Убрать последнюю (или все) свои машины |
+| `/goto <место>` | Телепорт в настроенную точку |
+| `/locations` | Список точек для `/goto` |
+| `/tpc <x> <y> <z> [heading]` | Телепорт по координатам |
+| `/spawn [имя]` | Вернуться на точку спавна |
+| `/suicide` | Умереть (штатный цикл смерти) |
+| `/revive` | Воскреснуть на месте, если мёртв |
+| `/players` | Список игроков и их состояние |
+| `/guns` | Набор оружия |
+| `/anim` | Меню анимаций (70 вариантов в 12 группах) |
+| `/camchange`, `/cinematic` | Режимы камеры |
+| `/race`, `/race.join`, `/race.leave`, `/race.status`, `/race.where`, `/race.course.list` | Гонки на машинах |
+| `/footrace` | Забег пешком |
+| `/pvp`, `/pvp.join`, `/pvp.leave`, `/pvp.blade` | PvP-арена (обычная и на клинках) |
+| `/dm`, `/deathmatch.join`, `/deathmatch.leave`, `/deathmatch.status` | Deathmatch |
+| `/dm.arena`, `/dm.queue`, `/dm.loadout`, `/dm.rounds`, `/dm.score`, `/dm.stats`, `/dm.where`, `/dm.bounds`, `/dm.instances` | Информация и настройки PvP-матча |
+
+### Для администраторов
+
+| Команда | Что делает |
+|---|---|
+| `freeroam.tp`, `freeroam.respawn`, `freeroam.revive`, `freeroam.cleanup` | Управление игроками и уборка мира |
+| `tv` | Телевизоры (общие экраны `open77_media`) |
+| `race.editor`, `race.course.select`, `race.force`, `race.probe` | Редактор трасс и управление гонкой |
+| `dm.goto`, `dm.leash`, `dm.map`, `dm.bot`, `dm.survey`, `dm.stats.of`, `dm.rating.sim`, `dm.arena.mock` | Служебные команды PvP: карты, боты, рейтинг |
+| `admin.playtest.foot`, `.race`, `.ffa`, `.blade`, `.cancel` | Массово отправить игроков в режим для теста |
+
+## Администрирование — `open77_admin`
+
+Все команды ограниченные. Право = `command.<имя>`. Меню: `/admin` (компактное), `/adminfull` (полная панель).
+Публичные: `/pos`, `/rot` — показать свои координаты и поворот.
+
+| Группа | Команды |
+|---|---|
+| Сводки | `admin.read.players`, `admin.read.vehicles`, `admin.read.world`, `admin.read.props [радиус]`, `admin.read.audit`, `admin.read.weapons [id]` |
+| Себе | `admin.self.noclip [on\|off]`, `admin.self.fly`, `admin.self.speed <м/с>`, `admin.self.god`, `admin.self.heal`, `admin.self.revive`, `admin.self.pos`, `admin.self.maptravel` |
+| Игрокам | `admin.player.goto <id>`, `admin.player.bring <id>`, `admin.player.tp <id\|me> <x> <y> <z> [yaw]`, `admin.player.at [id] <место>`, `admin.player.observe <id>`, `admin.player.heal\|revive\|kill <id>`, `admin.player.god <id> [on\|off]`, `admin.player.health <id> <0..1>`, `admin.player.armor <id> <броня>` |
+| Модерация | `admin.moderate.kick <id> [причина]`, `admin.moderate.ban <id> [30m\|12h\|7d\|perm] [причина]` |
+| Транспорт | `admin.veh.spawn`, `admin.veh.give`, `admin.veh.remove`, `admin.veh.repair`, `admin.veh.flag`, `admin.veh.speed`, `admin.veh.speed.here`, `admin.veh.speed.global`, `admin.veh.speed.clear` |
+| Оружие | `admin.weap.give <id\|me> <запись>`, `admin.weap.ammo`, `admin.weap.remove`, `admin.weap.holster`, `admin.weap.catalog` |
+| Пропсы и свет | `admin.props.spawn`, `.here`, `.list`, `.move`, `.remove`, `.clear`, `.catalog`, `.light`, `.light.here`, `.light.toggle` |
+| Эффекты | `admin.fx.play`, `.loop`, `.list`, `.stop`, `.fireworks`, `.show <пресет>`, `.show.stop`, `.stage`, `.stage.clear` |
+| Мир | `admin.world.announce <текст>`, `admin.world.loc.add <имя>`, `admin.world.loc.remove <имя>`, `admin.world.cleanup`, `admin.server.status` |
+
+Короткие псевдонимы (`noclip`, `fly`, `bring`, `tp`, `kick`, `ban`, `god`, `heal`, `announce`…)
+требуют своё право `command.<псевдоним>`. Если имя занято `freeroam` (`car`, `dv`, `goto`, `players`),
+работает команда freeroam.
+
+## Модерация и база — `open77_freeroam`
+
+| Команда | Доступ | Что делает |
+|---|---|---|
+| `kick <playerId> [причина]` | Админ | Кикнуть игрока |
+| `ban <playerId> [причина]` | Админ | Забанить на этом сервере (нужна MySQL) |
+| `makeadmin <playerId>` | Только консоль | Записать игрока в таблицу `admin_groups` (нужна MySQL) |
+
+## Погода и время — `open77_weather`
+
+| Команда | Доступ | Что делает |
+|---|---|---|
+| `/weather`, `/weather.status`, `/weather.time` | Игрок | Текущие погода и время |
+| `weather.set <пресет> [секунд перехода]` | Админ | Сменить погоду, например `weather.set rain 30` |
+| `weather.next`, `weather.random on\|off` | Админ | Следующая погода / случайная смена |
+| `weather.time.set ЧЧ:ММ:СС` | Админ | Установить время |
+| `weather.time.freeze`, `weather.time.resume` | Админ | Остановить / продолжить ход времени |
+| `weather.rate <множитель>` | Админ | Скорость течения времени |
+
+## Транспорт — `open77_vehicles`
+
+| Команда | Доступ |
+|---|---|
+| `vehicle.list`, `vehicle.damage.dump` | Игрок (диагностика) |
+| `vehicle.create`, `vehicle.create.player`, `vehicle.remove`, `vehicle.repair`, `vehicle.health`, `vehicle.engine`, `vehicle.lock`, `vehicle.exitlock`, `vehicle.horn`, `vehicle.seat`, `vehicle.warp`, `vehicle.out`, `vehicle.paint`, `vehicle.paint.reset`, `vehicle.glass.break`, `vehicle.glass.repair`, `vehicle.probe`, `vehicle.weapons.probe` | Админ |
+
+## Оружие — `open77_weapons`
+
+`weapon.give`, `weapon.ammo`, `weapon.remove`, `weapon.clear`, `weapon.read`, `weapon.blasts` — все админские.
+
+## Мир
+
+| Ресурс | Команды | Доступ |
+|---|---|---|
+| `open77_elevators` | `elevator.list` | Игрок |
+| | `elevator.goto`, `elevator.teleport`, `elevator.pause`, `elevator.resume`, `elevator.adopt`, `elevator.adopt.player`, `elevator.remove` | Админ |
+| `open77_traffic` | `traffic [open\|state <радиус>\|set <ключ> <значение>\|pattern\|panic\|reset confirm]`, `traffic.status`, `traffic.esp` | Админ |
+| `open77_pedestrians` | `pedestrians.status`, `pedestrians.enable`, `pedestrians.crowd on\|off`, `pedestrians.density`, `pedestrians.seats`, `pedestrians.reset` | Админ |
+| `op77_map3d` | `map3d.jam`, `map3d.unjam` — глушилка карты | Админ |
+| `open77_remote_camera` | `remote-camera.editor`, `.cameras`, `.hud`, `.webui`, `.slots`, `.off` | Админ |
+
+## Прочее
+
+| Ресурс | Команда | Доступ | Что делает |
+|---|---|---|---|
+| `open77_perspective` | `perspective` | Админ | Политика вида от 1-го/3-го лица |
+| `open77_prediction` | `prediction [status\|on\|off <семейство>\|ping <мс>\|telemetry <с>]` | Админ | Настройки сетевого предсказания |
+| `open77_notifications` | `notification.test [info\|success\|warning\|error]` | Админ | Тестовое уведомление |
+| `open77_cyberware_lab` | `/cyberlab` | Игрок | Панель кибер-лаборатории |
+| `open77_braindance`* | `bd` (игрок), `braindance`, `bdlayer` (админ) | — | Брейнданс-сцены |
+| `open77_scenes`* | `scene`, `standup` (игрок), `scenes.start`, `.stand`, `.idle`, `.near`, `.status`, `.tune` (админ) | — | RP-сцены на мебели |
+
+\* Ресурс не запускается сам: `ensure open77_braindance` / `ensure open77_scenes` в консоли.
+
+## Клавиши
+
+| Клавиша | Действие |
+|---|---|
+| **T** | Чат |
+| **ALT + клик** | Контекстное меню на игроке, машине, предмете (в т. ч. «Познакомиться») |
+| **M** | 3D-карта города |
+| **F2** | Гардероб |
+| **~** | Консоль разработчика Open77 (клиент) |

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Паспорт жителя</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="backdrop" class="backdrop hidden">
+    <!-- Шаг 1: имя и фамилия -->
+    <form id="form" class="card hidden" autocomplete="off" novalidate>
+      <div class="eyebrow">NIGHT CITY // РЕГИСТРАЦИЯ ЖИТЕЛЯ</div>
+      <h1>Паспорт</h1>
+      <p class="hint">Так вас будут видеть те, с кем вы познакомитесь. Остальные увидят только номер жителя.</p>
+
+      <label class="field">
+        <span>Имя</span>
+        <input id="first" name="first" type="text" spellcheck="false">
+        <small class="error" data-for="first"></small>
+      </label>
+      <label class="field">
+        <span>Фамилия</span>
+        <input id="last" name="last" type="text" spellcheck="false">
+        <small class="error" data-for="last"></small>
+      </label>
+
+      <small class="error form-error" data-for="form"></small>
+      <div class="actions">
+        <button type="button" id="cancel" class="ghost">Позже</button>
+        <button type="submit" id="submit">Подтвердить</button>
+      </div>
+    </form>
+
+    <!-- Шаг 2: подтверждение с номером -->
+    <div id="confirm" class="card hidden">
+      <div class="eyebrow">ПАСПОРТ ОФОРМЛЕН</div>
+      <div class="tag" id="tag">Житель #0000</div>
+      <div class="name" id="name">Имя Фамилия</div>
+      <p class="hint">Незнакомцы видят над вами только номер. Чтобы обменяться именами,
+        зажмите <b>ALT</b>, кликните по игроку и выберите «Познакомиться».</p>
+      <div class="actions">
+        <button type="button" id="done">Готово</button>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

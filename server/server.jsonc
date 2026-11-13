@@ -121,7 +121,8 @@
       "open77_zones",
       "op77_map3d",
       "freeroam",
-      "open77_freeroam"
+      "open77_freeroam",
+      "rpp_identity"
     ],
     "autoStart": true,
     "watchIntervalMilliseconds": 0,
