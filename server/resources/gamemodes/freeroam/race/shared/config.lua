@@ -20,7 +20,7 @@ RaceConfig = {
             description = "Join the next heat or choose a course.",
             key = "E",
             holdSeconds = 0.65,
-            color = "#22D8E2",
+            color = "#FCEE0A",
             maxDistance = 100.0,
         },
     },

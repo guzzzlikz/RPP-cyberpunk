@@ -4,7 +4,7 @@ local nonce = tostring(Open77.resource.generation())..':'..tostring(math.floor(O
 local playing, running = {}, true
 local defaults = { give={'give','give'}, heal={'examine','wounded'} }
 local function message(text)
-    TriggerEvent('chat:addMessage', {type='system',author='INTERACTIONS',text=text,color={0,229,255}})
+    TriggerEvent('chat:addMessage', {type='system',author='INTERACTIONS',text=text,color={ 252, 238, 10 }})
 end
 -- The invited player's offer card: what is offered, a countdown and two rebindable keys (Y accept,
 -- N decline, Pause -> Settings -> KEY BINDINGS). /interaction accept | decline still works.

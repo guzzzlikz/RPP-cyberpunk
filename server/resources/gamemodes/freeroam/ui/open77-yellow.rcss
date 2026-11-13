@@ -1,0 +1,163 @@
+/* RPP: yellow/black copy of the sheet embedded in Open77.dll (nui://open77/open77.rcss),
+   recoloured from the cyan accent (#22d8e2) to yellow #fbe709 on neutral black. Linked instead of the
+   embedded one so buttons, inputs, links, scrollbars and meters follow the theme.
+   Identical copies live in every RmlUi resource: a document can only load its own files. */
+/*
+ * Open77 NativeUI standard sheet: <link type="text/rcss" href="nui://open77/open77.rcss"/>
+ *
+ * RmlUi has no user-agent stylesheet; this one gives documents HTML-like
+ * defaults plus the Open//77 design system (cyan #fbe709 on night ink,
+ * chamfered panels, tracked uppercase UI type, mono machine values).
+ *
+ * Fonts embedded in Open77.dll: "Chakra Petch" (UI), "Rajdhani" (body),
+ * "Lato" (fallback body), "Roboto Mono" (data).
+ */
+
+body
+{
+    font-family: Rajdhani;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 17dp;
+    color: #ededec;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+div, p, h1, h2, h3, h4, h5, h6, section, header, footer, nav, ul, ol, li, form, table, tr, pre, blockquote, figure, label.block
+{
+    display: block;
+}
+
+span, a, b, strong, i, em, small, code, label, img { display: inline; }
+table { display: table; }
+tr { display: table-row; }
+td, th { display: table-cell; }
+b, strong { font-weight: bold; }
+i, em { font-style: italic; }
+small { font-size: 0.85em; }
+p { margin: 0 0 0.6em 0; line-height: 1.45; }
+h1, h2, h3, h4 { font-family: "Chakra Petch"; font-weight: bold; text-transform: uppercase; margin: 0 0 0.5em 0; }
+h1 { font-size: 34dp; line-height: 1; }
+h2 { font-size: 24dp; }
+h3 { font-size: 18dp; letter-spacing: 0.08em; }
+h4 { font-size: 13dp; letter-spacing: 0.14em; color: #bfaf03; }
+pre, code, .mono { font-family: "Roboto Mono"; font-size: 13dp; }
+pre { white-space: pre-wrap; }
+a { color: #fbe709; cursor: pointer; }
+a:hover { color: #fdf068; }
+hr { display: block; height: 1dp; background-color: #9797952e; margin: 8dp 0; }
+
+/* --- layout helpers -------------------------------------------------------- */
+.row { display: flex; flex-direction: row; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.grow { flex: 1 1 auto; }
+.gap-4 { gap: 4dp; } .gap-8 { gap: 8dp; } .gap-12 { gap: 12dp; } .gap-16 { gap: 16dp; }
+.center { display: flex; align-items: center; justify-content: center; }
+.hidden { display: none; }
+.abs { position: absolute; }
+.fill { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+
+/* --- type ------------------------------------------------------------------- */
+.ui { font-family: "Chakra Petch"; font-weight: bold; text-transform: uppercase; letter-spacing: 0.14em; font-size: 12dp; }
+.eyebrow { font-family: "Chakra Petch"; font-weight: bold; text-transform: uppercase; letter-spacing: 0.14em; font-size: 11dp; color: #bfaf03; }
+.value { font-family: "Roboto Mono"; color: #ededec; }
+.muted { color: #979795; }
+.accent { color: #fbe709; }
+.ok { color: #3ef0a1; } .warn { color: #ff8120; } .danger { color: #ff4d5e; } .combat { color: #ff3df5; } .net { color: #9b6bff; }
+
+/* --- surfaces ----------------------------------------------------------------- */
+/* flat panel: chamfered cut corners and a hairline, drawn on the GPU */
+.panel
+{
+    decorator: fx(chamfer 10 1 0.9 0 #97979548);
+    padding: 16dp 18dp;
+}
+.panel.accent-edge { decorator: fx(chamfer 10 1 0.9 6 #fbe709); }
+
+/* HUD glass: frosts the game behind it */
+.glass
+{
+    background-color: #10100fb8;
+    backdrop-filter: blur(10dp) saturate(1.1);
+    border: 1dp #9797952e;
+    border-radius: 2dp;
+    padding: 12dp 14dp;
+}
+.glass.lit { decorator: fx(glass 0.6 0.03 0.0 0 #fbe709); }
+
+.holo
+{
+    decorator: fx(holo 1 3 0.15 0 #fbe709);
+    border: 1dp #fbe70966;
+}
+.scrim { background-color: #080808c7; backdrop-filter: blur(3dp); }
+.glow { filter: glow(6dp #fbe709 1.4); }
+.border-flow { decorator: fx(border-flow 2 0.35 0.25 8 #fbe709); }
+.grid-bg { decorator: fx(grid 24 1 1.5 0.6 #fbe7091a); }
+
+/* --- controls ------------------------------------------------------------------ */
+button, .button
+{
+    display: inline-block;
+    font-family: "Chakra Petch";
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 12dp;
+    padding: 9dp 18dp;
+    color: #080808;
+    background-color: transparent;
+    cursor: pointer;
+    decorator: fx(chamfer-solid 6 0 0 0 #fbe709);
+    transition: color 0.09s cubic-out;
+}
+button:hover, .button:hover { decorator: fx(chamfer-solid 6 0 0 0 #fdf068); filter: glow(5dp #fbe709 1.2); }
+button:active, .button:active { transform: translateY(1dp); }
+button.ghost, .button.ghost { color: #fbe709; background-color: transparent; decorator: fx(chamfer 6 1 0.01 0 #fbe709); }
+button.ghost:hover { background-color: #fbe7091f; }
+button:disabled { opacity: 0.4; cursor: default; }
+
+input.text, input.password, textarea
+{
+    font-family: "Roboto Mono";
+    font-size: 13dp;
+    color: #ededec;
+    background-color: #000000;
+    border: 1dp #9797954d;
+    padding: 7dp 9dp;
+    cursor: text;
+}
+input.text:focus, input.password:focus, textarea:focus { border-color: #fbe709; }
+input.checkbox, input.radio { width: 14dp; height: 14dp; border: 1dp #97979580; background-color: #000000; }
+input.checkbox:checked, input.radio:checked { background-color: #fbe709; }
+input.range { height: 14dp; }
+input.range slidertrack { height: 2dp; margin-top: 6dp; background-color: #9797954d; }
+input.range sliderbar { width: 10dp; height: 14dp; background-color: #fbe709; }
+select { display: inline-block; font-family: "Roboto Mono"; background-color: #000000; border: 1dp #9797954d; padding: 5dp 8dp; }
+select selectbox { background-color: #161514; border: 1dp #9797954d; }
+select selectbox option:hover { background-color: #fbe7092a; }
+
+scrollbarvertical { width: 6dp; margin-left: 2dp; }
+scrollbarvertical slidertrack { background-color: #97979514; }
+scrollbarvertical sliderbar { background-color: #97979566; border-radius: 3dp; }
+scrollbarvertical sliderbar:hover { background-color: #fbe709; }
+scrollbarhorizontal { height: 6dp; }
+scrollbarhorizontal sliderbar { background-color: #97979566; border-radius: 3dp; }
+
+/* --- meters ---------------------------------------------------------------------- */
+.meter { height: 6dp; background-color: #9797951f; }
+.meter > .fill { height: 100%; background-color: #fbe709; filter: glow(4dp #fbe709 1.2); }
+.meter.health > .fill { background-color: #ff4d5e; filter: glow(4dp #ff4d5e 1.2); }
+
+/* --- vector shapes: <path>/<shape> default to currentColor -------------------------- */
+path, shape { display: inline-block; }
+shape.ring { stroke: #fbe709; stroke-width: 3dp; stroke-linecap: round; }
+
+/* --- motion presets (RCSS); springs live in Open77.ui.animate ------------------------- */
+@keyframes open77-pulse { 0% { opacity: 1; } 50% { opacity: 0.45; } 100% { opacity: 1; } }
+.pulse { animation: 1.1s sine-in-out infinite open77-pulse; }
+@keyframes open77-rise { from { opacity: 0; transform: translateY(12dp) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.rise { animation: 0.22s cubic-out open77-rise; }

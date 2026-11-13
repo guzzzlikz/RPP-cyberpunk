@@ -2,7 +2,7 @@
    stays turned toward the centre of the screen. 1 dp = 1 px at 1080p. */
 
 body { pointer-events: none; }
-#root { position: absolute; left: 0; top: 0; right: 0; bottom: 0; perspective: 1400dp; perspective-origin: 50% 45%; visibility: hidden; font-family: Rajdhani; font-weight: bold; color: #e9edf1; }
+#root { position: absolute; left: 0; top: 0; right: 0; bottom: 0; perspective: 1400dp; perspective-origin: 50% 45%; visibility: hidden; font-family: Rajdhani; font-weight: bold; color: #ededed; }
 #root.shown { visibility: visible; }
 .grow { flex: 1 1 auto; }
 
@@ -12,9 +12,9 @@ body { pointer-events: none; }
     position: absolute; left: 44dp; top: 150dp; width: 540dp;
     padding: 18dp 0 12dp 0;
     backdrop-filter: blur(18dp) saturate(1.3) brightness(0.85);
-    decorator: linear-gradient(160deg, #141a24d0 0%, #0b0f16b8 55%, #090c12c8 100%);
+    decorator: linear-gradient(160deg, #1d1c1bd0 0%, #111110b8 55%, #0e0e0dc8 100%);
     border-width: 1dp; border-color: #ffffff1c;
-    box-shadow: #00000080 0 24dp 60dp 0, #22d8e214 0 0 0 1dp;
+    box-shadow: #00000080 0 24dp 60dp 0, #fbe70914 0 0 0 1dp;
     transform-origin: 0% 50%;
     transform: translateX(-620dp) rotateY(58deg);
     opacity: 0;
@@ -23,30 +23,30 @@ body { pointer-events: none; }
 #root.open #board { transform: translateX(0dp) rotateY(16deg); opacity: 1; transition: transform 0.46s back-out, opacity 0.24s cubic-out; }
 
 /* the lit spine on the left edge, and a sheen along the top */
-#edge { position: absolute; left: -1dp; top: -1dp; bottom: -1dp; width: 3dp; decorator: linear-gradient(180deg, #22d8e2ff 0%, #22d8e299 45%, #7c5cff66 100%); box-shadow: #22d8e255 0 0 18dp 0; }
+#edge { position: absolute; left: -1dp; top: -1dp; bottom: -1dp; width: 3dp; decorator: linear-gradient(180deg, #fbe709ff 0%, #fbe70999 45%, #7c5cff66 100%); box-shadow: #fbe70955 0 0 18dp 0; }
 
 /* ---- header ------------------------------------------------------------------------- */
 #head { display: flex; flex-direction: row; align-items: flex-end; padding: 0 22dp 0 24dp; }
 .head-left { display: block; }
-.kicker { display: block; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.32em; color: #22d8e2; margin-bottom: 2dp; }
+.kicker { display: block; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.32em; color: #fbe709; margin-bottom: 2dp; }
 .title-line { display: flex; flex-direction: row; align-items: flex-end; }
-.title { font-family: "Zen Dots"; font-weight: normal; font-size: 30dp; line-height: 32dp; letter-spacing: 0.04em; color: #f6f8fa; }
-.count { font-family: "Roboto Mono"; font-weight: bold; font-size: 15dp; line-height: 18dp; color: #05262a; background-color: #22d8e2; padding: 2dp 8dp; margin-left: 12dp; margin-bottom: 5dp; }
-.hold { display: flex; flex-direction: row; align-items: center; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.24em; color: #7d8794; margin-bottom: 6dp; }
-.key { font-family: "Roboto Mono"; font-weight: normal; font-size: 10dp; letter-spacing: 0.08em; color: #22d8e2; border-width: 1dp; border-color: #22d8e266; background-color: #22d8e212; padding: 1dp 6dp; margin-right: 7dp; }
+.title { font-family: "Zen Dots"; font-weight: normal; font-size: 30dp; line-height: 32dp; letter-spacing: 0.04em; color: #f8f8f8; }
+.count { font-family: "Roboto Mono"; font-weight: bold; font-size: 15dp; line-height: 18dp; color: #191916; background-color: #fbe709; padding: 2dp 8dp; margin-left: 12dp; margin-bottom: 5dp; }
+.hold { display: flex; flex-direction: row; align-items: center; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.24em; color: #8a8987; margin-bottom: 6dp; }
+.key { font-family: "Roboto Mono"; font-weight: normal; font-size: 10dp; letter-spacing: 0.08em; color: #fbe709; border-width: 1dp; border-color: #fbe70966; background-color: #fbe70912; padding: 1dp 6dp; margin-right: 7dp; }
 
 /* ---- the three counts --------------------------------------------------------------- */
 #stats { display: flex; flex-direction: row; margin: 14dp 22dp 0 24dp; padding: 9dp 0; border-top-width: 1dp; border-bottom-width: 1dp; border-color: #ffffff12; }
 .stat { display: flex; flex-direction: row; align-items: center; margin-right: 22dp; }
 .stat-dot { width: 6dp; height: 6dp; border-radius: 3dp; margin-right: 7dp; }
 .stat-dot.near { background-color: #2be58b; box-shadow: #2be58b88 0 0 8dp 0; }
-.stat-dot.streamed { background-color: #22d8e2; }
-.stat-dot.far { background-color: #56606e; }
-.stat-num { font-family: "Roboto Mono"; font-size: 14dp; color: #f6f8fa; margin-right: 6dp; }
-.stat-label { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.24em; color: #7d8794; }
+.stat-dot.streamed { background-color: #fbe709; }
+.stat-dot.far { background-color: #636361; }
+.stat-num { font-family: "Roboto Mono"; font-size: 14dp; color: #f8f8f8; margin-right: 6dp; }
+.stat-label { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.24em; color: #8a8987; }
 
 /* ---- columns and rows --------------------------------------------------------------- */
-#cols { display: flex; flex-direction: row; align-items: center; margin: 10dp 22dp 4dp 24dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.26em; color: #5c6674; }
+#cols { display: flex; flex-direction: row; align-items: center; margin: 10dp 22dp 4dp 24dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.26em; color: #696967; }
 .c-rank { width: 30dp; }
 .c-name { flex: 1 1 auto; padding-left: 44dp; }
 .c-id { width: 60dp; text-align: right; }
@@ -63,34 +63,34 @@ body { pointer-events: none; }
 .row.enter { opacity: 0; transform: translateX(-34dp); }
 #rows.in .row.enter { opacity: 1; transform: translateX(0dp); }
 
-.rank { width: 30dp; font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #56606e; }
+.rank { width: 30dp; font-family: "Roboto Mono"; font-weight: normal; font-size: 11dp; color: #636361; }
 .avatar
 {
     width: 30dp; height: 30dp; margin-right: 12dp; flex: 0 0 auto;
     font-family: "Chakra Petch"; font-size: 12dp; line-height: 30dp; text-align: center; letter-spacing: 0.04em;
-    border-width: 1dp; background-color: #0a0e14;
+    border-width: 1dp; background-color: #100f0e;
 }
 .who { flex: 1 1 auto; display: block; overflow: hidden; }
-.name { display: block; font-size: 17dp; line-height: 19dp; color: #e9edf1; white-space: nowrap; overflow: hidden; }
-.crew { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.18em; color: #7d8794; display: block; line-height: 12dp; }
-.pid { width: 60dp; text-align: right; font-family: "Roboto Mono"; font-weight: normal; font-size: 12dp; color: #7d8794; }
+.name { display: block; font-size: 17dp; line-height: 19dp; color: #ededed; white-space: nowrap; overflow: hidden; }
+.crew { font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.18em; color: #8a8987; display: block; line-height: 12dp; }
+.pid { width: 60dp; text-align: right; font-family: "Roboto Mono"; font-weight: normal; font-size: 12dp; color: #8a8987; }
 .dist { width: 118dp; display: flex; flex-direction: row; align-items: center; justify-content: flex-end; }
 .dist-bar { width: 38dp; height: 3dp; margin-right: 9dp; background-color: #ffffff14; }
-.dist-fill { height: 3dp; background-color: #22d8e2; }
-.dist-text { font-family: "Roboto Mono"; font-weight: normal; font-size: 12dp; color: #c9d1da; min-width: 56dp; text-align: right; }
+.dist-fill { height: 3dp; background-color: #fbe709; }
+.dist-text { font-family: "Roboto Mono"; font-weight: normal; font-size: 12dp; color: #d2d2d1; min-width: 56dp; text-align: right; }
 
 /* near (25 m), out of range, and the local player */
 .row.near { border-left-color: #2be58b; }
 .row.near .dist-fill { background-color: #2be58b; }
 .row.near .dist-text { color: #2be58b; }
-.row.far .name { color: #aab3be; }
-.row.far .dist-text { color: #56606e; }
-.row.self { background-color: #22d8e21c; border-left-color: #22d8e2; decorator: linear-gradient(90deg, #22d8e22c 0%, #22d8e208 70%, #22d8e200 100%); }
+.row.far .name { color: #b5b5b3; }
+.row.far .dist-text { color: #636361; }
+.row.self { background-color: #fbe7091c; border-left-color: #fbe709; decorator: linear-gradient(90deg, #fbe7092c 0%, #fbe70908 70%, #fbe70900 100%); }
 .row.self .name { color: #ffffff; }
-.you { font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.22em; color: #05262a; background-color: #22d8e2; padding: 2dp 8dp; }
+.you { font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.22em; color: #191916; background-color: #fbe709; padding: 2dp 8dp; }
 
 /* ---- empty and foot ------------------------------------------------------------------ */
-#empty { display: none; margin: 18dp 24dp 8dp 24dp; padding: 16dp 0; text-align: center; font-family: "Chakra Petch"; font-size: 11dp; letter-spacing: 0.24em; color: #5c6674; border-width: 1dp; border-color: #ffffff10; }
+#empty { display: none; margin: 18dp 24dp 8dp 24dp; padding: 16dp 0; text-align: center; font-family: "Chakra Petch"; font-size: 11dp; letter-spacing: 0.24em; color: #696967; border-width: 1dp; border-color: #ffffff10; }
 #root.empty #empty { display: block; }
-#foot { display: flex; flex-direction: row; align-items: center; margin: 10dp 22dp 0 24dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.24em; color: #56606e; }
-#more { color: #22d8e2; }
+#foot { display: flex; flex-direction: row; align-items: center; margin: 10dp 22dp 0 24dp; font-family: "Chakra Petch"; font-size: 9dp; letter-spacing: 0.24em; color: #636361; }
+#more { color: #fbe709; }

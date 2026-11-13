@@ -1,10 +1,10 @@
 :root {
-  --bg: rgba(6, 10, 14, 0.72);
-  --panel: rgba(12, 18, 24, 0.94);
-  --line: #1fd6e0;
+  --bg: rgba(10, 10, 10, 0.72);
+  --panel: rgba(19, 18, 17, 0.94);
+  --line: #fbe704;
   --accent: #fcee0a;
-  --text: #e8f4f6;
-  --muted: #8aa4ab;
+  --text: #f0efee;
+  --muted: #9c9b99;
   --error: #ff4f5e;
   --known: #5cf2a6;
 }
@@ -38,7 +38,7 @@ html, body {
   background: var(--panel);
   border: 1px solid var(--line);
   clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 28px 100%, 0 calc(100% - 28px));
-  box-shadow: 0 0 40px rgba(31, 214, 224, 0.18);
+  box-shadow: 0 0 40px rgba(251, 231, 4, 0.18);
   animation: rise 0.22s ease-out;
 }
 
@@ -90,8 +90,8 @@ input {
   font: inherit;
   font-size: 22px;
   color: var(--text);
-  background: rgba(31, 214, 224, 0.06);
-  border: 1px solid rgba(31, 214, 224, 0.45);
+  background: rgba(251, 231, 4, 0.06);
+  border: 1px solid rgba(251, 231, 4, 0.45);
   outline: none;
 }
 
@@ -121,7 +121,7 @@ button {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #050709;
+  color: #070707;
   background: var(--accent);
   border: none;
   cursor: pointer;
@@ -133,7 +133,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 button.ghost {
   color: var(--muted);
   background: transparent;
-  border: 1px solid rgba(138, 164, 171, 0.5);
+  border: 1px solid rgba(156, 155, 153, 0.5);
 }
 
 .tag {

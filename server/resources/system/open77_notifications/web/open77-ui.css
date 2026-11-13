@@ -25,11 +25,11 @@
   /* --- FIELD ---------------------------------------------------------------
      The night. Never pure black: on the site because black reads as a void,
      in-game because a black panel over a night street disappears. */
-  --op77-void:       #060a12;
-  --op77-bg:         #080e19;
-  --op77-bg-elev:    #0d1624;
-  --op77-surface:    #101b2b;
-  --op77-surface-2:  #132032;
+  --op77-void:       #0d0c0b;
+  --op77-bg:         #111110;
+  --op77-bg-elev:    #1a1917;
+  --op77-surface:    #1f1e1c;
+  --op77-surface-2:  #242321;
 
   /* IN-GAME: panel fills drawn over live gameplay.
      The site can use flat opaque surfaces because nothing moves behind them.
@@ -37,38 +37,38 @@
      black alley, so its backing must stay opaque enough to hold text at either
      extreme. 0.94 is the floor for anything carrying words; use --op77-panel
      for read-me-now surfaces and --op77-panel-quiet only for decoration. */
-  --op77-panel:        rgba(10, 18, 32, 0.94);
-  --op77-panel-raised: rgba(16, 27, 43, 0.96);
-  --op77-panel-quiet:  rgba(10, 18, 32, 0.78);
-  --op77-scrim:        rgba(3, 7, 13, 0.72);
+  --op77-panel:        rgba(22, 22, 20, 0.94);
+  --op77-panel-raised: rgba(31, 30, 28, 0.96);
+  --op77-panel-quiet:  rgba(22, 22, 20, 0.78);
+  --op77-scrim:        rgba(8, 8, 8, 0.72);
 
   /* --- LINES ---------------------------------------------------------------
      Blue-gray hairlines, never cyan. Depth comes from borders, not shadows. */
-  --op77-line:        rgba(174, 211, 224, 0.10);
-  --op77-line-strong: rgba(174, 211, 224, 0.19);
+  --op77-line:        rgba(202, 200, 196, 0.10);
+  --op77-line-strong: rgba(202, 200, 196, 0.19);
   /* IN-GAME: a 10%-alpha hairline vanishes against a bright frame. Panel
      outlines that must survive any backdrop use --op77-line-hud. */
-  --op77-line-hud:    rgba(174, 211, 224, 0.30);
+  --op77-line-hud:    rgba(202, 200, 196, 0.30);
 
   /* --- INK -----------------------------------------------------------------
-     Contrast measured against --op77-surface #101b2b:
+     Contrast measured against --op77-surface #1f1e1c:
        text       16.2:1   body and headings, any size
        text-dim    6.2:1   secondary copy, passes AA at any size
        text-faint  3.6:1   decoration and disabled only - never body copy */
-  --op77-text:       #f2f6f8;
-  --op77-text-dim:   #8d99a8;
-  --op77-text-faint: rgba(141, 153, 168, 0.72);
-  --op77-ink:        #071013;  /* text ON an accent fill - never white */
+  --op77-text:       #f5f5f5;
+  --op77-text-dim:   #9c9b99;
+  --op77-text-faint: rgba(156, 155, 153, 0.72);
+  --op77-ink:        #0e0d0c;  /* text ON an accent fill - never white */
 
   /* --- SIGNAL --------------------------------------------------------------
      One chromatic family with depth. Cyan = platform / active / connected.
      Coral = live / full / featured / new - semantic only, never a CTA.
      Budget: if a viewport shows more than ~3 cyan elements, remove some. */
-  --op77-accent:       #22d8e2;   /* OPEN Electric - CTAs, links, active state */
-  --op77-accent-ice:   #70f3f5;   /* OPEN Ice - brand mark and hover peaks     */
-  --op77-accent-deep:  #18c8d4;   /* OPEN Deep - second signal channel         */
-  --op77-accent-soft:  rgba(34, 216, 226, 0.12);
-  --op77-accent-line:  rgba(34, 216, 226, 0.45);
+  --op77-accent:       #fbe709;   /* OPEN Electric - CTAs, links, active state */
+  --op77-accent-ice:   #fdf068;   /* OPEN Ice - brand mark and hover peaks     */
+  --op77-accent-deep:  #e8d504;   /* OPEN Deep - second signal channel         */
+  --op77-accent-soft:  rgba(251, 231, 9, 0.12);
+  --op77-accent-line:  rgba(251, 231, 9, 0.45);
   --op77-signal:       #ff5964;   /* coral - live / full / featured / new      */
   --op77-danger:       #ff5c5c;   /* errors, destructive, offline              */
 
@@ -77,11 +77,11 @@
      are the only colours here with no website counterpart; they are tuned to
      sit in the same cold family rather than borrowing the game's own palette. */
   --op77-ok:   #4fe3a9;
-  --op77-warn: #f5c95c;
+  --op77-warn: #f59e5c;
 
   /* Reserved for live things only - status dots, a running counter, an active
      nav state. Never on static decoration. */
-  --op77-glow: 0 0 24px rgba(34, 216, 226, 0.25);
+  --op77-glow: 0 0 24px rgba(251, 231, 9, 0.25);
 
   /* --- TYPE ----------------------------------------------------------------
      The website self-hosts Rajdhani / Saira / IBM Plex Mono through next/font.

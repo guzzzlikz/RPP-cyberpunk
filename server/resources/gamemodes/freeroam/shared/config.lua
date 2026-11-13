@@ -9,7 +9,7 @@ FreeroamConfig = {
     welcome = {
         enabled = true,
         text = "Welcome to freeroam — /freeroam.help lists the commands.",
-        color = { 0, 229, 255 },
+        color = { 252, 238, 10 },
     },
 
     spawn = {
@@ -246,17 +246,17 @@ FreeroamConfig = {
         theme = {
             background = "#0b0e14",               -- --o-ink-900 (--surface-app)
             terrain = "#12161f",                  -- --o-ink-700
-            terrainGrid = "#22d8e2",              -- --o-cyan-500
+            terrainGrid = "#fcee0a",              -- --o-cyan-500
             water = "#05070b",                    -- --o-black (--surface-inset)
             waterLine = "#3d7f85",                -- --o-teal-muted
             road = "#2a313e",                     -- --o-ink-400
-            roadEdge = "#22d8e2",                 -- --o-cyan-500
+            roadEdge = "#fcee0a",                 -- --o-cyan-500
             metro = "#0b7f87",                    -- --o-cyan-700
             building = "#3a4250",                 -- --o-ink-300
             buildingTop = "#5a6472",              -- --o-ink-200
-            buildingEdge = "#22d8e2",             -- --o-cyan-500
-            landmark = "#4ee6ee",                 -- --o-cyan-400
-            accent = "#22d8e2",                   -- --o-cyan-500 (--text-accent)
+            buildingEdge = "#fcee0a",             -- --o-cyan-500
+            landmark = "#fcec40",                 -- --o-cyan-400
+            accent = "#fcee0a",                   -- --o-cyan-500 (--text-accent)
             accentSoft = "rgba(34, 216, 226, 0.35)", -- --glow-accent-soft
             text = "#e6eaec",                     -- --text-primary
             textDim = "#8a94a2",                  -- --text-secondary
@@ -265,9 +265,9 @@ FreeroamConfig = {
         },
         -- The legend (replaces the map's own list).
         categories = {
-            { id = "destination", label = "Destinations", icon = "flag", color = "#22d8e2" },
+            { id = "destination", label = "Destinations", icon = "flag", color = "#fcee0a" },
             { id = "spawn", label = "Spawn points", icon = "star", color = "#2be58b" },
-            { id = "player", label = "Players", icon = "user", color = "#4ee6ee" },
+            { id = "player", label = "Players", icon = "user", color = "#fcec40" },
             { id = "default", label = "Other", icon = "pin" },
         },
         -- Category of each mirrored blip (its icon and colour come from the row).

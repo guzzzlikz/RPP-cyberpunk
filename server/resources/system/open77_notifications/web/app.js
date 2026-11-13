@@ -6,7 +6,7 @@
   const toasts = new Map();
   // Fallback is the OPEN//77 brand accent (see web/open77-ui.css --op77-accent),
   // so an unstyled toast still reads as part of the platform.
-  const safeColor = value => /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#22D8E2";
+  const safeColor = value => /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : "#FCEE0A";
 
   // The `//` eyebrow. Every Open77 surface labels itself in mono micro-type
   // before it says anything else; a toast names the kind of event it is.

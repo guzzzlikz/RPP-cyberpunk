@@ -176,7 +176,7 @@ function View:send(topic, payload)
         end
     elseif topic == 'pause:branding' then
         local accent = payload.accentColor
-        self.accent = type(accent) == 'string' and accent:match('^#%x%x%x%x%x%x$') and accent or '#22D8E2'
+        self.accent = type(accent) == 'string' and accent:match('^#%x%x%x%x%x%x$') and accent or '#FCEE0A'
         local source = payload.logo or table.concat(payload.logoChunks or {})
         if source ~= self.logo then
             self.logo, self.logoReady = source, false
@@ -715,7 +715,7 @@ end
 function Open77NativePause.new(transport)
     local view={transport=transport,clock=GetGameTimer or function() return 0 end,handlers={},strings=PauseStrings or {},state={},tabs={},sections={},done=true,
         page='main',open=false,generation=0,revision=0,scroll=0,filter='',focus='resume',typing=false,
-        accent='#22D8E2',logo='',logoReady=false,addresses=false,knownAddresses={},note='',error='',controls={},focusables={},ids={},nextId=0,dirty=true}
+        accent='#FCEE0A',logo='',logoReady=false,addresses=false,knownAddresses={},note='',error='',controls={},focusables={},ids={},nextId=0,dirty=true}
     -- The resource sandbox deliberately removes setmetatable/getmetatable.
     -- This private presenter needs only bound methods, no metatable capability.
     for name,method in pairs(View) do view[name]=method end

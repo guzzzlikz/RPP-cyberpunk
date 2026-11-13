@@ -1,7 +1,7 @@
 <rml>
 <head>
     <title>Open//77 Freeroam HUD</title>
-    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="open77-yellow.rcss"/>
     <link type="text/rcss" href="hud.rcss"/>
 </head>
 <body data-model="hud">
@@ -25,18 +25,49 @@
                 <div class="wb-reload"><div class="wb-reload-bar"></div></div>
             </div>
         </div>
+        <!-- RPP sci-fi vitals: a chamfered readout block, a bracketed segmented bar
+             with a damage trail, a sweeping scan line and a ruler underneath -->
         <div id="vitals" data-class-critical="critical" data-class-hurt="hurt">
             <div class="vb-badge">
-                <path class="vb-cross" view-box="0 0 10 10" d="M3.6 0.8H6.4V3.6H9.2V6.4H6.4V9.2H3.6V6.4H0.8V3.6H3.6Z"/>
+                <div class="vb-badge-top">
+                    <path class="vb-cross" view-box="0 0 10 10" d="M3.6 0.8H6.4V3.6H9.2V6.4H6.4V9.2H3.6V6.4H0.8V3.6H3.6Z"/>
+                    <span class="vb-badge-tag">HP</span>
+                </div>
                 <span class="vb-hp">{{hp}}</span>
             </div>
             <div class="vb-bars">
-                <div class="vb-armor" data-class-on="armor > 0"><div class="vb-armor-fill" data-style-width="armorPct + '%'"></div></div>
-                <div class="vb-health">
-                    <div class="vb-ghost" data-style-width="hpGhost + '%'"></div>
-                    <div class="vb-fill" data-style-width="hpPct + '%'"><div class="vb-tip"></div></div>
+                <div class="vb-head">
+                    <span class="vb-slash">//</span>
+                    <span class="vb-title">BIOMONITOR</span>
+                    <span class="vb-state">SYS.OK</span>
+                    <span class="vb-crit">CRITICAL</span>
+                    <span class="grow"></span>
+                    <span class="vb-max">{{hp}}<span class="vb-max-of"> / {{hpMax}}</span></span>
                 </div>
-                <div class="vb-stamina"><div class="vb-sta-fill" data-style-width="staPct + '%'" data-class-low="25 > staPct"></div></div>
+                <div class="vb-armor" data-class-on="armor > 0"><div class="vb-armor-fill" data-style-width="armorPct + '%'"></div></div>
+                <div class="vb-frame">
+                    <div class="vb-health">
+                        <div class="vb-ghost" data-style-width="hpGhost + '%'"></div>
+                        <div class="vb-fill" data-style-width="hpPct + '%'"><div class="vb-tip"></div></div>
+                        <div class="vb-ticks">
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <div class="vb-scan"></div>
+                    </div>
+                    <div class="vb-corner vb-tl"></div><div class="vb-corner vb-tr"></div>
+                    <div class="vb-corner vb-bl"></div><div class="vb-corner vb-br"></div>
+                </div>
+                <div class="vb-foot">
+                    <div class="vb-stamina"><div class="vb-sta-fill" data-style-width="staPct + '%'" data-class-low="25 > staPct"></div></div>
+                    <span class="vb-sta-tag">STA</span>
+                    <div class="vb-ruler">
+                        <span></span><span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
             </div>
             <span class="vb-armor-value" data-if="armor > 0">{{armor}}</span>
         </div>

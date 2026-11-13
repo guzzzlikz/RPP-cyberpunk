@@ -10,8 +10,8 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #05070a;
-  color: #d8e2ea;
+  background: #080807;
+  color: #e2e2e0;
   font-family: "Segoe UI", "Noto Sans", system-ui, sans-serif;
 }
 
@@ -55,7 +55,7 @@ video.media { object-fit: contain; }
   display: none;
   align-items: center;
   justify-content: center;
-  background: #05070a;
+  background: #080807;
 }
 .idle.on { display: flex; }
 
@@ -68,7 +68,7 @@ video.media { object-fit: contain; }
 .bar { flex: 1 1 0; opacity: 0.9; }
 .b1 { background: #c0c0c0; }  /* white        */
 .b2 { background: #c0c000; }  /* yellow       */
-.b3 { background: #00c0c0; }  /* cyan         */
+.b3 { background: #bdae03; }  /* cyan         */
 .b4 { background: #00c000; }  /* green        */
 .b5 { background: #c000c0; }  /* magenta      */
 .b6 { background: #c00000; }  /* red          */
@@ -81,9 +81,9 @@ video.media { object-fit: contain; }
   width: 100%;
   padding: 3.5% 4%;
   text-align: center;
-  background: rgba(5, 7, 10, 0.82);
-  border-top: 1px solid rgba(216, 226, 234, 0.18);
-  border-bottom: 1px solid rgba(216, 226, 234, 0.18);
+  background: rgba(8, 8, 7, 0.82);
+  border-top: 1px solid rgba(226, 226, 224, 0.18);
+  border-bottom: 1px solid rgba(226, 226, 224, 0.18);
 }
 .idle-label {
   font-size: 4.2vmin;
@@ -94,7 +94,7 @@ video.media { object-fit: contain; }
 .idle-detail {
   margin-top: 0.9vmin;
   font-size: 2.4vmin;
-  color: #8fa3b4;
+  color: #a3a3a0;
 }
 
 /* ---------------------------------------------------------------------------
@@ -133,8 +133,8 @@ video.media { object-fit: contain; }
   flex-direction: column;
   gap: 1.1vmin;
   padding: 1.8vmin 2.4vmin;
-  background: linear-gradient(to top, rgba(5, 7, 10, 0.94), rgba(5, 7, 10, 0.72));
-  border-top: 1px solid rgba(216, 226, 234, 0.16);
+  background: linear-gradient(to top, rgba(8, 8, 7, 0.94), rgba(8, 8, 7, 0.72));
+  border-top: 1px solid rgba(226, 226, 224, 0.16);
 }
 .controls[hidden] { display: none; }
 
@@ -151,14 +151,14 @@ video.media { object-fit: contain; }
   min-width: 6vmin;
   padding: 1vmin 1.6vmin;
   font-size: 2.1vmin;
-  color: #d8e2ea;
-  background: rgba(216, 226, 234, 0.10);
-  border: 1px solid rgba(216, 226, 234, 0.22);
+  color: #e2e2e0;
+  background: rgba(226, 226, 224, 0.10);
+  border: 1px solid rgba(226, 226, 224, 0.22);
   border-radius: 0.5vmin;
   cursor: pointer;
 }
-.button:hover { background: rgba(216, 226, 234, 0.18); }
-.button:active { background: rgba(216, 226, 234, 0.26); }
+.button:hover { background: rgba(226, 226, 224, 0.18); }
+.button:active { background: rgba(226, 226, 224, 0.26); }
 
 .seek-wrap { flex: 1 1 auto; position: relative; height: 1.6vmin; }
 .seek {
@@ -176,17 +176,17 @@ video.media { object-fit: contain; }
   top: 50%;
   height: 0.5vmin;
   transform: translateY(-50%);
-  background: #f0b429;
+  background: #f07f29;
   pointer-events: none;
 }
-.seek { border-bottom: 0.5vmin solid rgba(216, 226, 234, 0.22); }
+.seek { border-bottom: 0.5vmin solid rgba(226, 226, 224, 0.22); }
 
 .time,
 .volume-text {
   flex: 0 0 auto;
   min-width: 14vmin;
   font-size: 1.9vmin;
-  color: #8fa3b4;
+  color: #a3a3a0;
   font-variant-numeric: tabular-nums;
 }
 
@@ -196,13 +196,13 @@ video.media { object-fit: contain; }
   flex: 1 1 auto;
   padding: 1vmin 1.4vmin;
   font-size: 2vmin;
-  color: #d8e2ea;
-  background: rgba(5, 7, 10, 0.7);
-  border: 1px solid rgba(216, 226, 234, 0.22);
+  color: #e2e2e0;
+  background: rgba(8, 8, 7, 0.7);
+  border: 1px solid rgba(226, 226, 224, 0.22);
   border-radius: 0.5vmin;
 }
-.url:focus { outline: none; border-color: #f0b429; }
-.go { background: rgba(240, 180, 41, 0.22); border-color: rgba(240, 180, 41, 0.5); }
+.url:focus { outline: none; border-color: #f07f29; }
+.go { background: rgba(240, 127, 41, 0.22); border-color: rgba(240, 127, 41, 0.5); }
 
 /* ---------------------------------------------------------------------------
    The panel's frame: the borderline a record declares.
@@ -374,7 +374,7 @@ video.media { object-fit: contain; }
   color: #f4e3bd;
   text-shadow:
     0 0 2vmin rgba(0, 0, 0, 0.95),
-    0 0 7vmin rgba(240, 180, 41, 0.45);
+    0 0 7vmin rgba(240, 127, 41, 0.45);
 }
 .curtain-countdown:empty { opacity: 0; }
 
@@ -409,10 +409,10 @@ video.media { object-fit: contain; }
   pointer-events: none;
   background: conic-gradient(
     from 0deg at 50% 62%,
-    rgba(240, 180, 41, 0.85), rgba(200, 16, 46, 0.85) 12%,
-    rgba(60, 220, 230, 0.85) 26%, rgba(120, 70, 255, 0.85) 40%,
-    rgba(240, 180, 41, 0.85) 55%, rgba(200, 16, 46, 0.85) 70%,
-    rgba(60, 220, 230, 0.85) 84%, rgba(240, 180, 41, 0.85));
+    rgba(240, 127, 41, 0.85), rgba(200, 16, 46, 0.85) 12%,
+    rgba(252, 234, 38, 0.85) 26%, rgba(120, 70, 255, 0.85) 40%,
+    rgba(240, 127, 41, 0.85) 55%, rgba(200, 16, 46, 0.85) 70%,
+    rgba(252, 234, 38, 0.85) 84%, rgba(240, 127, 41, 0.85));
   mix-blend-mode: screen;
 }
 @keyframes curtain-flare {

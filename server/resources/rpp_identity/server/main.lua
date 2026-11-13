@@ -9,7 +9,8 @@ local stage = {}       -- [playerId] = nil | "appearance" | "name"
 local created = {}     -- [playerId] = true, если персонаж создан в редакторе в этой сессии
 local offers = {}      -- [targetId] = { [fromId] = expiresAt }
 local lastIntroduce = {} -- [playerId] = monotonic seconds
-local dbReady = false
+local loading = {}     -- [playerId] = true, пока паспорт читается из базы
+local dbReady = false  -- true, если работает MySQL (без неё нет редактора внешности)
 
 local function log(text) print("[" .. RESOURCE .. "] " .. text) end
 local function now() return Open77.time.monotonic() end
@@ -36,11 +37,23 @@ local function fullName(citizen) return citizen.first .. " " .. citizen.last end
 -- ---------------------------------------------------------------------------
 -- Игроки онлайн
 -- ---------------------------------------------------------------------------
+-- Читает паспорт из хранилища. Ждёт базу: только внутри CreateThread.
 local function load(playerId)
+    if not playerId then return nil end
+    while loading[playerId] do Wait(20) end
     if online[playerId] then return online[playerId] end
     local guid = GetPlayerIdentifier(playerId)
     if guid == nil or guid == "" then return nil end
-    local entry = { guid = guid, citizen = RppStore.getCitizen(guid), known = RppStore.getKnown(guid) }
+    loading[playerId] = true
+    local ok, citizen, known = pcall(function()
+        return RppStore.getCitizen(guid), RppStore.getKnown(guid)
+    end)
+    loading[playerId] = nil
+    if not ok then
+        log("passport load failed for " .. tostring(playerId) .. ": " .. tostring(citizen))
+        return nil
+    end
+    local entry = { guid = guid, citizen = citizen, known = known }
     online[playerId] = entry
     return entry
 end
@@ -141,11 +154,13 @@ end)
 
 RegisterNetEvent("rpp_identity:submitName", function(first, last)
     local player = source
+    CreateThread(function()
     local entry = online[player]
     if not entry then return end
     if entry.citizen then
         return TriggerClientEvent("rpp_identity:registered", player, entry.citizen)
     end
+    if stage[player] == "saving" then return end
     if stage[player] ~= "name" then
         return TriggerClientEvent("rpp_identity:nameRejected", player, "form", "Сейчас нельзя ввести имя.")
     end
@@ -158,17 +173,14 @@ RegisterNetEvent("rpp_identity:submitName", function(first, last)
         return TriggerClientEvent("rpp_identity:nameRejected", player, "last", RppNames.errorText(lastError))
     end
 
-    local id, idError = RppStore.nextCitizenId()
-    if not id then
-        log("citizen id allocation failed: " .. tostring(idError))
-        return TriggerClientEvent("rpp_identity:nameRejected", player, "form", "Ошибка сервера. Попробуйте ещё раз.")
-    end
-    local citizen = { id = id, first = cleanFirst, last = cleanLast }
-    local saved, saveError = RppStore.saveCitizen(entry.guid, citizen)
-    if not saved then
+    stage[player] = "saving" -- двойной клик «Подтвердить» не создаст два паспорта
+    local citizen, saveError = RppStore.createCitizen(entry.guid, cleanFirst, cleanLast)
+    if not citizen then
+        stage[player] = "name"
         log("citizen save failed: " .. tostring(saveError))
         return TriggerClientEvent("rpp_identity:nameRejected", player, "form", "Ошибка сервера. Попробуйте ещё раз.")
     end
+    local id = citizen.id
     entry.citizen = citizen
     stage[player] = nil
     log(("player %s registered as %s (%s)"):format(tostring(player), RppNames.citizenTag(id), fullName(citizen)))
@@ -176,6 +188,7 @@ RegisterNetEvent("rpp_identity:submitName", function(first, last)
     pushSelf(player)
     pushAll()
     TriggerEvent("rpp_identity:registered", player, citizen)
+    end)
 end)
 
 -- ---------------------------------------------------------------------------
@@ -197,8 +210,8 @@ local function makeKnown(a, b)
     local ea, eb = online[a], online[b]
     ea.known[eb.guid] = true
     eb.known[ea.guid] = true
-    RppStore.saveKnown(ea.guid, ea.known)
-    RppStore.saveKnown(eb.guid, eb.known)
+    RppStore.addKnown(ea.guid, eb.guid, ea.known)
+    RppStore.addKnown(eb.guid, ea.guid, eb.known)
     if offers[a] then offers[a][b] = nil end
     if offers[b] then offers[b][a] = nil end
     pushLabels(a)
@@ -246,8 +259,10 @@ RegisterNetEvent("rpp_identity:introduce", function(target)
     local t = now()
     if lastIntroduce[player] and t - lastIntroduce[player] < cfg.introduceCooldownSeconds then return end
     lastIntroduce[player] = t
-    local ok, message = introduce(player, target)
-    if not ok then notify(player, "warning", message, "Знакомство") end
+    CreateThread(function()
+        local ok, message = introduce(player, target)
+        if not ok then notify(player, "warning", message, "Знакомство") end
+    end)
 end)
 
 local function latestOffer(player)
@@ -266,6 +281,7 @@ end
 RegisterCommand("passport", function(player, _, raw)
     player = tonumber(player)
     if not player or player <= 0 then return reply(player, raw, false, "passport is a player command") end
+    CreateThread(function()
     local entry = load(player)
     if not entry or not entry.citizen then
         return reply(player, raw, false, "У вас нет паспорта. Введите /register")
@@ -275,13 +291,16 @@ RegisterCommand("passport", function(player, _, raw)
     local text = ("%s — %s. Знакомых: %d"):format(RppNames.citizenTag(entry.citizen.id), fullName(entry.citizen), count)
     chat(player, text)
     reply(player, raw, true, text)
+    end)
 end, false)
 
 RegisterCommand("register", function(player, _, raw)
     player = tonumber(player)
     if not player or player <= 0 then return reply(player, raw, false, "register is a player command") end
-    local ok, message = startRegistration(player)
-    reply(player, raw, ok, message or "Регистрация открыта.")
+    CreateThread(function()
+        local ok, message = startRegistration(player)
+        reply(player, raw, ok, message or "Регистрация открыта.")
+    end)
 end, false)
 
 RegisterCommand("accept", function(player, _, raw)
@@ -289,8 +308,10 @@ RegisterCommand("accept", function(player, _, raw)
     if not player or player <= 0 then return reply(player, raw, false, "accept is a player command") end
     local from = latestOffer(player)
     if not from then return reply(player, raw, false, "Нет активных предложений знакомства.") end
-    local ok, message = introduce(player, from)
-    reply(player, raw, ok, message or "Знакомство принято.")
+    CreateThread(function()
+        local ok, message = introduce(player, from)
+        reply(player, raw, ok, message or "Знакомство принято.")
+    end)
 end, false)
 
 RegisterCommand("decline", function(player, _, raw)
@@ -311,6 +332,7 @@ end, false)
 -- Админ: сбросить паспорт игрока (он пройдёт регистрацию заново).
 -- Ограниченная команда: нужен `command.rpp.identity.reset` в acl.jsonc.
 RegisterCommand("rpp.identity.reset", function(player, args, raw)
+    CreateThread(function()
     local target = tonumber(args[1])
     local entry = target and load(target)
     if not entry then return reply(tonumber(player), raw, false, "Использование: rpp.identity.reset <playerId>") end
@@ -323,11 +345,13 @@ RegisterCommand("rpp.identity.reset", function(player, args, raw)
     notify(target, "warning", "Администратор сбросил ваш паспорт. Пройдите регистрацию заново.")
     startRegistration(target)
     reply(tonumber(player), raw, true, ("Паспорт игрока %d сброшен."):format(target))
+    end)
 end, true)
 
 -- Админ: кто скрывается за номером (аккаунт <-> паспорт).
 -- Ограниченная команда: нужен `command.rpp.identity.info` в acl.jsonc.
 RegisterCommand("rpp.identity.info", function(player, args, raw)
+    CreateThread(function()
     local target = tonumber(args[1])
     local entry = target and load(target)
     if not entry then return reply(tonumber(player), raw, false, "Использование: rpp.identity.info <playerId>") end
@@ -337,6 +361,7 @@ RegisterCommand("rpp.identity.info", function(player, args, raw)
         or ("Игрок %d (%s): паспорта нет"):format(target, tostring(account))
     if tonumber(player) and tonumber(player) > 0 then chat(tonumber(player), text) end
     reply(tonumber(player), raw, true, text)
+    end)
 end, true)
 
 RegisterNetEvent("chat:ready", function()
@@ -354,20 +379,23 @@ end)
 -- Клиент загрузил ресурс (подключение или перезагрузка ресурса).
 RegisterNetEvent("rpp_identity:hello", function()
     local player = source
-    if not load(player) then return end
-    pushSelf(player)
-    pushAll()
+    CreateThread(function()
+        if not load(player) then return end
+        pushSelf(player)
+        pushAll()
+    end)
 end)
 
 AddEventHandler("onPlayerConnected", function(playerIdStr)
     local player = tonumber(playerIdStr)
-    if player and player > 0 then load(player) end
+    if player and player > 0 then CreateThread(function() load(player) end) end
 end)
 
 AddEventHandler("onPlayerDisconnected", function(playerIdStr)
     local player = tonumber(playerIdStr)
     if not player then return end
     online[player], stage[player], created[player], lastIntroduce[player] = nil, nil, nil, nil
+    loading[player] = nil
     offers[player] = nil
     for _, list in pairs(offers) do list[player] = nil end
     pushAll()
@@ -383,23 +411,14 @@ exports("areAcquainted", function(a, b)
     return ea ~= nil and eb ~= nil and ea.known[eb.guid] == true
 end)
 
--- Проверка MySQL: без неё open77_appearance не открывает редактор
--- (beginEdit -> database_unavailable), и кастомизация пропускается.
--- `MySQL` существует при праве database.access даже без базы, поэтому
--- проверяем настоящим запросом.
+-- Хранилище: MySQL, если база работает, иначе kvp (server/storage.lua).
+-- Без MySQL open77_appearance не открывает редактор (beginEdit ->
+-- database_unavailable), и шаг кастомизации пропускается.
+-- Затем подхватываем уже подключённых (перезагрузка ресурса на живом сервере).
 CreateThread(function()
-    if MySQL == nil then
-        log("no database.access; customization step disabled")
-        return
-    end
-    local ok, err = pcall(function() return MySQL.single.await("SELECT 1 AS ok") end)
-    dbReady = ok
-    log(ok and "MySQL available: customization before name is enabled"
-        or ("MySQL unavailable, customization step skipped: " .. tostring(err)))
-end)
-
--- Перезагрузка ресурса на живом сервере: подхватить уже подключённых.
-CreateThread(function()
+    dbReady = RppStore.init() == "mysql"
+    log(dbReady and "MySQL available: customization before name is enabled"
+        or "MySQL unavailable: customization step skipped")
     local ok, players = pcall(Open77.players.all)
     if ok and type(players) == "table" then
         for _, player in ipairs(players) do load(tonumber(player)) end

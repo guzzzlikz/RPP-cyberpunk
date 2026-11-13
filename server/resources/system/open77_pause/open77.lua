@@ -15,7 +15,7 @@ client_script "client/web_audio.lua"
 client_script "client/icons.lua"
 client_script "client/ui.lua"
 client_script "client/main.lua"
-files { "assets/**", "ui/pause.rml", "ui/pause.rcss", "ui/open77-wordmark.png" }
+files { "assets/**", "ui/pause.rml", "ui/pause.rcss", "ui/open77-wordmark.png", "ui/open77-yellow.rcss" }
 -- network.client is read-only here in practice: the pause menu polls the
 -- session snapshot for its info card and calls disconnect() for Quit Session.
 permissions {

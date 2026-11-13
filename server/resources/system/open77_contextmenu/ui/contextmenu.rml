@@ -1,7 +1,7 @@
 <rml>
 <head>
     <title>Open//77 Target actions</title>
-    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="open77-yellow.rcss"/>
     <link type="text/rcss" href="contextmenu.rcss"/>
 </head>
 <!-- The ALT context menu on NativeUI. client/ui.lua owns every decision and every

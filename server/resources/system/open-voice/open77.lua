@@ -14,7 +14,7 @@ client_script "client/ui.lua"
 client_script "client/main.lua"
 
 -- the HUD is a NativeUI document
-files { "ui/voice.rml", "ui/voice.rcss" }
+files { "ui/voice.rml", "ui/voice.rcss", "ui/open77-yellow.rcss" }
 
 -- open77_voice remains the sole PTT/VAD/audio driver. This companion owns
 -- only server-authoritative reach presets, its F11 request edge, and HUD.

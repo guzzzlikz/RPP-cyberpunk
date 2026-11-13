@@ -4,7 +4,7 @@ local draft,last,zone,page,ready,open,sourceText=nil,nil,nil,nil,false,false,''
 local draftPreview=false
 local function notice(text,ok)
     print('[polyzone] '..tostring(text))
-    TriggerEvent('chat:addMessage',{author='PolyZone',text=tostring(text),color=ok and {34,216,226} or {255,180,90}})
+    TriggerEvent('chat:addMessage',{author='PolyZone',text=tostring(text),color=ok and { 252, 238, 10 } or {255,180,90}})
     if page and ready then page:send('polyzone:notice',{text=tostring(text),ok=ok}) end
 end
 RegisterNetEvent('polyzone:notice',notice)

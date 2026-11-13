@@ -10,7 +10,7 @@ button { cursor: pointer; color: var(--text-primary); background: var(--surface-
 button:hover { background: var(--surface-panel-hover); border-color: var(--o-ink-100); }
 button:disabled { opacity: .45; cursor: default; }
 button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--o-cyan-500); outline-offset: 2px; }
-.panel { position: fixed; width: min(1080px, calc(100vw - 64px)); max-height: calc(100vh - 64px); left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(11,14,20,.98); border: 1px solid var(--line-strong); box-shadow: var(--shadow-overlay); pointer-events: auto; display: flex; flex-direction: column; clip-path: var(--cut-lg); }
+.panel { position: fixed; width: min(1080px, calc(100vw - 64px)); max-height: calc(100vh - 64px); left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(16, 16, 15,.98); border: 1px solid var(--line-strong); box-shadow: var(--shadow-overlay); pointer-events: auto; display: flex; flex-direction: column; clip-path: var(--cut-lg); }
 .bar { padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid var(--o-cyan-500); }
 .brand { font: 700 22px/1 var(--font-display); letter-spacing: .04em; white-space: nowrap; }
 .brand span { color: var(--o-cyan-500); margin: 0 3px; }

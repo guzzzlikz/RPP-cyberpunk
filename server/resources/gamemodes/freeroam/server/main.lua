@@ -37,7 +37,7 @@ local function announce(target, text, color)
         type = "system",
         author = "FREEROAM",
         text = text,
-        color = color or { 0, 229, 255 },
+        color = color or { 252, 238, 10 },
     })
 end
 

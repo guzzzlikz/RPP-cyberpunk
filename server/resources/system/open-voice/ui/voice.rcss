@@ -4,7 +4,7 @@
    The range colour comes from the server (data-style bindings).
    1 dp = 1 px of the 1080p reference. */
 
-body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; color: #e6eaec; }
+body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; color: #e9e9e9; }
 .grow { flex: 1 1 auto; }
 
 /* one eye at the centre of the screen: the line is turned toward it, like the HUD wings */
@@ -22,7 +22,7 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
 /* ready = the first payload arrived; shown = visible and no menu holds the cursor */
 #voice.ready { transform: rotateY(-18deg); }
 #voice.ready.shown { opacity: 1; }
-#voice.offline { color: #8a94a2; }
+#voice.offline { color: #979795; }
 
 /* ---- error: a red strip above the line ---------------------------------------- */
 #error
@@ -40,17 +40,17 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
 /* ---- status row ----------------------------------------------------------------- */
 /* content-sized rows only: a percentage width inside the absolute, shrink-to-fit #voice resolves against the screen */
 #status { display: flex; flex-direction: row; align-items: center; align-self: flex-start; height: 14dp; margin-bottom: 5dp; }
-.st-dot { width: 5dp; height: 5dp; margin-right: 7dp; background-color: #8a94a2; transform: rotate(45deg); flex-shrink: 0; transition: background-color 0.12s linear-in-out; }
-.st-label { font-size: 10dp; letter-spacing: 0.22em; text-transform: uppercase; color: #a3adb9; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); transition: color 0.12s linear-in-out; }
-.st-mode { margin-left: 8dp; font-family: "Roboto Mono"; font-size: 10dp; color: #5a6472; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); }
-#voice.detected .st-dot { background-color: #22d8e2; }
-#voice.detected .st-label { color: #4ee6ee; }
+.st-dot { width: 5dp; height: 5dp; margin-right: 7dp; background-color: #979795; transform: rotate(45deg); flex-shrink: 0; transition: background-color 0.12s linear-in-out; }
+.st-label { font-size: 10dp; letter-spacing: 0.22em; text-transform: uppercase; color: #afafad; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); transition: color 0.12s linear-in-out; }
+.st-mode { margin-left: 8dp; font-family: "Roboto Mono"; font-size: 10dp; color: #676765; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); }
+#voice.detected .st-dot { background-color: #fbe709; }
+#voice.detected .st-label { color: #fcec40; }
 #voice.talking .st-dot { background-color: #2be58b; filter: glow(5dp #2be58b 1); }
 #voice.talking .st-label { color: #2be58b; }
 #voice.muted .st-dot { background-color: #ff3b4e; }
 #voice.muted .st-label { color: #ff6b7a; }
-#voice.offline .st-dot { background-color: #4c5563; }
-#voice.offline .st-label { color: #5a6472; }
+#voice.offline .st-dot { background-color: #595856; }
+#voice.offline .st-label { color: #676765; }
 
 /* heard: a beating dot and a count, only while someone is heard */
 #heard { display: flex; flex-direction: row; align-items: center; margin-left: 12dp; opacity: 0; transform: translateX(10dp); transition: opacity 0.2s cubic-out, transform 0.35s back-out; }
@@ -58,8 +58,8 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
 .hd-dot { width: 6dp; height: 6dp; margin-right: 6dp; border-radius: 3dp; background-color: #2be58b; filter: glow(5dp #2be58b 1); flex-shrink: 0; }
 #heard.on .hd-dot { animation: 1.1s sine-in-out infinite vo-beat; }
 @keyframes vo-beat { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } 100% { opacity: 1; transform: scale(1); } }
-.hd-count { font-size: 12dp; color: #f7f9fb; font-effect: shadow(0dp 1dp #000000); }
-.hd-label { margin-left: 5dp; font-size: 10dp; letter-spacing: 0.22em; color: #8a94a2; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); }
+.hd-count { font-size: 12dp; color: #f9f9f9; font-effect: shadow(0dp 1dp #000000); }
+.hd-label { margin-left: 5dp; font-size: 10dp; letter-spacing: 0.22em; color: #979795; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); }
 
 /* ---- the line -------------------------------------------------------------------- */
 #line { display: flex; flex-direction: row; align-items: center; height: 34dp; }
@@ -70,8 +70,8 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
 {
     position: absolute; left: 0; top: 0; right: 0; bottom: 0;
     display: flex; flex-direction: row; align-items: center; justify-content: center;
-    background-color: #0b0e1499;
-    border-width: 1dp; border-color: #8a94a266;
+    background-color: #10100f99;
+    border-width: 1dp; border-color: #97979566;
     transform: skewX(-14deg);
     transition: background-color 0.12s linear-in-out, border-color 0.12s linear-in-out;
 }
@@ -79,7 +79,7 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
 {
     position: absolute; left: 7dp; top: 3dp; width: 22dp; height: 22dp;
     transform: skewX(14deg);
-    stroke: #a3adb9; stroke-width: 1.8dp; stroke-linecap: round; stroke-linejoin: round; fill: transparent;
+    stroke: #afafad; stroke-width: 1.8dp; stroke-linecap: round; stroke-linejoin: round; fill: transparent;
     transition: stroke 0.12s linear-in-out;
 }
 .mic-slash { stroke: #ff3b4e; stroke-width: 2.2dp; visibility: hidden; }
@@ -90,8 +90,8 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
     transform: skewX(-14deg);
     opacity: 0;
 }
-#voice.detected .mic-badge { border-color: #22d8e2aa; background-color: #22d8e21f; }
-#voice.detected .mic-glyph { stroke: #4ee6ee; }
+#voice.detected .mic-badge { border-color: #fbe709aa; background-color: #fbe7091f; }
+#voice.detected .mic-glyph { stroke: #fcec40; }
 #voice.talking .mic-badge { border-color: #2be58b; background-color: #2be58b; filter: glow(9dp #2be58b 0.9); }
 #voice.talking .mic-glyph { stroke: #04261a; }
 #voice.talking .mic-ring { animation: 1.2s cubic-out infinite vo-ring; }
@@ -99,28 +99,28 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
 #voice.muted .mic-badge { border-color: #ff3b4eaa; background-color: #ff3b4e1f; }
 #voice.muted .mic-glyph { stroke: #ff6b7a; }
 #voice.muted .mic-slash, #voice.offline .mic-slash { visibility: visible; }
-#voice.offline .mic-badge { border-color: #4c556366; background-color: #0b0e1466; }
-#voice.offline .mic-glyph { stroke: #4c5563; }
-#voice.offline .mic-slash { stroke: #4c5563; }
+#voice.offline .mic-badge { border-color: #59585666; background-color: #10100f66; }
+#voice.offline .mic-glyph { stroke: #595856; }
+#voice.offline .mic-slash { stroke: #595856; }
 
 /* input meter: twelve skewed segments in dark wells, the last two hot, the very last red */
 #meter { display: flex; flex-direction: row; align-items: flex-end; height: 18dp; margin-right: 12dp; flex-shrink: 0; transform: skewX(-14deg); }
-.seg { display: block; width: 5dp; height: 18dp; margin-right: 2dp; background-color: #0b0e1480; border-bottom-width: 1dp; border-bottom-color: #e6eaec33; flex-shrink: 0; }
-.seg.lit { background-color: #4ee6ee; border-bottom-color: #4ee6ee; }
-.seg.hot.lit { background-color: #ffb020; border-bottom-color: #ffb020; }
+.seg { display: block; width: 5dp; height: 18dp; margin-right: 2dp; background-color: #10100f80; border-bottom-width: 1dp; border-bottom-color: #e9e9e933; flex-shrink: 0; }
+.seg.lit { background-color: #fcec40; border-bottom-color: #fcec40; }
+.seg.hot.lit { background-color: #ff8120; border-bottom-color: #ff8120; }
 .seg.peak.lit { background-color: #ff3b4e; border-bottom-color: #ff3b4e; }
 #voice.talking .seg.lit { background-color: #2be58b; border-bottom-color: #2be58b; }
-#voice.talking .seg.hot.lit { background-color: #ffb020; border-bottom-color: #ffb020; }
+#voice.talking .seg.hot.lit { background-color: #ff8120; border-bottom-color: #ff8120; }
 #voice.talking .seg.peak.lit { background-color: #ff3b4e; border-bottom-color: #ff3b4e; }
 #voice.muted #meter, #voice.offline #meter { opacity: 0.4; }
 
 /* the range: label in its colour, distance, and one pip per preset up to the active one */
-#rule { width: 2dp; height: 26dp; margin-right: 10dp; flex-shrink: 0; transform: skewX(-14deg); background-color: #22d8e2; }
+#rule { width: 2dp; height: 26dp; margin-right: 10dp; flex-shrink: 0; transform: skewX(-14deg); background-color: #fbe709; }
 #range { display: flex; flex-direction: column; justify-content: center; margin-right: 12dp; }
-#range-label { font-size: 12dp; letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap; color: #22d8e2; font-effect: shadow(0dp 1dp #000000); }
+#range-label { font-size: 12dp; letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap; color: #fbe709; font-effect: shadow(0dp 1dp #000000); }
 #range-reach { display: flex; flex-direction: row; align-items: flex-end; height: 18dp; }
-#range-dist { font-size: 18dp; line-height: 18dp; color: #f7f9fb; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); }
-.range-unit { margin-left: 2dp; margin-right: 9dp; font-size: 10dp; line-height: 15dp; color: #8a94a2; font-effect: shadow(0dp 1dp #000000); }
+#range-dist { font-size: 18dp; line-height: 18dp; color: #f9f9f9; white-space: nowrap; font-effect: shadow(0dp 1dp #000000); }
+.range-unit { margin-left: 2dp; margin-right: 9dp; font-size: 10dp; line-height: 15dp; color: #979795; font-effect: shadow(0dp 1dp #000000); }
 #pips { display: flex; flex-direction: row; align-items: center; height: 15dp; transform: skewX(-14deg); }
 .pip { display: none; width: 9dp; height: 4dp; margin-right: 3dp; flex-shrink: 0; }
 .pip.used { display: block; }
@@ -130,10 +130,10 @@ body { pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; col
 #key
 {
     height: 20dp; padding: 0 6dp; flex-shrink: 0;
-    background-color: #0b0e1499;
-    border-width: 1dp; border-color: #e6eaec40; border-bottom-width: 2dp;
+    background-color: #10100f99;
+    border-width: 1dp; border-color: #e9e9e940; border-bottom-width: 2dp;
 }
-#key span { font-family: "Roboto Mono"; font-size: 10dp; line-height: 17dp; color: #c4ccd6; white-space: nowrap; }
+#key span { font-family: "Roboto Mono"; font-size: 10dp; line-height: 17dp; color: #cececc; white-space: nowrap; }
 
-#base { position: absolute; left: 0; right: 0; bottom: -6dp; height: 1dp; opacity: 0.35; background-color: #22d8e2; }
+#base { position: absolute; left: 0; right: 0; bottom: -6dp; height: 1dp; opacity: 0.35; background-color: #fbe709; }
 #voice.offline #base { opacity: 0.12; }

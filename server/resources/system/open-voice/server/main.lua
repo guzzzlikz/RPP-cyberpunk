@@ -54,7 +54,7 @@ for index, candidate in ipairs(raw.modes) do
     if not finite(distance) or distance < 0.5 or distance > 1000.0 then
         fail("mode " .. name .. " distance must be 0.5..1000")
     end
-    local color = candidate.color or "#22D8E2"
+    local color = candidate.color or "#FCEE0A"
     if not validColor(color) then fail("mode " .. name .. " has an invalid color") end
     local mode = {
         name = name,

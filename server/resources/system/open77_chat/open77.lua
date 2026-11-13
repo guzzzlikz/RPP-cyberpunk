@@ -8,6 +8,6 @@ client_script "client/native.lua"
 client_script "client/main.lua"
 server_script "server/main.lua"
 
-files { "ui/chat.rml", "ui/chat.rcss" }
+files { "ui/chat.rml", "ui/chat.rcss", "ui/open77-yellow.rcss", "ui/fonts/*.ttf" }
 
 permissions { "network.events", "local.events", "clipboard.write", "player.weapons.read" } -- shots kick the floating chat

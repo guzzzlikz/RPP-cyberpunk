@@ -1,7 +1,7 @@
 <rml>
 <head>
     <title>Open//77 freeroam roster</title>
-    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="open77-yellow.rcss"/>
     <link type="text/rcss" href="scoreboard.rcss"/>
 </head>
 <body>

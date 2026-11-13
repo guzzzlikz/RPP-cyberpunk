@@ -72,7 +72,7 @@ local function notify(kind, text)
         type = kind == "error" and "error" or "system",
         author = "APPEARANCE",
         text = tostring(text),
-        color = kind == "error" and { 255, 76, 92 } or { 0, 229, 255 }
+        color = kind == "error" and { 255, 76, 92 } or { 252, 238, 10 }
     })
 end
 

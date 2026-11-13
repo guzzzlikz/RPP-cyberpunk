@@ -14,7 +14,7 @@
 ContextMenuUi = {}
 local M = ContextMenuUi
 
-M.DEFAULT_ACCENT = "#18d6e7"
+M.DEFAULT_ACCENT = "#fcee0a"
 M.PANEL_WIDTH = 272   -- dp, keep in step with #panel in contextmenu.rcss
 M.ROW_HEIGHT = 34     -- dp, a row and its margins
 M.GROUP_HEIGHT = 24   -- dp

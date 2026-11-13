@@ -1,7 +1,7 @@
 <rml>
 <head>
     <title>Open//77 Freeroam speedometer</title>
-    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="open77-yellow.rcss"/>
     <link type="text/rcss" href="hud.rcss"/>
 </head>
 <body data-model="hud">

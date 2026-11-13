@@ -85,7 +85,7 @@ RegisterCommand("help", function(player)
         type = "system",
         author = "COMMANDS",
         text = "Type / to browse available commands. Use the arrow keys to select a suggestion and Tab to complete it.",
-        color = { 0, 229, 255 }
+        color = { 252, 238, 10 }
     })
 end, false)
 
@@ -102,7 +102,7 @@ RegisterCommand("id", function(player)
         type = "system",
         author = "SESSION",
         text = "Your session ID is " .. tostring(player) .. ".",
-        color = { 0, 229, 255 }
+        color = { 252, 238, 10 }
     })
 end, false)
 

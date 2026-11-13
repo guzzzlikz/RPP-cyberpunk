@@ -23,7 +23,7 @@ local function bounded(v, max) return tostring(v == nil and "" or v):sub(1, max)
 
 function V.safeColor(value)
     local text = tostring(value or "")
-    return text:match("^#%x%x%x%x%x%x$") and text or "#22D8E2"
+    return text:match("^#%x%x%x%x%x%x$") and text or "#FCEE0A"
 end
 
 function V.formatDistance(value)
@@ -89,7 +89,7 @@ local function defaults()
     for i = 1, PIPS do pips[i] = { used = i <= 3, on = i <= 2 } end
     return {
         ready = false, shown = false, visible = true, state = "offline", stateLabel = STATE_LABELS.offline,
-        activation = "PTT", lit = 0, label = "NORMAL", modeName = "normal", distance = "20", color = "#22D8E2",
+        activation = "PTT", lit = 0, label = "NORMAL", modeName = "normal", distance = "20", color = "#FCEE0A",
         key = "F11", pips = pips, heard = 0, error = "", hasError = false,
     }
 end

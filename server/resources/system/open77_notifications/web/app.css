@@ -49,7 +49,7 @@ body { font-family: var(--op77-font-body); }
   --accent: var(--op77-accent);
   /* Message copy: bright enough to read at a glance over any backdrop
      (~11:1 on --op77-panel) while still sitting below the title. */
-  --toast-message: #cfd8de;
+  --toast-message: #d7d7d6;
 
   position: relative;
   width: max-content; min-width: 280px; max-width: 420px;

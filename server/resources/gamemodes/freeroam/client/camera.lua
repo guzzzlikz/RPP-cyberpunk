@@ -7,7 +7,7 @@ local cinematic = false
 -- (the style switch requests third person; releasing the style alone left the player in it).
 local viewBefore = nil
 local function report(message)
-    TriggerEvent("chat:addMessage", { type = "system", author = "CAMERA", text = message, color = { 34, 216, 226 } })
+    TriggerEvent("chat:addMessage", { type = "system", author = "CAMERA", text = message, color = { 252, 238, 10 } })
 end
 RegisterNetEvent("freeroam:camera:change", function(request)
     local api = Open77.camera

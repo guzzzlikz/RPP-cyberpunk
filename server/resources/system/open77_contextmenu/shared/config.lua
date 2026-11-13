@@ -2,7 +2,7 @@ ContextMenuConfig = {
     key = "ALT",
     blockNativeWeaponWheel = true, -- Resource lifetime claim, before the first ALT press.
     appearance = {
-        accentColor = "#18d6e7", -- #RRGGBB: eye, hover highlight and spinner.
+        accentColor = "#fcee0a", -- #RRGGBB: eye, hover highlight and spinner.
         scale = 1.0, -- Compact by default; 0.75 to 1.5 for readability.
         showGroups = false, -- Optional small headings; labels/icons only by default.
     },

@@ -42,7 +42,7 @@ function S.identity(label)
     return name, crew, table.concat(initials):upper()
 end
 
-local PALETTE = { "#22d8e2", "#2be58b", "#ffb020", "#ff2e88", "#7c5cff", "#4ea8ff", "#ff6b3d", "#c6f432" }
+local PALETTE = { "#fcee0a", "#2be58b", "#ffb020", "#ff2e88", "#7c5cff", "#4ea8ff", "#ff6b3d", "#c6f432" }
 
 --- The roster state machine (no UI): pages in, ordered rows out.
 function S.newRoster()

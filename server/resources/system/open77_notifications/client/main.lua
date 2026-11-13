@@ -19,7 +19,7 @@ local positions = {
 -- step with `web/open77-ui.css`: --op77-accent, --op77-ok, --op77-warn and
 -- --op77-signal. Change them there and here together.
 local kinds = {
-    info = "#22D8E2",
+    info = "#FCEE0A",
     success = "#4FE3A9",
     warning = "#F5C95C",
     error = "#FF5964",

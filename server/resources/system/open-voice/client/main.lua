@@ -6,7 +6,7 @@ local configured = false
 local cycleKey = "F11"
 local modes = {}
 local modeByName = {}
-local current = { mode = "normal", label = "NORMAL", distance = 20.0, color = "#22D8E2" }
+local current = { mode = "normal", label = "NORMAL", distance = 20.0, color = "#FCEE0A" }
 local errorText = ""
 local errorUntil = 0
 local lastPayload = ""
@@ -27,7 +27,7 @@ local function acceptModes(payload)
             name = name,
             label = tostring(candidate.label or name):sub(1, 32),
             distance = distance,
-            color = tostring(candidate.color or "#22D8E2"),
+            color = tostring(candidate.color or "#FCEE0A"),
         }
         byName[name] = parsed[index]
     end
@@ -80,7 +80,7 @@ local function publish(status)
         mode = tostring(mode.label or mode.name or "VOICE"),
         modeName = tostring(mode.name or current.mode or "normal"),
         distance = tonumber(current.distance or mode.distance) or 0,
-        color = tostring(current.color or mode.color or "#22D8E2"),
+        color = tostring(current.color or mode.color or "#FCEE0A"),
         key = cycleKey,
         modeIndex = modeIndex,
         modeCount = modeCount,

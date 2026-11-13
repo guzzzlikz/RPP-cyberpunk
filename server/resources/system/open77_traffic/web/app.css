@@ -29,7 +29,7 @@ body.open { pointer-events: auto; opacity: 1; }
 
 [hidden] { display: none !important; }
 
-::selection { background: rgba(34, 216, 226, 0.28); color: var(--text-primary); }
+::selection { background: rgba(251, 231, 9, 0.28); color: var(--text-primary); }
 input { caret-color: var(--o-cyan-500); user-select: text; }
 
 /* The kit's outer focus ring is clipped away by every chamfer on this page. */
@@ -39,7 +39,7 @@ button:focus-visible { box-shadow: inset 0 0 0 2px var(--o-cyan-500); }
 .scrim {
   position: fixed;
   inset: 0;
-  background: linear-gradient(90deg, rgba(5, 7, 11, 0.9) 0 30%, rgba(5, 7, 11, 0.42) 58%, rgba(5, 7, 11, 0.06) 100%);
+  background: linear-gradient(90deg, rgba(8, 8, 8, 0.9) 0 30%, rgba(8, 8, 8, 0.42) 58%, rgba(8, 8, 8, 0.06) 100%);
 }
 
 .drawer {
@@ -49,8 +49,8 @@ button:focus-visible { box-shadow: inset 0 0 0 2px var(--o-cyan-500); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid rgba(34, 216, 226, 0.38);
-  background: rgba(11, 14, 20, 0.97);
+  border-right: 1px solid rgba(251, 231, 9, 0.38);
+  background: rgba(16, 16, 15, 0.97);
   clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
   transform: translateX(-24px);
   transition: transform var(--dur-3) var(--ease-out);
@@ -126,8 +126,8 @@ body.open .drawer { transform: none; }
   color: var(--o-red-500);
 }
 .ds-badge.is-busy {
-  border-color: rgba(255, 176, 32, 0.45);
-  background: rgba(255, 176, 32, 0.12);
+  border-color: rgba(255, 129, 32, 0.45);
+  background: rgba(255, 129, 32, 0.12);
   color: var(--o-amber-500);
 }
 .ds-badge.is-idle {
@@ -184,8 +184,8 @@ body.open .drawer { transform: none; }
   cursor: pointer;
   transition: var(--t-hover);
 }
-.tab:hover { color: var(--text-primary); background: rgba(138, 148, 162, 0.08); }
-.tab.active { border-bottom-color: var(--o-cyan-500); background: rgba(34, 216, 226, 0.1); color: var(--o-cyan-500); }
+.tab:hover { color: var(--text-primary); background: rgba(151, 151, 149, 0.08); }
+.tab.active { border-bottom-color: var(--o-cyan-500); background: rgba(251, 231, 9, 0.1); color: var(--o-cyan-500); }
 
 /* Unsaved edits, visible from any tab. */
 .tab-dot { width: 6px; height: 6px; background: var(--o-amber-500); }
@@ -273,7 +273,7 @@ h2::before {
   cursor: pointer;
   transition: var(--t-hover), transform var(--dur-1) var(--ease-out);
 }
-.btn:hover:not(:disabled) { border-color: var(--o-cyan-500); background: rgba(34, 216, 226, 0.1); }
+.btn:hover:not(:disabled) { border-color: var(--o-cyan-500); background: rgba(251, 231, 9, 0.1); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.4; cursor: default; }
 .btn.primary { border-color: transparent; background: var(--o-cyan-500); color: var(--text-on-accent); }
@@ -335,13 +335,13 @@ h2::before {
   cursor: pointer;
   transition: var(--t-hover);
 }
-.seg button:hover:not(:disabled) { border-color: rgba(34, 216, 226, 0.45); color: var(--o-cyan-500); }
+.seg button:hover:not(:disabled) { border-color: rgba(251, 231, 9, 0.45); color: var(--o-cyan-500); }
 .seg button:disabled { cursor: default; }
-.seg button[aria-pressed="true"] { border-color: rgba(34, 216, 226, 0.45); background: rgba(34, 216, 226, 0.12); color: var(--o-cyan-500); }
+.seg button[aria-pressed="true"] { border-color: rgba(251, 231, 9, 0.45); background: rgba(251, 231, 9, 0.12); color: var(--o-cyan-500); }
 .seg button[data-value="true"][aria-pressed="true"] { border-color: rgba(43, 229, 139, 0.45); background: rgba(43, 229, 139, 0.13); color: var(--o-mint-500); }
 .seg button[data-value="false"][aria-pressed="true"] { border-color: rgba(255, 59, 78, 0.45); background: rgba(255, 59, 78, 0.12); color: var(--o-red-500); }
 .seg button.danger:hover:not(:disabled) { border-color: rgba(255, 59, 78, 0.45); color: var(--o-red-500); }
-.seg button.working { border-color: rgba(255, 176, 32, 0.45); color: var(--o-amber-500); }
+.seg button.working { border-color: rgba(255, 129, 32, 0.45); color: var(--o-amber-500); }
 
 /* ------------------------------------------------------------------ overview */
 .master .set {
@@ -449,9 +449,9 @@ h2::before {
 .set.edited .set-meta { color: var(--o-amber-500); }
 .set.saving .set-meta { color: var(--o-cyan-500); }
 
-.set.edited .field { border-color: rgba(255, 176, 32, 0.6); }
+.set.edited .field { border-color: rgba(255, 129, 32, 0.6); }
 .set.invalid .field { border-color: var(--o-red-500); }
-.set.saving .field { border-color: rgba(34, 216, 226, 0.45); }
+.set.saving .field { border-color: rgba(251, 231, 9, 0.45); }
 
 .link {
   padding: 0;
@@ -471,8 +471,8 @@ h2::before {
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-8);
-  border-top: 1px solid rgba(255, 176, 32, 0.4);
-  background: rgba(255, 176, 32, 0.07);
+  border-top: 1px solid rgba(255, 129, 32, 0.4);
+  background: rgba(255, 129, 32, 0.07);
   animation: ds-rise var(--dur-2) var(--ease-out);
 }
 .savebar-count {
@@ -578,14 +578,14 @@ table.grid td.empty { padding: var(--space-6) 0; color: var(--text-secondary); t
   gap: var(--space-3);
   padding: 0 var(--space-8);
   border-top: 1px solid var(--line-hairline);
-  background: rgba(5, 7, 11, 0.42);
+  background: rgba(8, 8, 8, 0.42);
   color: var(--text-muted);
   font: var(--fw-semibold) var(--size-label-xs) / 1 var(--font-ui);
   letter-spacing: var(--ls-label);
 }
 .foot i { width: 1px; height: 18px; margin: 0 var(--space-2); background: var(--line-strong); }
 .foot .ds-data { color: var(--o-cyan-500); font-size: var(--size-data-sm); }
-.keycap { padding: 5px 7px; border: 1px solid rgba(34, 216, 226, 0.45); background: rgba(34, 216, 226, 0.1); color: var(--o-cyan-500); clip-path: var(--cut-sm); }
+.keycap { padding: 5px 7px; border: 1px solid rgba(251, 231, 9, 0.45); background: rgba(251, 231, 9, 0.1); color: var(--o-cyan-500); clip-path: var(--cut-sm); }
 
 .live { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-muted); }
 .live::before { content: ""; width: 6px; height: 6px; background: currentColor; }
@@ -601,7 +601,7 @@ table.grid td.empty { padding: var(--space-6) 0; color: var(--text-secondary); t
   max-width: min(420px, 38vw);
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--line-hud);
-  background: rgba(11, 14, 20, 0.96);
+  background: rgba(16, 16, 15, 0.96);
   color: var(--text-primary);
   clip-path: var(--cut-md);
   font: var(--fw-medium) var(--size-body-sm) / 1.35 var(--font-body);

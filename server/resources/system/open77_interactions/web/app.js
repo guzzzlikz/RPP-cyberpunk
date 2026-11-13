@@ -2,7 +2,7 @@
   "use strict";
   const root = document.getElementById("interaction");
   const safeColor = value => /^#[0-9a-f]{6}$/i.test(String(value || ""))
-    ? String(value) : "#22D8E2";  // --op77-accent
+    ? String(value) : "#FCEE0A";  // --op77-accent
   const markers = new Set([
     "dot", "ring", "diamond", "arrow", "chevron",
     "exclamation", "info", "vehicle", "person", "door", "shop"

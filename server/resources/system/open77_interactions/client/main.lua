@@ -244,7 +244,7 @@ local function normalizeKey(value)
 end
 
 local function normalizeColor(value, fallback)
-    value = value or fallback or "#22D8E2"  -- --op77-accent
+    value = value or fallback or "#FCEE0A"  -- --op77-accent
     if type(value) ~= "string" or not value:match("^#[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]$") then
         return nil
     end
@@ -323,7 +323,7 @@ local function normalizeDefinition(owner, definition, existingHandle)
     if definition.markerAnimated ~= nil and type(definition.markerAnimated) ~= "boolean" then
         return nil, "invalid_marker_animated"
     end
-    local color = normalizeColor(definition.color, "#22D8E2")  -- --op77-accent
+    local color = normalizeColor(definition.color, "#FCEE0A")  -- --op77-accent
     if not color then return nil, "invalid_color" end
     if definition.event ~= nil and not validName(definition.event, 96) then return nil, "invalid_event" end
     local sourceChoices = definition.choices

@@ -116,7 +116,7 @@ AddEventHandler("onCyberwareActionRejected", function(player, sequence, reason)
     local interval = math.max(0, tonumber(feedback.intervalMs) or 1000)
     if lastNotice[player] and now - lastNotice[player] < interval then return end
     lastNotice[player] = now
-    TriggerClientEvent("chat:addMessage", player, {args={"Cyberware",message},color={34,216,226}})
+    TriggerClientEvent("chat:addMessage", player, {args={"Cyberware",message},color={ 252, 238, 10 }})
 end)
 
 AddEventHandler("onResourceStop", function(name)

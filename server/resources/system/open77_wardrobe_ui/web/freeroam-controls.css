@@ -11,7 +11,7 @@
   transition: var(--t-hover);
 }
 .catalog-card:hover { border-color: var(--o-cyan-500); background: var(--surface-panel-hover); box-shadow: var(--glow-accent-soft); }
-.catalog-card.equipped { border-color: var(--o-cyan-500); background: rgba(34, 216, 226, 0.1); color: var(--o-cyan-400); }
+.catalog-card.equipped { border-color: var(--o-cyan-500); background: rgba(251, 231, 9, 0.1); color: var(--o-cyan-400); }
 .catalog-card strong {
   display: block;
   overflow: hidden;
@@ -51,7 +51,7 @@
   cursor: pointer;
   transition: var(--t-hover), transform var(--dur-1) var(--ease-out);
 }
-.btn:hover { border-color: var(--o-cyan-500); background: rgba(34, 216, 226, 0.1); }
+.btn:hover { border-color: var(--o-cyan-500); background: rgba(251, 231, 9, 0.1); }
 .btn:active { transform: translateY(1px); }
 .btn small {
   display: block;

@@ -191,7 +191,7 @@ local function create(definition)
             key = definition.key or "E",
             holdSeconds = clamp(definition.holdSeconds, 0, 10, 0),
             icon = definition.icon or "DIALOG",
-            color = definition.color or "#00E5FF",
+            color = definition.color or "#FCEE0A",
             event = definition.event,
         }
         local result, promptError = callInteractions("create", promptSpec)

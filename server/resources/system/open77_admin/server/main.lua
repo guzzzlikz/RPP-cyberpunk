@@ -422,7 +422,7 @@ local function announce(playerId, text)
         type = "system",
         author = "ADMIN",
         text = tostring(text),
-        color = { 34, 216, 226 },
+        color = { 252, 238, 10 },
     })
 end
 

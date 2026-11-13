@@ -18,7 +18,7 @@ local function message(player, text)
         return
     end
     TriggerClientEvent('chat:addMessage', player, {
-        type = 'system', author = 'ANIMATIONS', text = text, color = { 0, 229, 255 },
+        type = 'system', author = 'ANIMATIONS', text = text, color = { 252, 238, 10 },
     })
 end
 RegisterNetEvent('chat:ready', function()

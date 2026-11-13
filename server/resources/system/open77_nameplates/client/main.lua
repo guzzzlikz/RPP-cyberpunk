@@ -76,6 +76,19 @@ AddEventHandler("onClientResourceStart", function(name)
     if rendered then
         nativeRender = true
         Open77.nameplates.render(enabled)
+        -- RPP: the embedded plate faces ("chakra", "rajdhani") have no Cyrillic,
+        -- so Russian names were blank. "condensed" is Windows' Bahnschrift
+        -- Condensed (system face, full Cyrillic). Yellow/black theme accent.
+        if Open77.nameplates.style then
+            local ok, styled, why = pcall(Open77.nameplates.style, {
+                font = "condensed",
+                accent = "#FCEE0A",
+                uppercase = false,
+            })
+            if not ok or styled == false then
+                print("[open77_nameplates] style failed: " .. tostring(ok and why or styled))
+            end
+        end
         return
     end
 

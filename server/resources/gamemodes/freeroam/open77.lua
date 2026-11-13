@@ -66,7 +66,7 @@ client_script "pvp/client/main.lua"
 web_ui_page "web/index.html"
 web_ui_auto_create false
 web_files { "web/**" }
-files { "ui/hud.rml", "ui/speedo.rml", "ui/hud.rcss", "ui/scoreboard.rml", "ui/scoreboard.rcss" }
+files { "ui/hud.rml", "ui/speedo.rml", "ui/hud.rcss", "ui/scoreboard.rml", "ui/scoreboard.rcss", "ui/open77-yellow.rcss" }
 
 permissions {
     "camera.style",

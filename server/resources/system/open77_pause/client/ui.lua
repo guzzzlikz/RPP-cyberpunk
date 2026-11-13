@@ -7,7 +7,7 @@
 PauseUi = {}
 local U = PauseUi
 
-local DEFAULT_ACCENT = "#22D8E2"
+local DEFAULT_ACCENT = "#FCEE0A"
 local PANEL_MAIN, PANEL_SETTINGS = 620, 1340
 local SUPPORTED = { int = true, bool = true, list = true, keybind = true, meter = true, info = true }
 local CONFIRMATIONS = {

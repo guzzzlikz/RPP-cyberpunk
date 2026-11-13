@@ -24,7 +24,7 @@ html, body {
   padding: 10px var(--space-4);
   border: 1px solid var(--line-hud);
   border-left: 2px solid var(--o-magenta-500);
-  background: rgba(11, 14, 20, 0.9);
+  background: rgba(16, 16, 15, 0.9);
   color: var(--text-primary);
   clip-path: var(--cut-sm);
   backdrop-filter: var(--blur-hud);

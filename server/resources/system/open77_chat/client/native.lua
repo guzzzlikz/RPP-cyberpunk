@@ -10,7 +10,7 @@ local STALE_DELAY = 8500
 local CLOSED_ROWS = 6   -- rows shown while the chat is closed (the newest)
 local KINDS = { message = true, system = true, announce = true, warning = true, error = true, action = true, join = true, leave = true }
 local CHANNELS = {
-    global = { label = "GLOBAL", color = "#22d8e2" },
+    global = { label = "GLOBAL", color = "#fcee0a" },
     ["local"] = { label = "LOCAL", color = "#8a94a2" },
     squad = { label = "SQUAD", color = "#2be58b" },
     whisper = { label = "WHISPER", color = "#7c5cff" },
@@ -174,8 +174,24 @@ local function startFloat(ui, isOpen, alive)
 end
 
 --- The chat surface with the page API client/main.lua uses.
+-- RPP: the embedded faces (Rajdhani, Chakra Petch, Lato) have no Cyrillic, so
+-- Russian text rendered as blanks. Play Bold (OFL, ui/fonts/Play-OFL.txt) is
+-- loaded as a FALLBACK face: RmlUi takes any glyph the requested family lacks
+-- from it. Fallback faces are global to NativeUI, so the context menu, HUD and
+-- every other RmlUi document get Cyrillic too.
+local fontsLoaded = false
+local function loadFallbackFonts()
+    if fontsLoaded or type(Open77.ui.loadFont) ~= "function" then return end
+    fontsLoaded = true
+    local ok, loaded, why = pcall(Open77.ui.loadFont, "ui/fonts/Play-Bold.ttf", "RppPlay", true)
+    if not ok or loaded == false then
+        print("[open77_chat] Cyrillic fallback font not loaded: " .. tostring(ok and why or loaded))
+    end
+end
+
 function N.create()
     if type(Open77.ui) ~= "table" or type(Open77.ui.create) ~= "function" then return nil, "nativeui_unavailable" end
+    loadFallbackFonts()
     local ui, why = Open77.ui.create({ document = "ui/chat.rml", layer = "hud", zIndex = 30, visible = true })
     if not ui then return nil, why end
     local page = { handlers = {} }

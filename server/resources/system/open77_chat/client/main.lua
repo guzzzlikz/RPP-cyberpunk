@@ -199,7 +199,7 @@ RegisterNetEvent("open77:command:result", function(raw, accepted, message)
         type = accepted and "system" or "error",
         author = "COMMAND",
         text = text,
-        color = accepted and { 0, 229, 255 } or { 255, 76, 92 }
+        color = accepted and { 252, 238, 10 } or { 255, 76, 92 }
     })
 end)
 
@@ -256,7 +256,7 @@ AddEventHandler("onClientResourceStart", function(name)
             type = "system",
             author = "OPEN77",
             text = "Chat connected — press T to type",
-            color = { 0, 229, 255 }
+            color = { 252, 238, 10 }
         }) end
         connectedOnce = true
         requestSuggestions()

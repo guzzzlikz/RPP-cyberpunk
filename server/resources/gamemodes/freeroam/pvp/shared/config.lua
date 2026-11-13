@@ -1255,7 +1255,7 @@ DeathmatchConfig = {
     --     closer than the sum of their activations leave a DEAD BAND where
     --     neither prompt is live -- worse than an overlap, because an overlap is
     --     arbitrated and a dead band just looks broken.
-    --   * The prompt colour defaults to #00E5FF regardless of style. Pass
+    --   * The prompt colour defaults to #FCEE0A regardless of style. Pass
     --     `color` explicitly or a green ring gets a cyan card.
     --   * Tear the station down when the player leaves the bucket. Ownership is
     --     the lever, not `maxDistance`.
@@ -1270,7 +1270,7 @@ DeathmatchConfig = {
             id = "dm_enter",
             radius = 2.0,
             style = "objective",
-            color = "#00E5FF",
+            color = "#FCEE0A",
             marker = "chevron",
             icon = "DIALOG",
             key = "E",
