@@ -920,8 +920,9 @@ CreateThread(function()
             if pos then
                 local near = {}
                 for _, drop in pairs(drops) do
-                    -- У дропа с моделью своя штатная подсказка «Взять»: метка не нужна.
-                    if drop.bucket == pos.bucket and drop.lootId == nil then
+                    -- Метка показывается всегда, даже если у дропа есть модель: модель
+                    -- доходит до клиентов не на каждом сервере (см. dropModels в конфиге).
+                    if drop.bucket == pos.bucket then
                         local dx, dy, dz = drop.x - pos.x, drop.y - pos.y, drop.z - pos.z
                         local dist = dx * dx + dy * dy + dz * dz
                         if dist <= limit then near[#near + 1] = { drop = drop, dist = dist } end
