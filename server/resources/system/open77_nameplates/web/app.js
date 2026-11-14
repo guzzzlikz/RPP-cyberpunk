@@ -112,6 +112,10 @@
 
   Open77.on("nameplates:update", update);
   Open77.on("nameplates:bubble", bubble);
+  // RPP: F1 — скрыть ники; пузыри чата остаются.
+  Open77.on("nameplates:names", payload => {
+    root.classList.toggle("names-hidden", !!(payload && payload.hidden));
+  });
   Open77.ready();
   Open77.emit("nameplates:ready", {});
 })();

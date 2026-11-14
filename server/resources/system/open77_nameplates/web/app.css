@@ -164,3 +164,13 @@ body { background: transparent; font-family: var(--op77-font-display); }
   100% { opacity: 1; transform: translateX(-50%) translateY(0) skewX(0); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); }
 }
 .chat-bubble--far { display: none; }
+
+/* RPP: F1 — ники скрыты. Сама табличка исчезает, пузырь чата остаётся на месте. */
+.names-hidden .nameplate {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.names-hidden .nameplate::before,
+.names-hidden .nameplate-name,
+.names-hidden .nameplate-voice { visibility: hidden; }

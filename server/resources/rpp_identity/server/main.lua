@@ -66,7 +66,8 @@ local function labelFor(viewer, target)
     end
     local v = online[viewer]
     if v and v.known[t.guid] then
-        return { playerId = target, label = fullName(t.citizen), registered = true, known = true,
+        -- Знакомые: имя и номер жителя (номер виден всегда).
+        return { playerId = target, label = fullName(t.citizen) .. " · #" .. tostring(t.citizen.id), registered = true, known = true,
             citizenId = t.citizen.id }
     end
     return { playerId = target, label = RppNames.citizenTag(t.citizen.id), registered = true, known = false,

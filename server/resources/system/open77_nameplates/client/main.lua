@@ -32,6 +32,36 @@ end)
 
 exports("isEnabled", function() return enabled end)
 
+-- RPP: скрыть / показать ники над головами (F1, переназначается в настройках
+-- клавиш Open77). Пузыри чата при этом остаются. Выбор запоминается (kvp).
+local NAMES_KEY = "rpp.nameplates.hidden"
+local namesHidden = false
+do
+    local ok, value = pcall(Open77.kvp.get, NAMES_KEY, false)
+    namesHidden = ok and (value == true or value == "1")
+end
+
+local function applyNames()
+    if nativeRender then
+        Open77.nameplates.render(enabled and not namesHidden)
+    elseif page then
+        page:send("nameplates:names", { hidden = namesHidden })
+    end
+end
+
+local lastToggle = 0
+local mapped, mapReason = pcall(RegisterKeyMapping, "rpp.nameplates.toggle", "Скрыть / показать ники", "F1", function()
+    local t = Open77.time.monotonic()
+    if t - lastToggle < 0.25 then return end
+    lastToggle = t
+    namesHidden = not namesHidden
+    pcall(Open77.kvp.set, NAMES_KEY, namesHidden and "1" or "0")
+    applyNames()
+    pcall(TriggerEvent, "chat:addMessage", { type = "system", author = "НИКИ",
+        text = namesHidden and "Ники над головами скрыты. F1 — показать." or "Ники над головами показаны." })
+end)
+if not mapped then print("[open77_nameplates] key mapping refused: " .. tostring(mapReason)) end
+
 exports("set", function(playerId, options)
     return Open77.nameplates.set(tostring(playerId), options or {})
 end)
@@ -87,7 +117,7 @@ AddEventHandler("onClientResourceStart", function(name)
         and Open77.nameplates.render ~= nil and Open77.nameplates.render(true)
     if rendered then
         nativeRender = true
-        Open77.nameplates.render(enabled)
+        Open77.nameplates.render(enabled and not namesHidden)
         if Open77.nameplates.style then
             pcall(Open77.nameplates.style, { accent = "#FCEE0A", uppercase = false })
         end
@@ -109,7 +139,7 @@ AddEventHandler("onClientResourceStart", function(name)
         print("[open77_nameplates] WebUI failed: " .. tostring(reason))
         return
     end
-    page:on("nameplates:ready", pushSnapshot)
+    page:on("nameplates:ready", function() pushSnapshot(); applyNames() end)
 
     -- Per-frame delivery, native.
     --
@@ -169,6 +199,7 @@ AddEventHandler("open77:worldReady", function()
         Open77.nameplates.stream(page)
         pushSnapshot()
     end
+    applyNames()
 end)
 
 AddEventHandler("onClientResourceStop", function(name)
