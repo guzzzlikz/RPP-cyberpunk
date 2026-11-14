@@ -137,6 +137,19 @@ RppItemDefs = {
     item_water     = { kind = "item", label = "Вода", w = 1, h = 2, icon = "bottle" },
 }
 
+-- Импланты как предметы (их ставит и снимает риппердок, rpp_ripperdoc).
+-- id предмета: cw_<слот>_<грейд>. Список должен совпадать с RppRipperdocConfig.
+RppImplantNames = {
+    arms = { name = "Руки гориллы", grades = {
+        training = "тренировочные", industrial = "промышленные", cosmetic = "косметические",
+        aldecaldos = "Альдекальдо", barghest = "Баргест", jinguji = "Дзингудзи", militech = "Милитех",
+        mox = "Моксы", tsunami = "Цунами", tyger_claws = "Тигриные когти", voodoo_boys = "Вудуисты",
+        wraiths = "Рейфы", kang_tao = "Кан Тао",
+    } },
+    legs = { name = "Усиленные ноги", grades = { training = "тренировочные", athlete = "атлетические" } },
+}
+-- (RppItemDefs объявлен выше; импланты добавляются в него ниже.)
+
 -- Зоны киберимплантов (левый модуль, вкладка «Импланты»). Сейчас Open77
 -- ставит импланты только на руки и ноги; остальные зоны показываются пустыми.
 RppCyberZones = {
@@ -151,3 +164,13 @@ RppCyberZones = {
     { id = "arms",     label = "Руки" },
     { id = "legs",     label = "Ноги" },
 }
+
+-- Предметы-импланты: cw_arms_<грейд>, cw_legs_<грейд>.
+for slot, info in pairs(RppImplantNames) do
+    for grade, gradeLabel in pairs(info.grades) do
+        RppItemDefs["cw_" .. slot .. "_" .. grade] = {
+            kind = "implant", label = info.name .. " (" .. gradeLabel .. ")",
+            w = 2, h = 2, icon = "chip", implantSlot = slot, grade = grade,
+        }
+    end
+end
