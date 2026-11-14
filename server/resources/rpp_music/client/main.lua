@@ -35,7 +35,7 @@ local function ensurePage()
     if page then return true end
     local reason
     page, reason = WebUI.create({
-        entry = "web/index.html", layer = "system",
+        entry = "web/index.html", layer = "hud",
         width = 8, height = 8, fps = 1, zIndex = -200,
         transparent = true, visible = true,
     })

@@ -1,0 +1,103 @@
+:root {
+  --y: #fcee0a;
+  --y-dim: rgba(252, 238, 10, 0.55);
+  --y-faint: rgba(252, 238, 10, 0.12);
+  --line: rgba(252, 238, 10, 0.3);
+  --text: #f2f0dc;
+  --muted: #8f8c76;
+  --green: #3bff8a;
+  --red: #ff3b3b;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent;
+  color: var(--text); font-family: "Bahnschrift", "Segoe UI", sans-serif; user-select: none;
+}
+.hidden { display: none !important; }
+.root {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.35), rgba(0,0,0,0.8));
+}
+.stage { display: flex; align-items: center; gap: 48px; }
+
+/* Колесо */
+.wheel-wrap { position: relative; width: 600px; height: 600px; }
+.wheel { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sector { fill: rgba(10, 10, 8, 0.86); stroke: rgba(252, 238, 10, 0.35); stroke-width: 1.5; cursor: pointer; transition: fill 80ms; }
+.sector.filled { fill: rgba(22, 20, 6, 0.92); stroke: rgba(252, 238, 10, 0.7); }
+.sector.hover { fill: rgba(252, 238, 10, 0.22); stroke: var(--y); stroke-width: 2.5; }
+.sector.drop-ok { fill: rgba(59, 255, 138, 0.22); stroke: var(--green); stroke-width: 3; }
+.sector.drop-swap { fill: rgba(252, 238, 10, 0.3); stroke: var(--y); stroke-width: 3; }
+.ring-deco { fill: none; stroke: rgba(252, 238, 10, 0.25); stroke-width: 1; stroke-dasharray: 4 6; }
+.labels { position: absolute; inset: 0; pointer-events: none; }
+.slot-label {
+  position: absolute; width: 112px; transform: translate(-50%, -50%); text-align: center;
+  font-size: 13px; line-height: 1.15; letter-spacing: 0.02em;
+}
+.slot-label .num { display: block; font-size: 10px; letter-spacing: 0.2em; color: var(--y-dim); margin-bottom: 2px; }
+.slot-label .name { display: block; font-weight: 700; color: var(--text); overflow: hidden; max-height: 2.4em; }
+.slot-label .scat { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.slot-label.empty .name { color: rgba(143,140,118,0.6); font-weight: 400; letter-spacing: 0.15em; font-size: 11px; }
+.slot-label.missing .name { color: var(--red); }
+
+.center {
+  position: absolute; left: 50%; top: 50%; width: 196px; height: 196px; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 2px solid var(--y); background: radial-gradient(circle, #14130a, #050505);
+  color: var(--y); font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  box-shadow: 0 0 30px rgba(252, 238, 10, 0.18), inset 0 0 20px rgba(252, 238, 10, 0.08);
+}
+.center:hover { background: radial-gradient(circle, #3a1010, #0a0505); border-color: var(--red); color: var(--red); }
+.center-top { font-size: 10px; letter-spacing: 0.25em; color: var(--y-dim); }
+.center-main { font-size: 30px; font-weight: 700; letter-spacing: 0.15em; margin: 4px 0; }
+.center-sub { font-size: 12px; color: var(--text); max-width: 160px; text-align: center; line-height: 1.2; min-height: 2.4em; }
+
+/* Справа: кнопка и список */
+.side { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.list-btn {
+  padding: 12px 22px; border: 1px solid var(--y); background: rgba(0,0,0,0.6); color: var(--y);
+  font: inherit; font-size: 15px; letter-spacing: 0.2em; text-transform: uppercase; cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.list-btn:hover, .list-btn.on { background: var(--y); color: #000; font-weight: 700; }
+.panel {
+  width: 460px; height: 600px; display: flex; flex-direction: column;
+  background: rgba(8, 8, 6, 0.95); border: 1px solid var(--line); padding: 14px 16px;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+}
+.panel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.panel-head h2 { margin: 0; flex: 1; font-size: 17px; letter-spacing: 0.15em; text-transform: uppercase; }
+.tag { background: var(--y); color: #000; font-weight: 700; font-size: 11px; padding: 2px 6px; }
+.count { color: var(--muted); font-size: 12px; }
+.search {
+  width: 100%; padding: 8px 10px; background: #000; border: 1px solid var(--line); color: var(--text);
+  font: inherit; font-size: 14px; outline: none;
+}
+.search:focus { border-color: var(--y); }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.cat {
+  padding: 3px 8px; border: 1px solid var(--line); font-size: 11px; letter-spacing: 0.05em; color: var(--y-dim); cursor: pointer;
+}
+.cat.on { background: var(--y); color: #000; border-color: var(--y); }
+.items { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+.items::-webkit-scrollbar { width: 6px; }
+.items::-webkit-scrollbar-thumb { background: var(--line); }
+.item {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid rgba(252,238,10,0.18);
+  background: rgba(0,0,0,0.5); cursor: grab;
+}
+.item:hover { border-color: var(--y); background: var(--y-faint); }
+.item.flash { background: rgba(59, 255, 138, 0.2); border-color: var(--green); }
+.item .i-name { flex: 1; font-size: 14px; }
+.item .i-cat { font-size: 11px; color: var(--muted); }
+.item .i-pin { font-size: 10px; color: #000; background: var(--y); padding: 1px 4px; }
+.empty-list { color: var(--muted); font-size: 13px; padding: 10px 0; }
+.panel-hint {
+  margin-top: 10px; padding: 8px 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); line-height: 1.4;
+}
+.panel-hint b { color: var(--y); font-weight: 600; }
+.footer-hint { margin-top: 26px; font-size: 13px; color: var(--muted); letter-spacing: 0.03em; }
+.footer-hint b { color: var(--y); font-weight: 600; }
+.ghost {
+  position: fixed; z-index: 50; pointer-events: none; padding: 6px 12px; background: var(--y); color: #000;
+  font-weight: 700; font-size: 14px; transform: translate(-50%, -120%); box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+}
