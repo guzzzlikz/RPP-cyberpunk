@@ -139,6 +139,43 @@ h1 { margin: 2px 0 0; font-size: 34px; letter-spacing: 4px; text-transform: uppe
 .cyber.on { border-color: var(--y); box-shadow: inset 3px 0 0 var(--y); }
 .cyber-note { color: var(--muted); font-size: 12px; margin: 12px 0 0; }
 
+/* Обмен */
+.trade-cols { display: flex; gap: 12px; flex: 1; min-height: 0; }
+.trade-col { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--line); background: rgba(0,0,0,0.55); padding: 10px; }
+.trade-col.mine.drop-ok { border-color: var(--green); box-shadow: inset 0 0 0 1px var(--green); }
+.trade-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; letter-spacing: 2px; color: var(--y-dim); margin-bottom: 8px; }
+.trade-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ready-flag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--muted); color: var(--muted); font-weight: 400; }
+.ready-flag.on { background: var(--green); border-color: var(--green); color: #000; font-weight: 700; }
+.trade-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 360px; }
+.trade-item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid rgba(252,238,10,0.35); }
+.trade-item svg { width: 64px; height: 36px; flex: none; color: var(--y); }
+.trade-item .ti-name { font-size: 14px; }
+.trade-item .ti-sub { font-size: 11px; color: var(--muted); }
+.mine .trade-item { cursor: pointer; }
+.mine .trade-item:hover { border-color: var(--red); background: rgba(255,59,59,0.1); }
+.trade-empty { color: rgba(143,140,118,0.7); font-size: 13px; letter-spacing: 1px; padding: 8px 0; }
+.trade-money { display: flex; align-items: center; gap: 8px; margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; font-size: 18px; color: var(--y); }
+.trade-money input {
+  width: 110px; background: #000; border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 16px; padding: 4px 6px;
+}
+.trade-money input:disabled { opacity: 0.5; }
+.ghost-btn { border: 1px solid var(--line); background: transparent; color: var(--y); font: inherit; font-size: 13px; padding: 6px 10px; cursor: pointer; letter-spacing: 1px; }
+.ghost-btn:hover:not(:disabled) { background: var(--y); color: #000; }
+.ghost-btn:disabled { opacity: 0.4; cursor: default; }
+.ghost-btn.danger { color: var(--red); border-color: rgba(255,59,59,0.5); }
+.ghost-btn.danger:hover { background: var(--red); color: #000; }
+.trade-status { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); font-size: 14px; color: var(--text); min-height: 42px; }
+.trade-status.count { border-color: var(--green); color: var(--green); font-size: 18px; letter-spacing: 2px; }
+.trade-actions { display: flex; justify-content: space-between; margin-top: 12px; }
+.ready-btn { min-width: 220px; padding: 12px; border: 1px solid var(--y); background: transparent; color: var(--y); font: inherit; font-size: 16px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; }
+.ready-btn.on { background: var(--green); border-color: var(--green); color: #000; font-weight: 700; }
+.item.offered .box { border-color: var(--green); }
+.item.offered::after {
+  content: "⇄"; position: absolute; right: 5px; top: 5px; font-size: 12px; font-weight: 700; line-height: 1;
+  background: var(--green); color: #000; padding: 1px 4px;
+}
+
 /* Переключатель вида */
 .switch {
   margin-top: 14px; display: flex; padding: 0; border: 1px solid var(--y); background: transparent; cursor: pointer;
@@ -182,6 +219,10 @@ h1 { margin: 2px 0 0; font-size: 34px; letter-spacing: 4px; text-transform: uppe
 .item.kind-junk .box svg { color: var(--muted); }
 .item.kind-item .box { border-color: rgba(59,255,138,0.45); }
 .item.kind-item .box svg { color: var(--green); }
+.item.kind-food .box { border-color: rgba(255,150,60,0.55); }
+.item.kind-food .box svg { color: #ff9a3c; }
+.item.kind-resource .box { border-color: rgba(160,200,255,0.45); }
+.item.kind-resource .box svg { color: #a8c8ff; }
 .item:hover .box { background: var(--y-faint); border-color: var(--y); }
 .item.dragging { opacity: 0.25; }
 

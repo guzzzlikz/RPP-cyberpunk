@@ -18,6 +18,8 @@ local pending = {}    -- [tostring(requestId)] = { playerId, kind, slot, reserve
 local drops = {}      -- [dropId] = { id, inst, x, y, z, bucket, expires }
 local dropCount, nextDropId = 0, 1
 local sentDrops = {}  -- [playerId] = подпись последнего отправленного списка
+local trades = {}     -- [tradeId] = обмен (см. раздел «Обмен» ниже)
+local playerTrade = {} -- [playerId] = tradeId
 
 local WEAR = {}       -- [slot] = { wire, label }
 for _, row in ipairs(RppWearSlots) do WEAR[row.slot] = row end
@@ -52,7 +54,7 @@ local function describe(id, meta)
                 sub = (WEAR[def.slot] and WEAR[def.slot].label) or "Одежда" }
         end
         return { kind = def.kind, label = def.label, w = def.w or 1, h = def.h or 1, icon = def.icon or "junk",
-            sub = def.kind == "junk" and "Хлам" or "Предмет", price = def.price }
+            sub = ({ junk = "Хлам", resource = "Ресурс", food = "Еда" })[def.kind] or "Предмет", price = def.price }
     end
     local class = RppWeaponCatalog.classOfRecord(id)
     if class then
@@ -249,7 +251,13 @@ local function pushState(playerId, withCyber)
     local state = inv[playerId]
     if not state then return end
     local items, weapons, wear = {}, {}, {}
-    for _, inst in pairs(state.items) do items[#items + 1] = view(inst) end
+    local trade = playerTrade[playerId] and trades[playerTrade[playerId]]
+    local offered = trade and trade.offer[playerId] and trade.offer[playerId].items or {}
+    for uid, inst in pairs(state.items) do
+        local v = view(inst)
+        if offered[uid] then v.offered = true end
+        items[#items + 1] = v
+    end
     for slot = 1, cfg.weaponSlots do
         local inst = state.weapons[slot]
         if inst then local v = view(inst); v.equippedSlot = slot; weapons[#weapons + 1] = v end
@@ -441,6 +449,10 @@ local function allowed(playerId)
     return row.count <= cfg.actionsPerSecond
 end
 
+-- Во время обмена нельзя ничего выбрасывать, надевать и снимать: иначе
+-- предмет из предложения мог бы исчезнуть из рюкзака в последний момент.
+local TRADE_BLOCKED = { drop = true, equipWeapon = true, equipClothing = true, unequip = true }
+
 --- Обёртка обработчика: игрок, загрузка, лимит, затем сохранение и отправка.
 local function action(name, handler)
     RegisterNetEvent("rpp_inventory:" .. name, function(...)
@@ -450,6 +462,11 @@ local function action(name, handler)
         CreateThread(function()
             local state = load(playerId)
             if not state then return end
+            if TRADE_BLOCKED[name] and playerTrade[playerId] then
+                notify(playerId, "error", "Во время обмена нельзя выбрасывать, надевать и снимать вещи.")
+                pushState(playerId, false)
+                return
+            end
             local okCall, changed, message = pcall(handler, playerId, state, table.unpack(args, 1, args.n))
             if not okCall then
                 log(name .. " failed: " .. tostring(changed))
@@ -865,6 +882,398 @@ AddEventHandler("onResourceStop", function(name)
         if state then pcall(RppInvStore.save, state.guid, state.money, serialize(state)) end
     end
 end)
+
+-- ---------------------------------------------------------------------------
+-- Обмен между игроками
+--
+-- 1. A предлагает обмен B (ALT-меню или /trade): offers[B][A] = срок.
+-- 2. B принимает: у обоих открывается окно обмена.
+-- 3. Каждый кладёт в своё предложение предметы из рюкзака и деньги.
+--    Пока игрок нажал «Готов», менять своё предложение он не может. Любое
+--    изменение предложения сбрасывает готовность обоих.
+-- 4. Оба готовы -> через tradeDelaySec обмен. Перед обменом всё проверяется
+--    заново (предметы на месте, деньги есть, место в рюкзаках, дистанция);
+--    обмен атомарный: либо целиком, либо никак.
+-- ---------------------------------------------------------------------------
+local offers = {}       -- [targetId] = { [fromId] = expiresAt }
+local nextTradeId = 1
+local TRADE_MAX_ITEMS = 24
+
+local function distance(a, b)
+    local pa, pb = playerPos(a), playerPos(b)
+    if not pa or not pb then return nil end
+    if pa.bucket ~= pb.bucket then return math.huge end
+    local dx, dy, dz = pa.x - pb.x, pa.y - pb.y, pa.z - pb.z
+    return math.sqrt(dx * dx + dy * dy + dz * dz)
+end
+
+--- Как `viewer` видит `target`: имя знакомого или «Житель #N» (rpp_identity).
+local function nameFor(viewer, target)
+    local ok, label = pcall(function()
+        local promise = Open77.exports.call("rpp_identity", "labelFor", viewer, target)
+        return promise and promise:await() or nil
+    end)
+    if ok and type(label) == "string" and label ~= "" then return label end
+    return "Игрок #" .. tostring(target)
+end
+
+local function partnerOf(trade, playerId) return trade.a == playerId and trade.b or trade.a end
+
+local function pushOffers(targetId)
+    local list = {}
+    local t = now()
+    for fromId, expires in pairs(offers[targetId] or {}) do
+        if expires > t then list[#list + 1] = fromId end
+    end
+    TriggerClientEvent("rpp_inventory:tradeOffers", targetId, list)
+end
+
+local function offerView(playerId, trade)
+    local state, offer = inv[playerId], trade.offer[playerId]
+    local items = {}
+    for uid in pairs(offer.items) do
+        local inst = state and state.items[uid]
+        if inst then items[#items + 1] = view(inst) end
+    end
+    table.sort(items, function(l, r) return l.uid < r.uid end)
+    return { items = items, money = offer.money, ready = trade.ready[playerId] == true }
+end
+
+local function pushTrade(trade)
+    local left = trade.executeAt and math.max(0, trade.executeAt - now()) or nil
+    for _, playerId in ipairs({ trade.a, trade.b }) do
+        local partner = partnerOf(trade, playerId)
+        TriggerClientEvent("rpp_inventory:trade", playerId, {
+            id = trade.id,
+            partner = trade.names[playerId],
+            mine = offerView(playerId, trade),
+            theirs = offerView(partner, trade),
+            countdown = left,
+            delay = cfg.tradeDelaySec,
+        })
+        pushState(playerId, false)
+    end
+end
+
+local function closeTrade(trade, reason, kind)
+    if not trades[trade.id] then return end
+    trades[trade.id] = nil
+    for _, playerId in ipairs({ trade.a, trade.b }) do
+        if playerTrade[playerId] == trade.id then playerTrade[playerId] = nil end
+        TriggerClientEvent("rpp_inventory:tradeClosed", playerId, reason)
+        if reason then notify(playerId, kind or "warning", reason) end
+        pushState(playerId, false)
+    end
+end
+
+--- Сбрасывает готовность обоих и отменяет отсчёт (после любого изменения).
+local function unready(trade)
+    trade.ready[trade.a], trade.ready[trade.b] = false, false
+    trade.executeAt = nil
+    trade.version = trade.version + 1
+end
+
+-- Снимок рюкзака для отката.
+local function snapshot(state)
+    local copy = { items = {}, pos = {}, nextUid = state.nextUid, money = state.money }
+    for uid, inst in pairs(state.items) do copy.items[uid] = inst; copy.pos[uid] = { inst.x, inst.y } end
+    return copy
+end
+
+local function restore(state, copy)
+    state.items = {}
+    for uid, inst in pairs(copy.items) do
+        inst.x, inst.y = copy.pos[uid][1], copy.pos[uid][2]
+        state.items[uid] = inst
+    end
+    state.nextUid, state.money = copy.nextUid, copy.money
+end
+
+--- Проверяет, что предложение игрока всё ещё выполнимо. nil или текст ошибки.
+local function offerProblem(playerId, trade)
+    local state, offer = inv[playerId], trade.offer[playerId]
+    if not state then return "Игрок вышел." end
+    for uid in pairs(offer.items) do
+        if not state.items[uid] then return "Предмет из предложения пропал из рюкзака." end
+    end
+    if offer.money > state.money then return "Не хватает денег на предложенную сумму." end
+    return nil
+end
+
+local function executeTrade(trade)
+    local a, b = trade.a, trade.b
+    local sa, sb = inv[a], inv[b]
+    local problem = offerProblem(a, trade) or offerProblem(b, trade)
+    if problem then return closeTrade(trade, "Обмен отменён: " .. problem, "error") end
+    local d = distance(a, b)
+    if d and d > cfg.tradeKeepDistance then
+        return closeTrade(trade, "Обмен отменён: вы слишком далеко друг от друга.", "error")
+    end
+
+    -- Что уходит от каждого.
+    local outA, outB = {}, {}
+    for uid in pairs(trade.offer[a].items) do outA[#outA + 1] = sa.items[uid] end
+    for uid in pairs(trade.offer[b].items) do outB[#outB + 1] = sb.items[uid] end
+    local function bySize(l, r)
+        local lw, lh = sizeOf(l)
+        local rw, rh = sizeOf(r)
+        return lw * lh > rw * rh
+    end
+    table.sort(outA, bySize)
+    table.sort(outB, bySize)
+
+    local copyA, copyB = snapshot(sa), snapshot(sb)
+    for _, inst in ipairs(outA) do sa.items[inst.uid] = nil end
+    for _, inst in ipairs(outB) do sb.items[inst.uid] = nil end
+
+    local function receive(state, incoming)
+        for _, inst in ipairs(incoming) do
+            if not putInBag(state, newInst(state, inst.id, inst.meta)) then return false end
+        end
+        return true
+    end
+    if not receive(sa, outB) then
+        restore(sa, copyA); restore(sb, copyB)
+        return closeTrade(trade, "Обмен отменён: не хватает места в рюкзаке (" .. trade.names[b] .. ").", "error")
+    end
+    if not receive(sb, outA) then
+        restore(sa, copyA); restore(sb, copyB)
+        return closeTrade(trade, "Обмен отменён: не хватает места в рюкзаке (" .. trade.names[a] .. ").", "error")
+    end
+    local ma, mb = trade.offer[a].money, trade.offer[b].money
+    sa.money = sa.money - ma + mb
+    sb.money = sb.money - mb + ma
+
+    markDirty(a); markDirty(b)
+    log(("trade #%d done: %d gave %d item(s) + %d eddies, %d gave %d item(s) + %d eddies")
+        :format(trade.id, a, #outA, ma, b, #outB, mb))
+    closeTrade(trade, nil)
+    notify(a, "success", "Обмен завершён.")
+    notify(b, "success", "Обмен завершён.")
+end
+
+local function scheduleExecute(trade)
+    trade.executeAt = now() + cfg.tradeDelaySec
+    local version = trade.version
+    pushTrade(trade)
+    CreateThread(function()
+        Wait(math.floor(cfg.tradeDelaySec * 1000))
+        if trades[trade.id] ~= trade or trade.version ~= version then return end
+        if not (trade.ready[trade.a] and trade.ready[trade.b]) then return end
+        executeTrade(trade)
+    end)
+end
+
+local function startTrade(a, b)
+    local trade = {
+        id = nextTradeId, a = a, b = b, version = 0,
+        offer = { [a] = { items = {}, money = 0 }, [b] = { items = {}, money = 0 } },
+        ready = { [a] = false, [b] = false },
+        names = { [a] = nameFor(a, b), [b] = nameFor(b, a) }, -- имя партнёра глазами игрока
+    }
+    nextTradeId = nextTradeId + 1
+    trades[trade.id] = trade
+    playerTrade[a], playerTrade[b] = trade.id, trade.id
+    pushTrade(trade)
+end
+
+--- Предложение обмена from -> target. true или false, сообщение.
+local function offerTrade(from, target)
+    if from == target then return false, "Нельзя обменяться с самим собой." end
+    if not inv[from] or not load(target) then return false, "Игрок недоступен." end
+    if playerTrade[from] then return false, "Вы уже в обмене." end
+    if playerTrade[target] then return false, "Этот игрок уже с кем-то меняется." end
+    local d = distance(from, target)
+    if d and d > cfg.tradeDistance then return false, "Подойдите ближе, чтобы предложить обмен." end
+    -- Встречное предложение — сразу начинаем.
+    if offers[from] and offers[from][target] and offers[from][target] > now() then
+        offers[from][target] = nil
+        pushOffers(from)
+        startTrade(target, from)
+        return true
+    end
+    offers[target] = offers[target] or {}
+    offers[target][from] = now() + cfg.tradeOfferSec
+    pushOffers(target)
+    notify(target, "info", nameFor(target, from) .. " предлагает обмен. ALT на игроке -> «Принять обмен» или /trade accept.")
+    return true, "Предложение обмена отправлено: " .. nameFor(from, target) .. "."
+end
+
+local function acceptTrade(target, from)
+    local list = offers[target] or {}
+    if not from then
+        -- последнее предложение
+        local best = 0
+        for id, expires in pairs(list) do if expires > now() and expires > best then from, best = id, expires end end
+    end
+    if not from or not list[from] or list[from] <= now() then return false, "Нет предложений обмена." end
+    list[from] = nil
+    pushOffers(target)
+    if playerTrade[from] or playerTrade[target] then return false, "Кто-то из вас уже в обмене." end
+    local d = distance(from, target)
+    if d and d > cfg.tradeDistance then return false, "Подойдите ближе, чтобы начать обмен." end
+    startTrade(from, target)
+    return true
+end
+
+--- Обработчик действия в обмене: игрок, его обмен; handler(trade) -> ok, сообщение.
+local function tradeEvent(name, handler)
+    RegisterNetEvent("rpp_inventory:" .. name, function(...)
+        local playerId = tonumber(source)
+        if not playerId or not allowed(playerId) then return end
+        local args = table.pack(...)
+        CreateThread(function()
+            if not load(playerId) then return end
+            local ok, result, message = pcall(handler, playerId, table.unpack(args, 1, args.n))
+            if not ok then log(name .. " failed: " .. tostring(result)); message = "Внутренняя ошибка обмена." end
+            if message then notify(playerId, (ok and result) and "success" or "error", message) end
+        end)
+    end)
+end
+
+tradeEvent("tradeOffer", function(playerId, target)
+    target = int(target)
+    if not target then return false end
+    return offerTrade(playerId, target)
+end)
+
+tradeEvent("tradeAccept", function(playerId, from)
+    return acceptTrade(playerId, int(from))
+end)
+
+tradeEvent("tradeDecline", function(playerId, from)
+    from = int(from)
+    local list = offers[playerId] or {}
+    if from then list[from] = nil else offers[playerId] = {} end
+    pushOffers(playerId)
+    if from and inv[from] then notify(from, "warning", nameFor(from, playerId) .. " отказался от обмена.") end
+    return true
+end)
+
+--- Своё предложение можно менять только пока не нажата «Готов».
+local function editable(playerId)
+    local trade = playerTrade[playerId] and trades[playerTrade[playerId]]
+    if not trade then return nil, "Вы не в обмене." end
+    if trade.ready[playerId] then return nil, "Снимите готовность, чтобы менять предложение." end
+    return trade
+end
+
+tradeEvent("tradeAdd", function(playerId, uid)
+    uid = int(uid)
+    local trade, why = editable(playerId)
+    if not trade then return false, why end
+    local state, offer = inv[playerId], trade.offer[playerId]
+    if not uid or not state.items[uid] then return false, "Этого предмета нет в рюкзаке." end
+    local count = 0
+    for _ in pairs(offer.items) do count = count + 1 end
+    if count >= TRADE_MAX_ITEMS then return false, "В обмен можно положить не больше " .. TRADE_MAX_ITEMS .. " предметов." end
+    offer.items[uid] = true
+    unready(trade)
+    pushTrade(trade)
+    return true
+end)
+
+tradeEvent("tradeRemove", function(playerId, uid)
+    uid = int(uid)
+    local trade, why = editable(playerId)
+    if not trade then return false, why end
+    if uid and trade.offer[playerId].items[uid] then
+        trade.offer[playerId].items[uid] = nil
+        unready(trade)
+        pushTrade(trade)
+    end
+    return true
+end)
+
+tradeEvent("tradeMoney", function(playerId, amount)
+    amount = int(amount)
+    local trade, why = editable(playerId)
+    if not trade then return false, why end
+    if not amount or amount < 0 then return false, "Неверная сумма." end
+    if amount > inv[playerId].money then return false, "У вас нет столько денег." end
+    trade.offer[playerId].money = amount
+    unready(trade)
+    pushTrade(trade)
+    return true
+end)
+
+tradeEvent("tradeReady", function(playerId, value)
+    local trade = playerTrade[playerId] and trades[playerTrade[playerId]]
+    if not trade then return false end
+    if value == true then
+        local problem = offerProblem(playerId, trade)
+        if problem then return false, problem end
+        trade.ready[playerId] = true
+        trade.version = trade.version + 1
+        if trade.ready[trade.a] and trade.ready[trade.b] then scheduleExecute(trade) else pushTrade(trade) end
+    else
+        -- Отжать готовность можно и во время отсчёта: обмен тогда не состоится.
+        trade.ready[playerId] = false
+        trade.executeAt = nil
+        trade.version = trade.version + 1
+        pushTrade(trade)
+    end
+    return true
+end)
+
+tradeEvent("tradeCancel", function(playerId)
+    local trade = playerTrade[playerId] and trades[playerTrade[playerId]]
+    if trade then closeTrade(trade, "Обмен отменён.", "warning") end
+    return true
+end)
+
+-- Разошлись далеко — обмен отменяется; просроченные предложения убираются.
+CreateThread(function()
+    while true do
+        Wait(1000)
+        for _, trade in pairs(trades) do
+            local d = distance(trade.a, trade.b)
+            if d and d > cfg.tradeKeepDistance then
+                closeTrade(trade, "Обмен отменён: вы отошли слишком далеко.", "warning")
+            end
+        end
+        local t = now()
+        for targetId, list in pairs(offers) do
+            local changedList = false
+            for fromId, expires in pairs(list) do
+                if expires <= t then list[fromId] = nil; changedList = true end
+            end
+            if changedList and inv[targetId] then pushOffers(targetId) end
+        end
+    end
+end)
+
+AddEventHandler("onPlayerDisconnected", function(playerIdStr)
+    local playerId = tonumber(playerIdStr)
+    if not playerId then return end
+    local trade = playerTrade[playerId] and trades[playerTrade[playerId]]
+    if trade then closeTrade(trade, "Обмен отменён: партнёр вышел.", "warning") end
+    offers[playerId] = nil
+    for _, list in pairs(offers) do list[playerId] = nil end
+end)
+
+-- /trade accept | decline | <ID игрока>
+RegisterCommand("trade", function(player, args, raw)
+    player = tonumber(player)
+    if not player or player <= 0 then return reply(player, raw, false, "trade — команда игрока") end
+    CreateThread(function()
+        if not load(player) then return end
+        local sub = args[1] and args[1]:lower() or ""
+        local ok, message
+        if sub == "accept" or sub == "принять" then
+            ok, message = acceptTrade(player, nil)
+        elseif sub == "decline" or sub == "отказ" then
+            offers[player] = {}
+            pushOffers(player)
+            ok, message = true, "Предложения обмена отклонены."
+        elseif tonumber(sub) then
+            ok, message = offerTrade(player, tonumber(sub))
+        else
+            ok, message = false, "использование: /trade accept | /trade decline | /trade <ID игрока>"
+        end
+        if message then reply(player, raw, ok == true, message) end
+    end)
+end, false)
 
 -- ---------------------------------------------------------------------------
 -- API для других ресурсов

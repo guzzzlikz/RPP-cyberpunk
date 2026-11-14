@@ -410,6 +410,12 @@ exports("areAcquainted", function(a, b)
     local ea, eb = online[tonumber(a)], online[tonumber(b)]
     return ea ~= nil and eb ~= nil and ea.known[eb.guid] == true
 end)
+-- Как `viewer` видит `target`: имя знакомого или «Житель #N» (окно обмена rpp_inventory).
+exports("labelFor", function(viewer, target)
+    viewer, target = tonumber(viewer), tonumber(target)
+    if not viewer or not target then return nil end
+    return labelFor(viewer, target).label
+end)
 
 -- Хранилище: MySQL, если база работает, иначе kvp (server/storage.lua).
 -- Без MySQL open77_appearance не открывает редактор (beginEdit ->

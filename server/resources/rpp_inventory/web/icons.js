@@ -23,4 +23,5 @@ window.RppIcons = {
 };
 
 // Подсказки для типов предметов.
-window.RppKinds = { weapon: "Оружие", clothing: "Одежда", junk: "Хлам", item: "Предмет" };
+window.RppKinds = { weapon: "Оружие", clothing: "Одежда", junk: "Хлам", item: "Предмет", food: "Еда", resource: "Ресурс" };
+window.RppIcons.food = { box: "0 0 80 80", d: "M12 34h56c0 18-12 32-28 32S12 52 12 34z M8 34h64v6H8z M30 30c0-10 4-16 10-20 M44 30c0-8 6-14 12-16" };

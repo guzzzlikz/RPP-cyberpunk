@@ -14,6 +14,7 @@ dependency "open77_notifications >=1.0.0"
 dependency "open77_weapons >=0.1.0"
 dependency "open77_equipment >=0.2.0"
 dependency "open77_worldui >=0.1.0"
+dependency "open77_contextmenu >=1.1.0"
 
 -- Каталог (config.lua, weapons.lua) нужен клиенту только ради настроек
 -- клавиши и дистанций; размеры и названия предметов присылает сервер.

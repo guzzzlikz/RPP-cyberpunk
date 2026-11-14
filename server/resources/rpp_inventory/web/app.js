@@ -8,6 +8,7 @@
 
   var state = { cols: 6, rows: 12, money: 0, items: [], weapons: [], weaponSlots: 3, wear: [], wearSlots: [], cyber: [] };
   var open = false;
+  var trade = null;  // состояние обмена с сервера или null
   var view = "gear";
   var drag = null;   // { item, from: "bag"|"weapon"|"wear", key, offX, offY, startX, startY, moved }
 
@@ -49,7 +50,7 @@
     var html = "";
     state.items.forEach(function (it) {
       used += it.w * it.h;
-      html += '<div class="item kind-' + esc(it.kind) + '" data-uid="' + it.uid + '" style="left:' + (it.x * CELL + 1) +
+      html += '<div class="item kind-' + esc(it.kind) + (it.offered ? " offered" : "") + '" data-uid="' + it.uid + '" style="left:' + (it.x * CELL + 1) +
         'px;top:' + (it.y * CELL + 1) + 'px;width:' + (it.w * CELL) + 'px;height:' + (it.h * CELL) + 'px">' +
         '<div class="box">' + icon(it.icon) + (it.w * it.h > 1 ? '<span class="name">' + esc(it.label) + "</span>" : "") +
         "</div></div>";
@@ -112,10 +113,14 @@
 
   function setView(next) {
     view = next;
+    var t = view === "trade";
     $("viewGear").classList.toggle("hidden", view !== "gear");
     $("viewCyber").classList.toggle("hidden", view !== "cyber");
-    $("leftTitle").textContent = view === "gear" ? "Экипировка" : "Киберимпланты";
-    $("leftHint").textContent = view === "gear" ? "ПКМ или клик по предмету: снять или выбросить" : "Установленные импланты по зонам тела";
+    $("viewTrade").classList.toggle("hidden", !t);
+    $("switchView").classList.toggle("hidden", t);
+    $("leftTitle").textContent = t ? "Обмен" : view === "gear" ? "Экипировка" : "Киберимпланты";
+    $("leftHint").textContent = t ? "Обмен произойдёт, когда оба нажмут «Готов»"
+      : view === "gear" ? "ПКМ или клик по предмету: снять или выбросить" : "Установленные импланты по зонам тела";
     document.querySelectorAll(".switch-opt").forEach(function (el) {
       el.classList.toggle("active", el.getAttribute("data-view") === view);
     });
@@ -182,7 +187,13 @@
     var item = lookup(where, key);
     if (!item) return;
     var entries = [];
-    if (where === "bag") {
+    if (trade && where === "bag") {
+      // Во время обмена из рюкзака можно только предлагать.
+      if (item.offered) entries.push(entry("Убрать из обмена", function () { act("tradeRemove", { uid: item.uid }); }));
+      else entries.push(entry("Предложить в обмен", function () { act("tradeAdd", { uid: item.uid }); }));
+    } else if (trade) {
+      return; // экипированное во время обмена не трогаем
+    } else if (where === "bag") {
       if (item.kind === "weapon") {
         entries.push(entry("Экипировать", null, { submenu: weaponSlotEntries(item) }));
       } else if (item.kind === "clothing") {
@@ -291,7 +302,7 @@
 
   function clearHighlights() {
     if (preview) { preview.remove(); preview = null; }
-    document.querySelectorAll(".slot.drop-ok, .slot.drop-bad").forEach(function (el) { el.classList.remove("drop-ok", "drop-bad"); });
+    document.querySelectorAll(".slot.drop-ok, .slot.drop-bad, .trade-col.drop-ok, .trade-col.drop-bad").forEach(function (el) { el.classList.remove("drop-ok", "drop-bad"); });
   }
 
   function overlaps(x, y, w, h, ignoreUid) {
@@ -338,6 +349,11 @@
       return { type: "grid", x: x, y: y, ok: false };
     }
     var el = document.elementFromPoint(ev.clientX, ev.clientY);
+    if (trade && drag.from === "bag") {
+      var zone = el && el.closest("#tradeMine");
+      if (zone) return { type: "trade", el: zone, ok: !item.offered && !trade.mine.ready };
+      return null;
+    }
     var slot = el && el.closest(".slot");
     if (slot && drag.from === "bag") {
       var where = slot.getAttribute("data-where");
@@ -424,6 +440,8 @@
       } else {
         act("unequip", { where: d.from, key: d.key });
       }
+    } else if (target.type === "trade") {
+      act("tradeAdd", { uid: d.item.uid });
     } else if (target.type === "weapon") {
       act("equipWeapon", { uid: d.item.uid, slot: target.slot });
     } else if (target.type === "wear") {
@@ -462,6 +480,9 @@
   document.addEventListener("keydown", function (ev) {
     if (!open) return;
     var key = (ev.key || "").toLowerCase();
+    var typing = ev.target && ev.target.tagName === "INPUT";
+    if (typing && key === "enter") { ev.preventDefault(); setTradeMoney(); return; }
+    if (typing && key !== "escape") return; // в поле суммы буквы и цифры — это ввод
     if (key === "escape") {
       if (!menu.classList.contains("hidden")) { hideMenu(); return; }
       close();
@@ -469,6 +490,86 @@
       ev.preventDefault();
       close();
     }
+  });
+
+  // ------------------------------------------------------------------
+  // Обмен
+  // ------------------------------------------------------------------
+  var tradeTimer = null, countdownEnd = 0;
+
+  function tradeItemHtml(it, mine) {
+    return '<div class="trade-item"' + (mine ? ' data-uid="' + it.uid + '" title="Нажмите, чтобы убрать из обмена"' : "") + ">" +
+      icon(it.icon) + '<div><div class="ti-name">' + esc(it.label) + '</div><div class="ti-sub">' +
+      esc((it.sub || window.RppKinds[it.kind] || "") + " · " + it.w + "×" + it.h) + "</div></div></div>";
+  }
+
+  function tradeStatus() {
+    var el = $("tradeStatus");
+    if (!trade) return;
+    var left = countdownEnd ? Math.max(0, (countdownEnd - Date.now()) / 1000) : 0;
+    el.classList.toggle("count", !!countdownEnd);
+    if (countdownEnd) el.textContent = "ОБМЕН ЧЕРЕЗ " + Math.ceil(left) + "…  (снимите «Готов», чтобы остановить)";
+    else if (trade.mine.ready && !trade.theirs.ready) el.textContent = "Вы готовы. Ждём партнёра. Пока вы готовы, предложение менять нельзя.";
+    else if (!trade.mine.ready && trade.theirs.ready) el.textContent = "Партнёр готов. Проверьте, что он отдаёт, и нажмите «Готов».";
+    else el.textContent = "Перетащите вещи из рюкзака в «Вы отдаёте» или нажмите на них ПКМ. Любое изменение сбрасывает готовность.";
+  }
+
+  function renderTrade() {
+    if (!trade) return;
+    $("tradePartner").textContent = String(trade.partner || "ПАРТНЁР").toUpperCase() + " ОТДАЁТ";
+    $("tradeMineList").innerHTML = trade.mine.items.length
+      ? trade.mine.items.map(function (it) { return tradeItemHtml(it, true); }).join("")
+      : '<div class="trade-empty">Пусто. Перетащите сюда вещи из рюкзака.</div>';
+    $("tradeTheirsList").innerHTML = trade.theirs.items.length
+      ? trade.theirs.items.map(function (it) { return tradeItemHtml(it, false); }).join("")
+      : '<div class="trade-empty">Партнёр пока ничего не положил.</div>';
+    $("tradeTheirsMoney").textContent = money(trade.theirs.money);
+    var input = $("tradeMoney");
+    if (document.activeElement !== input) input.value = String(trade.mine.money || 0);
+    input.disabled = trade.mine.ready;
+    $("tradeMoneySet").disabled = trade.mine.ready;
+    $("mineReady").classList.toggle("on", trade.mine.ready);
+    $("mineReady").textContent = trade.mine.ready ? "ГОТОВ" : "НЕ ГОТОВ";
+    $("theirsReady").classList.toggle("on", trade.theirs.ready);
+    $("theirsReady").textContent = trade.theirs.ready ? "ГОТОВ" : "НЕ ГОТОВ";
+    var btn = $("tradeReady");
+    btn.classList.toggle("on", trade.mine.ready);
+    btn.textContent = trade.mine.ready ? "Готов ✓ (отменить)" : "Готов";
+    countdownEnd = typeof trade.countdown === "number" ? Date.now() + trade.countdown * 1000 : 0;
+    if (tradeTimer) { clearInterval(tradeTimer); tradeTimer = null; }
+    if (countdownEnd) tradeTimer = setInterval(tradeStatus, 200);
+    tradeStatus();
+  }
+
+  function setTradeMoney() {
+    if (!trade || trade.mine.ready) return;
+    var value = Math.floor(Number($("tradeMoney").value) || 0);
+    if (value < 0) value = 0;
+    act("tradeMoney", { amount: value });
+    $("tradeMoney").blur();
+  }
+
+  $("tradeMoneySet").addEventListener("click", setTradeMoney);
+  $("tradeReady").addEventListener("click", function () { if (trade) act("tradeReady", { ready: !trade.mine.ready }); });
+  $("tradeCancel").addEventListener("click", function () { if (trade) act("tradeCancel"); });
+  $("tradeMineList").addEventListener("click", function (ev) {
+    var row = ev.target.closest(".trade-item");
+    if (!row || !trade || trade.mine.ready) return;
+    act("tradeRemove", { uid: Number(row.getAttribute("data-uid")) });
+  });
+
+  on("trade", function (next) {
+    if (!next || !next.mine) return;
+    var first = !trade;
+    trade = next;
+    if (first) setView("trade");
+    renderTrade();
+  });
+  on("tradeClosed", function () {
+    trade = null;
+    countdownEnd = 0;
+    if (tradeTimer) { clearInterval(tradeTimer); tradeTimer = null; }
+    setView("gear");
   });
 
   on("show", show);

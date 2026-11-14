@@ -5,6 +5,8 @@ local cfg = RppInventoryConfig
 local RESOURCE = GetCurrentResourceName()
 
 local page, ready, open = nil, false, false
+local trading = false
+local tradeOffers = {} -- [playerId] = true: этот игрок предложил нам обмен
 local queue = {}
 local lastState = nil
 local lastToggle = 0
@@ -46,6 +48,11 @@ end
 local ACTIONS = {
     move = function(p) TriggerServerEvent("rpp_inventory:move", p.uid, p.x, p.y) end,
     sort = function() TriggerServerEvent("rpp_inventory:sort") end,
+    tradeAdd = function(p) TriggerServerEvent("rpp_inventory:tradeAdd", p.uid) end,
+    tradeRemove = function(p) TriggerServerEvent("rpp_inventory:tradeRemove", p.uid) end,
+    tradeMoney = function(p) TriggerServerEvent("rpp_inventory:tradeMoney", p.amount) end,
+    tradeReady = function(p) TriggerServerEvent("rpp_inventory:tradeReady", p.ready == true) end,
+    tradeCancel = function() TriggerServerEvent("rpp_inventory:tradeCancel") end,
     equipWeapon = function(p) TriggerServerEvent("rpp_inventory:equipWeapon", p.uid, p.slot) end,
     equipClothing = function(p) TriggerServerEvent("rpp_inventory:equipClothing", p.uid) end,
     unequip = function(p) TriggerServerEvent("rpp_inventory:unequip", p.where, p.key) end,
@@ -70,6 +77,8 @@ local function ensurePage()
         queue = {}
     end)
     page:on("inv:close", function()
+        -- Закрыть окно во время обмена = отменить обмен.
+        if trading then TriggerServerEvent("rpp_inventory:tradeCancel") end
         -- Та же клавиша I закрывает окно со страницы и одновременно срабатывает
         -- привязка: окно не должно тут же открыться снова.
         open = false
@@ -89,6 +98,88 @@ RegisterNetEvent("rpp_inventory:state", function(state)
     if state.cyber == nil and lastState then state.cyber = lastState.cyber end
     lastState = state
     if open then send("state", state) end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Обмен
+-- ---------------------------------------------------------------------------
+RegisterNetEvent("rpp_inventory:trade", function(trade)
+    if type(trade) ~= "table" then return end
+    trading = true
+    if not ensurePage() then return end
+    if not open then setOpen(true) end
+    send("trade", trade)
+end)
+
+RegisterNetEvent("rpp_inventory:tradeClosed", function(reason)
+    trading = false
+    send("tradeClosed", { reason = reason })
+end)
+
+RegisterNetEvent("rpp_inventory:tradeOffers", function(list)
+    tradeOffers = {}
+    for _, id in ipairs(type(list) == "table" and list or {}) do
+        if tonumber(id) then tradeOffers[tonumber(id)] = true end
+    end
+end)
+
+-- ALT-меню на игроке: «Предложить обмен» и «Принять обмен».
+local function targetId(context)
+    local target = context and context.target
+    local id = target and tonumber(target.playerId)
+    if not id or target.isLocalPlayer == true then return nil end
+    return id
+end
+
+exports("canTradeOffer", function(context)
+    if GetInvokingResource() ~= "open77_contextmenu" then return false end
+    local id = targetId(context)
+    return id ~= nil and not trading and not tradeOffers[id]
+end)
+exports("selectTradeOffer", function(context)
+    if GetInvokingResource() ~= "open77_contextmenu" then return false end
+    local id = targetId(context)
+    if not id then return false end
+    TriggerServerEvent("rpp_inventory:tradeOffer", id)
+    return true
+end)
+exports("canTradeAccept", function(context)
+    if GetInvokingResource() ~= "open77_contextmenu" then return false end
+    local id = targetId(context)
+    return id ~= nil and not trading and tradeOffers[id] == true
+end)
+exports("selectTradeAccept", function(context)
+    if GetInvokingResource() ~= "open77_contextmenu" then return false end
+    local id = targetId(context)
+    if not id then return false end
+    TriggerServerEvent("rpp_inventory:tradeAccept", id)
+    return true
+end)
+
+local function registerContext()
+    local entries = {
+        { id = "rpp_trade_offer", label = "Предложить обмен", icon = "interact",
+          description = "Обменяться вещами и деньгами. Обмен — только когда оба нажмут «Готов».",
+          canInteract = "canTradeOffer", onSelect = "selectTradeOffer" },
+        { id = "rpp_trade_accept", label = "Принять обмен", icon = "person",
+          description = "Этот игрок предложил вам обмен.",
+          canInteract = "canTradeAccept", onSelect = "selectTradeAccept" },
+    }
+    for _, entry in ipairs(entries) do
+        entry.distance = cfg.tradeDistance
+        entry.group = "Обмен"
+        local pending, reason = Open77.exports.call("open77_contextmenu", "registerPlayers", entry)
+        if pending then
+            local token
+            token, reason = pending:await()
+            if token then reason = nil end
+        end
+        if reason then log("context menu " .. entry.id .. " failed: " .. tostring(reason)) end
+    end
+end
+
+AddEventHandler("onClientResourceStart", function(name)
+    if name == "open77_contextmenu" then CreateThread(registerContext) end
 end)
 
 -- ---------------------------------------------------------------------------
@@ -235,6 +326,7 @@ AddEventHandler("onClientResourceStart", function(name)
     if name ~= RESOURCE then return end
     blockVanilla(true)
     hello()
+    CreateThread(registerContext)
 end)
 
 AddEventHandler("open77:worldReady", function()
