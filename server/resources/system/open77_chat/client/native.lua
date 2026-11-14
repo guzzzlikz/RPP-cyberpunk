@@ -206,6 +206,7 @@ function N.create()
     local staleToken = 0
     local alive = true
     local openedAt = nil       -- when the composer took the focus (the opening key's character follows)
+    local draftAtOpen = ""     -- RPP: черновик в момент открытия (к нему дописывается символ клавиши T)
 
     local function emit(name, payload)
         local fn = page.handlers[name]
@@ -300,11 +301,19 @@ function N.create()
         ui:class("#suggestions", "on", true)
     end
 
+    -- RPP: лимит 1000 символов (не байт: русская буква — 2 байта).
+    local CHAR_LIMIT = 1000
+    local function charCount(text) return utf8.len(text) or #text end
+    local function updateChars()
+        local count = charCount(value)
+        ui:text("#chars", count .. "/" .. CHAR_LIMIT)
+        ui:class("#chars", "near", count >= CHAR_LIMIT - 100)
+    end
+
     local function setValue(text)
         value = text
         ui:value("#input", text)
-        ui:text("#chars", #text .. "/256")
-        ui:class("#chars", "near", #text >= 224)
+        updateChars()
         renderSuggestions()
     end
 
@@ -323,12 +332,15 @@ function N.create()
         for _, row in ipairs(rows) do schedule(row) end
         if open then
             openedAt = GetGameTimer()
+            draftAtOpen = value
+            setValue(value) -- черновик остаётся в поле
             ui:focusElement("#input")
             latest()
             emit("chat:requestSuggestions", {})
         else
+            -- RPP: черновик не стирается при закрытии — только после отправки
+            -- (submit) или если игрок сам удалит текст.
             ui:blurElement("#input")
-            setValue("")
             selected = 1
             latest()
         end
@@ -343,6 +355,7 @@ function N.create()
         ui:class("#root", "sending", false)
         CreateThread(function() Wait(0); if ui then ui:class("#root", "sending", true) end end)
         emit("chat:submit", { text = text })
+        setValue("") -- отправлено: черновик больше не нужен
     end
 
     ui:onEvent("loaded", function()
@@ -356,15 +369,17 @@ function N.create()
         value = tostring(e.value or "")
         -- the key that opened the chat (T) is still typed: its character reaches the
         -- composer that just took the focus. A single character in the first moments is it.
-        if openedAt and #value == 1 and GetGameTimer() - openedAt < 150 then
+        -- RPP: с черновиком символ клавиши дописывается к нему — убираем его же.
+        if openedAt and GetGameTimer() - openedAt < 150
+            and value:sub(1, #draftAtOpen) == draftAtOpen
+            and charCount(value) == charCount(draftAtOpen) + 1 then
             openedAt = nil
-            setValue("")
+            setValue(draftAtOpen)
             return
         end
         openedAt = nil
         selected = 1
-        ui:text("#chars", #value .. "/256")
-        ui:class("#chars", "near", #value >= 224)
+        updateChars()
         renderSuggestions()
     end)
     ui:on("keydown", function(e)

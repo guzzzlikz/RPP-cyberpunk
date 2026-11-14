@@ -1,5 +1,5 @@
 local enabled = true
-local MAX_MESSAGE_BYTES = 256
+-- (лимит длины сообщения — MAX_MESSAGE_CHARS ниже)
 local readyRequests = {}
 
 local CHAT_SUGGESTIONS = {
@@ -19,19 +19,33 @@ local CHAT_SUGGESTIONS = {
         parameters = { { name = "действие" } }
     },
     {
+        command = "/roll",
+        help = "Бросить кубик от 1 до 100 (видят игроки рядом).",
+        parameters = {}
+    },
+    {
         command = "/id",
         help = "Показать временный ID в этой сессии.",
         parameters = {}
     },
 }
 
+-- RPP: лимит в СИМВОЛАХ (было 256 байт — по-русски это всего 128 букв).
+local MAX_MESSAGE_CHARS = 1000
+
 local function clean(text)
     text = tostring(text or ""):gsub("[%c]", " ")
     text = text:match("^%s*(.-)%s*$") or ""
-    if #text > MAX_MESSAGE_BYTES then
-        local ok, boundary = pcall(utf8.offset, text, 0, MAX_MESSAGE_BYTES + 1)
-        if ok and boundary then text = text:sub(1, boundary - 1)
-        else text = text:sub(1, MAX_MESSAGE_BYTES) end
+    if #text > MAX_MESSAGE_CHARS * 4 then text = text:sub(1, MAX_MESSAGE_CHARS * 4) end
+    local length = utf8.len(text)
+    if not length then
+        -- Битый UTF-8: оставляем только корректное начало.
+        local ok, bad = pcall(function() local _, position = utf8.len(text); return position end)
+        text = ok and bad and text:sub(1, bad - 1) or ""
+        length = utf8.len(text) or 0
+    end
+    if length > MAX_MESSAGE_CHARS then
+        text = text:sub(1, utf8.offset(text, MAX_MESSAGE_CHARS + 1) - 1)
     end
     return text
 end
@@ -91,29 +105,36 @@ local function position(player)
     return nil
 end
 
-local function bubble(player, payload)
+--- Игроки в радиусе голоса `player` (без него самого) и сам радиус.
+--- nil вместо списка — позиции недоступны.
+local function hearers(player)
     local range = voiceDistance[player] or DEFAULT_VOICE_DISTANCE
-    payload.range = range
     local origin = position(player)
     local ok, players = pcall(Open77.players.all)
-    if not origin or not ok or type(players) ~= "table" then
-        -- Позиции недоступны: страница всё равно спрячет пузырь дальше `range`.
-        TriggerClientEvent("open77_chat:bubble", -1, player, payload)
-        return
-    end
-    local limit = (range + 2.0) ^ 2 -- небольшой запас на задержку позиций
+    if not origin or not ok or type(players) ~= "table" then return nil, range end
+    local list, limit = {}, (range + 2.0) ^ 2 -- небольшой запас на задержку позиций
     for _, other in ipairs(players) do
         other = tonumber(type(other) == "table" and other.id or other)
         if other and other ~= player then
             local pos = position(other)
             if pos and pos.bucket == origin.bucket then
                 local dx, dy, dz = pos.x - origin.x, pos.y - origin.y, pos.z - origin.z
-                if dx * dx + dy * dy + dz * dz <= limit then
-                    TriggerClientEvent("open77_chat:bubble", other, player, payload)
-                end
+                if dx * dx + dy * dy + dz * dz <= limit then list[#list + 1] = other end
             end
         end
     end
+    return list, range
+end
+
+local function bubble(player, payload)
+    local list, range = hearers(player)
+    payload.range = range
+    if not list then
+        -- Позиции недоступны: страница всё равно спрячет пузырь дальше `range`.
+        TriggerClientEvent("open77_chat:bubble", -1, player, payload)
+        return
+    end
+    for _, other in ipairs(list) do TriggerClientEvent("open77_chat:bubble", other, player, payload) end
 end
 
 local function targetId(value)
@@ -178,6 +199,30 @@ RegisterCommand("me", function(player, args)
     push(-1, { type = "action", author = name, text = text, playerId = tostring(player) })
     bubble(player, { kind = "me", text = text })
 end, false)
+
+-- /roll — бросок от 1 до 100. Видят автор и все в радиусе его голоса.
+local lastRoll = {}
+RegisterCommand("roll", function(player)
+    player = tonumber(player)
+    if not enabled or not player or player <= 0 then return end
+    local now = Open77.time.monotonic()
+    if lastRoll[player] and now - lastRoll[player] < 2 then return end
+    lastRoll[player] = now
+    local result = math.random(1, 100)
+    local name = GetPlayerName(player) or ("Player " .. tostring(player))
+    local text = ("бросает кубик (1–100): выпало %d"):format(result)
+    TriggerEvent("chat:message", player, name, "/roll " .. result)
+    local message = { type = "action", author = name, text = text, playerId = tostring(player) }
+    push(player, message)
+    local list = hearers(player)
+    if list then
+        for _, other in ipairs(list) do push(other, message) end
+    else
+        push(-1, message)
+    end
+    bubble(player, { kind = "me", text = text })
+end, false)
+AddEventHandler("onPlayerDisconnected", function(player) lastRoll[tonumber(player) or -1] = nil end)
 
 -- The WebUI requests suggestions whenever it is created. Other resources may
 -- listen to the same network event and send their own command metadata directly
