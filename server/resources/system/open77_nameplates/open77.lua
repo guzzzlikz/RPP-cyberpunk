@@ -33,6 +33,9 @@ web_files { "web/**" }
 permissions {
     "ui.nameplates",
 
+    -- RPP: клавиша F1 «Скрыть / показать ники» (RegisterKeyMapping).
+    "input.actions",
+
     -- policy.lua listens for the gamemode state pushes it uses to learn who is
     -- on your side (`cordon:state`, `deathmatch:state`) and asks the server
     -- half for the policy; server/main.lua answers and broadcasts retunes.
