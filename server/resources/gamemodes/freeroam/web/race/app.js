@@ -234,9 +234,9 @@
         art.append(element("span", "route-number", `ROUTE ${String(index + 1).padStart(2, "0")}`), element("span", "route-pick"));
         const info = element("div", "route-info");
         info.append(element("span", "route-type", `${course.type || "circuit"} / ${integer(course.laps, 1)} lap${integer(course.laps, 1) > 1 ? "s" : ""}`),
-          element("h4", "", String(course.name || "Unnamed route").slice(0, 64)),
+          element("h4", "", String(course.name || "Трасса без названия").slice(0, 64)),
           element("div", "route-specs", `${(number(course.routeMetres) / 1000).toFixed(1)} km route · ${integer(course.checkpointCount)} checkpoints`),
-          element("div", "route-specs", course.automaticGrid ? "Automatic starting line · no course limit" : `${integer(course.gridCapacity)} grid slots`),
+          element("div", "route-specs", course.automaticGrid ? "Автоматический старт · без ограничения трассы" : `${integer(course.gridCapacity)} grid slots`),
           element("div", "route-vehicle", course.vehicleLabel || "Машина для гонки"));
         const votes = element("div", "route-votes"); votes.append(element("span", "", "VOTES"), element("b", "", "0"));
         card.append(art, info, votes);
@@ -256,7 +256,7 @@
       card.setAttribute("aria-pressed", String(selected));
       card.setAttribute("aria-disabled", String(!canVote));
       card.setAttribute("aria-label", `${course.name}. ${integer(course.votes)} votes. ${winner ? "Выбранная трасса." : selected ? "Твой голос." : canVote ? "Голосовать за эту трассу." : "Встань в очередь, чтобы голосовать."}`);
-      card.querySelector(".route-pick").textContent = winner ? "SELECTED" : selected ? "ТВОЙ ГОЛОС ✓" : canVote ? "VOTE ↗" : state.nextCourseLocked && !ballot.id ? "СЛЕДУЮЩИЙ ЗАЕЗД" : "PREVIEW";
+      card.querySelector(".route-pick").textContent = winner ? "SELECTED" : selected ? "ТВОЙ ГОЛОС ✓" : canVote ? "ГОЛОС ↗" : state.nextCourseLocked && !ballot.id ? "СЛЕДУЮЩИЙ ЗАЕЗД" : "PREVIEW";
       const count = card.querySelector(".route-votes b"), value = String(integer(course.votes));
       if (count.textContent !== value) {
         count.textContent = value; count.classList.remove("changed"); void count.offsetWidth; count.classList.add("changed");
@@ -296,8 +296,8 @@
       item.querySelector(".driver-avatar").textContent = name.slice(0, 2).toUpperCase();
       item.querySelector("b").textContent = name + (own ? " · YOU" : "");
       item.querySelector("small").textContent = row.heat ? `CURRENT HEAT · ${row.state === "grid" && row.vehicleReady ? "READY" : statusLabel(row)}`
-        : !row.ready ? "Not ready · check your character" : votedCourse ? `Voted · ${votedCourse.name}`
-        : state.nextCourseLocked ? "Waiting for the next grid" : "In queue · choosing a route";
+        : !row.ready ? "Не готов · проверь персонажа" : votedCourse ? `Voted · ${votedCourse.name}`
+        : state.nextCourseLocked ? "Ждём следующий старт" : "В очереди · выбор трассы";
       item.querySelector(".driver-place").textContent = row.heat ? `P${integer(row.rank)}` : `#${integer(row.queuePosition)}`;
       if (container.children[index] !== item) container.insertBefore(item, container.children[index] || null);
     });
@@ -318,8 +318,8 @@
     const seconds = Math.max(0, Math.ceil(number(state.remainingMs) / 1000));
     const title = phase === "forming" ? ballot.id ? "Выбери следующую трассу." : "Стартовая сетка собирается."
       : phase === "reveal" ? `${next.name || "Course"} is up next.`
-      : phase === "grid" ? "Getting everyone to the line."
-      : phase === "countdown" ? "Eyes on the lights."
+      : phase === "grid" ? "Все выходят на старт."
+      : phase === "countdown" ? "Смотри на светофор."
       : phase === "active" ? `${state.course?.name || "Race"} · live.`
       : phase === "results" ? "Готово. Скоро следующий заезд."
       : "Город — твоя стартовая линия.";
@@ -330,9 +330,9 @@
     $("stageHint").textContent = phase === "forming" ? "Голосуй, меняй выбор и смотри, как собирается старт."
       : phase === "reveal" ? automatic ? "Автоматическая линия старта · все из очереди бегут в этом заезде" : `${integer(state.nextGridCapacity)} grid slots · ${next.vehicleLabel || "Машина для гонки"} · Automatic boarding next`
       : phase === "grid" ? `${(state.rows || []).filter(r => r.vehicleReady).length} / ${integer(state.participantCount)} ${state.onFoot ? "бегунов готовы · жди старта" : "гонщиков в машинах · машины держатся до старта"}`
-      : phase === "countdown" ? state.onFoot ? "Starting line locked. Run at the green light." : "Grid locked. Vehicles release at the green light."
-      : phase === "active" || phase === "results" ? "The next queue stays open. Join and vote while this heat finishes."
-      : foot && !next.id ? "No foot courses yet. Open the course editor: capture the start and checkpoints."
+      : phase === "countdown" ? state.onFoot ? "Старт закрыт. Беги на зелёный." : "Сетка закрыта. Машины отпустит на зелёный."
+      : phase === "active" || phase === "results" ? "Очередь на следующий заезд открыта. Вступай и голосуй, пока идёт этот."
+      : foot && !next.id ? "Пеших трасс пока нет. Открой редактор трасс и поставь старт и чекпоинты."
       : `Join to open the vote. ${integer(state.minimumRacers, 1)} ${foot ? "runner" : "driver"}${integer(state.minimumRacers, 1) > 1 ? "s" : ""} needed to start.`;
     $("clockLabel").textContent = ({ forming: ballot.id ? "ГОЛОСОВАНИЕ ЗАКРОЕТСЯ ЧЕРЕЗ" : "СТАРТ ОТКРОЕТСЯ ЧЕРЕЗ", reveal: "НА СТАРТ ЧЕРЕЗ", grid: state.gridLoadActive ? "СТАРТ ЗАГРУЖАЕТСЯ" : state.onFoot ? "ВРЕМЯ НА ГОТОВНОСТЬ" : "ВРЕМЯ НА ПОСАДКУ", countdown: "ЗЕЛЁНЫЙ ЧЕРЕЗ", active: state.finishWindowActive ? "ОКНО ФИНИША" : "ОСТАЛОСЬ ВРЕМЕНИ", results: "ИТОГИ ЗАКРОЮТСЯ ЧЕРЕЗ" })[phase] || (foot ? "ЖДЁМ БЕГУНОВ" : "ЖДЁМ ГОНЩИКОВ");
     $("lobbyClock").textContent = phase === "waiting" ? "—" : phase === "countdown" ? String(seconds) : raceTime(seconds * 1000, true);
@@ -358,7 +358,7 @@
 
   function coordinate(point) {
     const p = point && point.position;
-    if (!p) return "Not captured";
+    if (!p) return "Не поставлено";
     return `${number(p.x).toFixed(1)}, ${number(p.y).toFixed(1)}, ${number(p.z).toFixed(1)} · ${number(point.heading).toFixed(0)}°`;
   }
 
@@ -368,43 +368,43 @@
   }
 
   const editorErrorCopy = {
-    position_unavailable: "Server position is not available yet. Wait a moment and retry.",
-    editor_world_required: "Return to the editor world before capturing this point.",
-    grid_slots_overlap: "This grid slot overlaps another one. Move the car farther away.",
-    too_many_grid_slots: "The course already has the maximum number of grid slots.",
-    too_many_checkpoints: "The course already has the maximum number of checkpoints.",
-    invalid_grid_index: "That grid slot no longer exists.",
-    invalid_checkpoint_index: "That checkpoint no longer exists.",
-    start_missing: "Capture a start position before saving.",
-    grid_missing: "Capture at least one vehicle grid slot before saving.",
-    not_enough_grid_slots: "Capture at least one vehicle grid slot before saving.",
-    not_enough_checkpoints: "Capture the required checkpoint(s) before saving.",
-    name_too_short: "The course name must contain at least three characters.",
-    invalid_type: "Choose either Circuit or Sprint.",
-    invalid_laps: "The lap count is outside the supported range.",
-    invalid_vehicle: "Choose one of the race vehicles allowed by the server.",
-    invalid_checkpoint_radius: "The checkpoint radius must be between 2 and 30 metres.",
-    builtin_readonly: "Built-in courses are read-only. Load one to create an editable copy.",
-    course_not_found: "That course no longer exists.",
-    heat_in_progress: "Wait for the active heat to finish before selecting another course.",
-    session_expired: "The editor session expired. Run /race.editor again.",
-    unknown_action: "The server did not recognise that editor action."
+    position_unavailable: "Позиция на сервере пока недоступна. Подожди и повтори.",
+    editor_world_required: "Вернись в мир редактора, чтобы поставить эту точку.",
+    grid_slots_overlap: "Это место на сетке пересекается с другим. Отъедь подальше.",
+    too_many_grid_slots: "На трассе уже максимум мест на сетке.",
+    too_many_checkpoints: "На трассе уже максимум чекпоинтов.",
+    invalid_grid_index: "Этого места на сетке уже нет.",
+    invalid_checkpoint_index: "Этого чекпоинта уже нет.",
+    start_missing: "Перед сохранением поставь старт.",
+    grid_missing: "Перед сохранением поставь хотя бы одно место на сетке.",
+    not_enough_grid_slots: "Перед сохранением поставь хотя бы одно место на сетке.",
+    not_enough_checkpoints: "Перед сохранением поставь нужные чекпоинты.",
+    name_too_short: "В названии трассы нужно хотя бы три символа.",
+    invalid_type: "Выбери: круговая или спринт.",
+    invalid_laps: "Число кругов вне допустимого диапазона.",
+    invalid_vehicle: "Выбери одну из разрешённых сервером гоночных машин.",
+    invalid_checkpoint_radius: "Радиус чекпоинта — от 2 до 30 метров.",
+    builtin_readonly: "Встроенные трассы менять нельзя. Загрузи её, чтобы сделать копию.",
+    course_not_found: "Этой трассы уже нет.",
+    heat_in_progress: "Дождись конца заезда, чтобы выбрать другую трассу.",
+    session_expired: "Сеанс редактора истёк. Снова введи /race.editor.",
+    unknown_action: "Сервер не понял это действие редактора."
   };
 
   function readableEditorError(error) {
     const raw = String(error || "");
     const code = raw.split(":", 1)[0];
     if (editorErrorCopy[code]) return editorErrorCopy[code];
-    if (code === "vehicle_spawn_failed") return "The editor car could not be created. Retry with the CAR key.";
+    if (code === "vehicle_spawn_failed") return "Машина редактора не создалась. Повтори клавишей CAR.";
     if (code === "storage_write_failed" || code === "storage_delete_failed")
-      return "The course JSON could not be written. Check the server storage log.";
+      return "Не удалось записать JSON трассы. Проверь лог сервера.";
     return raw.replaceAll("_", " ");
   }
 
   function editorNextStep(draft, grid, checkpoints, vehicleReady) {
-    if (!vehicleReady && draft.vehicle !== "on_foot") return "Creating the editor car…";
-    if (!(draft.start && draft.start.position)) return "Next: face the route at the start and press F6.";
-    if (!grid.length && draft.vehicle !== "on_foot") return "Next: capture at least one exact starting position.";
+    if (!vehicleReady && draft.vehicle !== "on_foot") return "Создаю машину редактора…";
+    if (!(draft.start && draft.start.position)) return "Дальше: встань на старте лицом к трассе и нажми F6.";
+    if (!grid.length && draft.vehicle !== "on_foot") return "Дальше: поставь хотя бы одну стартовую позицию.";
     const required = draft.type === "sprint" ? 1 : 2;
     if (checkpoints.length < required)
       return `Next: capture ${required - checkpoints.length} more checkpoint${required - checkpoints.length === 1 ? "" : "s"}.`;

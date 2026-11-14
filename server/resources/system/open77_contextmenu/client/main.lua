@@ -121,7 +121,7 @@ local function contextAt(x,y)
         hit.playerDistance=nil
         return hit
     end
-    if not hit.entityLookupAvailable then return nil,"Entity picking is unavailable on this client build." end
+    if not hit.entityLookupAvailable then return nil,"Выбор объектов недоступен в этой версии клиента." end
     local p,s=hit.position,state.position
     hit.playerDistance=math.sqrt((p.x-s.x)^2+(p.y-s.y)^2+(p.z-s.z)^2)
     hit.target=hit.target or {kind="world",networked=false}

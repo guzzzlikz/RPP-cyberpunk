@@ -505,13 +505,13 @@ local CHAT_SUGGESTIONS = {
     { command = "/players", help = "Список игроков режима.", parameters = {} },
     { command = "/freeroam.status", help = "Состояние режима.", parameters = {} },
     { command = "/freeroam.help", help = "Справка по режиму freeroam.", parameters = {} },
-    { command = "/freeroam.tp", help = "[admin] Teleport a player to a location.", parameters = {
+    { command = "/freeroam.tp", help = "[админ] Телепортировать игрока в место.", parameters = {
         { name = "playerId" }, { name = "location" } } },
-    { command = "/freeroam.respawn", help = "[admin] Respawn a dead player.", parameters = {
+    { command = "/freeroam.respawn", help = "[админ] Возродить мёртвого игрока.", parameters = {
         { name = "playerId" }, { name = "point", optional = true } } },
-    { command = "/freeroam.revive", help = "[admin] Revive a dead player in place.", parameters = {
+    { command = "/freeroam.revive", help = "[админ] Поднять мёртвого игрока на месте.", parameters = {
         { name = "playerId" } } },
-    { command = "/freeroam.cleanup", help = "[admin] Remove every gamemode vehicle.", parameters = {} },
+    { command = "/freeroam.cleanup", help = "[админ] Удалить весь транспорт режима.", parameters = {} },
 }
 
 RegisterNetEvent("chat:ready", function()
@@ -550,7 +550,7 @@ local function rememberWeaponMenu(requestId, playerId, kind, context)
         local pending = pendingWeaponMenus[key]
         if pending == nil then return end
         pendingWeaponMenus[key] = nil
-        menuResult(pending.playerId, false, "weapon request timed out")
+        menuResult(pending.playerId, false, "оружие не ответило вовремя")
     end)
 end
 
@@ -572,7 +572,7 @@ AddEventHandler("open77:weapons:completed", function(
     pendingWeaponMenus[key] = nil
     if accepted ~= true then
         return menuResult(playerId, false,
-            "weapon " .. tostring(operation) .. " failed: " .. tostring(reason))
+            "оружие: " .. tostring(operation) .. " — ошибка: " .. tostring(reason))
     end
 
     if pending.kind == "snapshot" then
@@ -593,27 +593,27 @@ AddEventHandler("open77:weapons:completed", function(
             if ammoRequest ~= nil then
                 rememberWeaponMenu(ammoRequest, playerId, "equipAmmo", context)
                 return menuResult(playerId, true,
-                    context.label .. " equipped; loading " .. reserve .. " reserve rounds")
+                    context.label .. " в руках; заряжаю " .. reserve .. " патронов в запас")
             end
             return menuResult(playerId, false,
-                "automatic ammo refill failed: " .. tostring(ammoReason))
+                "автопополнение патронов не удалось: " .. tostring(ammoReason))
         end
-        menuResult(playerId, true, context.label .. " equipped")
+        menuResult(playerId, true, context.label .. " в руках")
     elseif pending.kind == "equipAmmo" then
-        menuResult(playerId, true, context.label .. " ready with reserve ammunition")
+        menuResult(playerId, true, context.label .. " готово, патроны в запасе")
     elseif pending.kind == "ammo" then
         local ammo = type(result) == "table" and result.ammo or nil
         menuResult(playerId, true, string.format(
-            "slot %d ammo: reserve %s, magazine %s/%s",
+            "слот %d, патроны: запас %s, магазин %s/%s",
             context.slot, tostring(ammo and ammo.reserve or context.reserve),
             tostring(ammo and ammo.magazine or context.magazine or "kept"),
             tostring(ammo and ammo.capacity or "?")))
     elseif pending.kind == "activate" then
-        menuResult(playerId, true, "slot " .. context.slot .. " activated")
+        menuResult(playerId, true, "слот " .. context.slot .. " выбран")
     elseif pending.kind == "remove" then
-        menuResult(playerId, true, "slot " .. context.slot .. " cleared")
+        menuResult(playerId, true, "слот " .. context.slot .. " очищен")
     elseif pending.kind == "holster" then
-        menuResult(playerId, true, "weapon holstered")
+        menuResult(playerId, true, "оружие убрано")
     end
 
     requestWeaponSnapshot(playerId)
@@ -621,31 +621,31 @@ end)
 
 menuActions.car = function(playerId, payload)
     local id, detail = spawnVehicle(playerId, type(payload.model) == "string" and payload.model or nil)
-    if id == nil then return false, "vehicle create rejected: " .. tostring(detail) end
-    return true, string.format("vehicle %d (%s) delivered", id, detail)
+    if id == nil then return false, "транспорт не создан: " .. tostring(detail) end
+    return true, string.format("транспорт %d (%s) доставлен", id, detail)
 end
 
 menuActions.dv = function(playerId, payload)
     local removed = removeVehicles(playerId, payload.all == true)
-    if removed == 0 then return false, "no vehicle to delete" end
-    return true, string.format("%d vehicle(s) deleted", removed)
+    if removed == 0 then return false, "нет транспорта для удаления" end
+    return true, string.format("удалено транспорта: %d", removed)
 end
 
 local function setLatestVehicleFlag(playerId, flag, enabled)
     local id, vehicle = latestVehicle(playerId)
-    if id == nil then return false, "no owned vehicle" end
+    if id == nil then return false, "нет своего транспорта" end
     local flags = tonumber(vehicle.flags) or 0
     if enabled then flags = flags | flag else flags = flags & (~flag) end
     local ok = Open77.vehicles.update(id, { flags = flags })
-    if not ok then return false, "vehicle update rejected" end
-    return true, string.format("vehicle %d updated", id)
+    if not ok then return false, "транспорт не изменён" end
+    return true, string.format("транспорт %d изменён", id)
 end
 
 menuActions.vehicleRepair = function(playerId)
     local id = latestVehicle(playerId)
-    if id == nil then return false, "no owned vehicle" end
-    if not Open77.vehicles.repair(id, "full") then return false, "vehicle repair rejected" end
-    return true, string.format("vehicle %d fully repaired", id)
+    if id == nil then return false, "нет своего транспорта" end
+    if not Open77.vehicles.repair(id, "full") then return false, "ремонт отклонён" end
+    return true, string.format("транспорт %d полностью отремонтирован", id)
 end
 
 menuActions.vehicleEngine = function(playerId, payload)
@@ -665,123 +665,123 @@ end
 
 menuActions.weaponEquip = function(playerId, payload)
     if not Config.weapons.enabled or type(Open77.weapons) ~= "table" then
-        return false, "weapons unavailable"
+        return false, "оружие недоступно"
     end
     local key = type(payload.key) == "string" and string.lower(payload.key) or ""
     local weapon = weaponsByKey[key]
     local slot = finiteNumber(payload.slot)
-    if weapon == nil then return false, "unknown weapon" end
-    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "invalid slot" end
+    if weapon == nil then return false, "неизвестное оружие" end
+    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "неверный слот" end
     local requestId, reason = Open77.weapons.assign(
         playerId, weapon.record, slot, { active = true, addToInventory = true })
-    if requestId == nil then return false, "weapon rejected: " .. tostring(reason) end
+    if requestId == nil then return false, "оружие отклонено: " .. tostring(reason) end
     rememberWeaponMenu(requestId, playerId, "equip", {
         slot = slot, key = weapon.key, label = weapon.label, melee = weapon.melee == true,
     })
-    return true, weapon.label .. " queued for slot " .. slot
+    return true, weapon.label .. " — в слот " .. slot
 end
 
 menuActions.weaponAmmo = function(playerId, payload)
     if not Config.weapons.enabled or type(Open77.weapons) ~= "table" then
-        return false, "weapons unavailable"
+        return false, "оружие недоступно"
     end
     local slot = finiteNumber(payload.slot)
     local reserve = finiteNumber(payload.reserve)
     local magazine = payload.magazine ~= nil and finiteNumber(payload.magazine) or nil
     local maximum = math.max(0, math.floor(tonumber(Config.weapons.maximumReserve) or 5000))
-    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "invalid slot" end
+    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "неверный слот" end
     if reserve == nil or reserve % 1 ~= 0 or reserve < 0 or reserve > maximum then
-        return false, "reserve must be an integer from 0 to " .. maximum
+        return false, "запас — целое число от 0 до " .. maximum
     end
     if payload.magazine ~= nil and
        (magazine == nil or magazine % 1 ~= 0 or magazine < 0 or magazine > 1000) then
-        return false, "magazine must be an integer from 0 to 1000"
+        return false, "магазин — целое число от 0 до 1000"
     end
     local amounts = { reserve = reserve, activate = true }
     if magazine ~= nil then amounts.magazine = magazine end
     local requestId, reason = Open77.weapons.setAmmo(playerId, slot, amounts)
-    if requestId == nil then return false, "ammo rejected: " .. tostring(reason) end
+    if requestId == nil then return false, "патроны отклонены: " .. tostring(reason) end
     rememberWeaponMenu(requestId, playerId, "ammo", {
         slot = slot, reserve = reserve, magazine = magazine,
     })
-    return true, "ammo update queued for slot " .. slot
+    return true, "патроны обновляются, слот " .. slot
 end
 
 menuActions.weaponActivate = function(playerId, payload)
     if not Config.weapons.enabled or type(Open77.weapons) ~= "table" then
-        return false, "weapons unavailable"
+        return false, "оружие недоступно"
     end
     local slot = finiteNumber(payload.slot)
-    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "invalid slot" end
+    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "неверный слот" end
     local requestId, reason = Open77.weapons.setActive(playerId, slot)
-    if requestId == nil then return false, "activation rejected: " .. tostring(reason) end
+    if requestId == nil then return false, "выбор слота отклонён: " .. tostring(reason) end
     rememberWeaponMenu(requestId, playerId, "activate", { slot = slot })
-    return true, "activating slot " .. slot
+    return true, "выбираю слот " .. slot
 end
 
 menuActions.weaponRemove = function(playerId, payload)
     if not Config.weapons.enabled or type(Open77.weapons) ~= "table" then
-        return false, "weapons unavailable"
+        return false, "оружие недоступно"
     end
     local slot = finiteNumber(payload.slot)
-    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "invalid slot" end
+    if slot == nil or slot % 1 ~= 0 or slot < 1 or slot > 3 then return false, "неверный слот" end
     local requestId, reason = Open77.weapons.remove(playerId, slot)
-    if requestId == nil then return false, "remove rejected: " .. tostring(reason) end
+    if requestId == nil then return false, "снятие отклонено: " .. tostring(reason) end
     rememberWeaponMenu(requestId, playerId, "remove", { slot = slot })
-    return true, "clearing slot " .. slot
+    return true, "очищаю слот " .. slot
 end
 
 menuActions.weaponHolster = function(playerId)
     if not Config.weapons.enabled or type(Open77.weapons) ~= "table" then
-        return false, "weapons unavailable"
+        return false, "оружие недоступно"
     end
     local requestId, reason = Open77.weapons.holster(playerId)
-    if requestId == nil then return false, "holster rejected: " .. tostring(reason) end
+    if requestId == nil then return false, "убрать оружие не удалось: " .. tostring(reason) end
     rememberWeaponMenu(requestId, playerId, "holster")
-    return true, "holstering weapon"
+    return true, "убираю оружие"
 end
 
 menuActions.weaponSnapshot = function(playerId)
     local requestId, reason = requestWeaponSnapshot(playerId)
-    if requestId == nil then return false, "snapshot rejected: " .. tostring(reason) end
-    return true, "refreshing loadout"
+    if requestId == nil then return false, "снимок отклонён: " .. tostring(reason) end
+    return true, "обновляю снаряжение"
 end
 
 menuActions["goto"] = function(playerId, payload)
     local location = locationsByName[string.lower(type(payload.name) == "string" and payload.name or "")]
-    if location == nil then return false, "unknown location" end
+    if location == nil then return false, "неизвестное место" end
     local ok, reason = teleportTo(playerId, location.position, location.heading)
-    if not ok then return false, "teleport rejected: " .. tostring(reason) end
-    return true, "teleporting to " .. location.label
+    if not ok then return false, "телепорт отклонён: " .. tostring(reason) end
+    return true, "телепорт: " .. location.label
 end
 
 menuActions.tpc = function(playerId, payload)
     local x, y, z = finiteNumber(payload.x), finiteNumber(payload.y), finiteNumber(payload.z)
     local heading = payload.heading ~= nil and finiteNumber(payload.heading) or 0
-    if x == nil or y == nil or z == nil or heading == nil then return false, "invalid coordinates" end
+    if x == nil or y == nil or z == nil or heading == nil then return false, "неверные координаты" end
     local ok, reason = teleportTo(playerId, { x = x, y = y, z = z }, heading)
-    if not ok then return false, "teleport rejected: " .. tostring(reason) end
-    return true, string.format("teleporting to %.1f, %.1f, %.1f", x, y, z)
+    if not ok then return false, "телепорт отклонён: " .. tostring(reason) end
+    return true, string.format("телепорт в %.1f, %.1f, %.1f", x, y, z)
 end
 
 menuActions.spawn = function(playerId, payload)
     local point
     if type(payload.name) == "string" and payload.name ~= "" then
         point = spawnsByName[string.lower(payload.name)]
-        if point == nil then return false, "unknown spawn point" end
+        if point == nil then return false, "неизвестная точка появления" end
     else
         point = pickSpawn(Open77.players.position(playerId))
-        if point == nil then return false, "no spawn point configured" end
+        if point == nil then return false, "точка появления не настроена" end
     end
     local ok, reason = teleportTo(playerId, point.position, point.heading)
-    if not ok then return false, "teleport rejected: " .. tostring(reason) end
-    return true, "returning to spawn " .. (point.label or point.name)
+    if not ok then return false, "телепорт отклонён: " .. tostring(reason) end
+    return true, "возврат на точку " .. (point.label or point.name)
 end
 
 menuActions.suicide = function(playerId)
     local ok, reason = Open77.players.kill(playerId, { cause = "script", weapon = "freeroam:suicide" })
-    if not ok then return false, "rejected: " .. tostring(reason) end
-    return true, "see you in a moment"
+    if not ok then return false, "отклонено: " .. tostring(reason) end
+    return true, "до скорого"
 end
 
 -- Revive a dead player; a living one (an RP "down" state keeps the body alive at low health,
@@ -789,17 +789,17 @@ end
 local function reviveOrHeal(playerId)
     if not Open77.players.isDead(playerId) then
         local health = Open77.players.getHealth(playerId)
-        if health == nil then return false, "health state unavailable" end
+        if health == nil then return false, "здоровье недоступно" end
         local ok, reason = Open77.players.setHealth(playerId, health.maxHealth)
-        if not ok then return false, "health restore rejected: " .. tostring(reason) end
-        return true, "not down: health restored"
+        if not ok then return false, "восстановление здоровья отклонено: " .. tostring(reason) end
+        return true, "не ранен: здоровье восстановлено"
     end
     local ok, reason = Open77.players.revive(playerId, {
         health = Config.spawn.health,
         graceMs = Config.spawn.graceMs,
     })
-    if not ok then return false, "rejected: " .. tostring(reason) end
-    return true, "revive in progress"
+    if not ok then return false, "отклонено: " .. tostring(reason) end
+    return true, "воскрешение уже идёт"
 end
 
 menuActions.revive = function(playerId)
@@ -807,36 +807,36 @@ menuActions.revive = function(playerId)
 end
 
 menuActions.restore = function(playerId)
-    if not Config.player.allowRestore then return false, "restore disabled" end
+    if not Config.player.allowRestore then return false, "восстановление выключено" end
     local health = Open77.players.getHealth(playerId)
-    if health == nil then return false, "health state unavailable" end
+    if health == nil then return false, "здоровье недоступно" end
     local ok, reason = Open77.players.setHealth(playerId, health.maxHealth)
-    if not ok then return false, "health restore rejected: " .. tostring(reason) end
+    if not ok then return false, "восстановление здоровья отклонено: " .. tostring(reason) end
     local armor = math.max(0, tonumber(Config.player.armorOnRestore) or 0)
     local armorOk, armorReason = Open77.players.setArmor(playerId, armor)
-    if not armorOk then return false, "armor restore rejected: " .. tostring(armorReason) end
-    return true, string.format("health restored and armor set to %.0f", armor)
+    if not armorOk then return false, "восстановление брони отклонено: " .. tostring(armorReason) end
+    return true, string.format("здоровье восстановлено, броня %.0f", armor)
 end
 
 menuActions.godMode = function(playerId, payload)
-    if not Config.player.allowGodMode then return false, "god mode disabled" end
+    if not Config.player.allowGodMode then return false, "бессмертие выключено" end
     local enabled = payload.enabled == true
     local ok, reason = Open77.players.setGodMode(playerId, enabled)
-    if not ok then return false, "god mode rejected: " .. tostring(reason) end
+    if not ok then return false, "бессмертие отклонено: " .. tostring(reason) end
     godModes[playerId] = enabled or nil
-    return true, enabled and "god mode enabled" or "god mode disabled"
+    return true, enabled and "бессмертие включено" or "бессмертие выключено"
 end
 
 RegisterNetEvent("freeroam:menu", function(action, payload)
     rememberPlayer(source)
     if FreeroamActivities and FreeroamActivities.ownsPlayer(source) then
-        return menuResult(source, false, "Leave your activity before using sandbox tools.")
+        return menuResult(source, false, "Сначала выйди из текущего занятия (гонка, PvP).")
     end
     if Config.restrictPlayerCommands then
-        return menuResult(source, false, "menu actions are disabled; use the ACL-checked commands")
+        return menuResult(source, false, "действия меню выключены; используй команды с проверкой прав")
     end
     local handler = type(action) == "string" and menuActions[action] or nil
-    if handler == nil then return menuResult(source, false, "unknown menu action") end
+    if handler == nil then return menuResult(source, false, "неизвестное действие меню") end
     local at = nowMs()
     -- Refreshing the loadout must not consume the mutation throttle: entering
     -- the Weapons tab requests a snapshot, and a fast click on a catalog card
@@ -844,7 +844,7 @@ RegisterNetEvent("freeroam:menu", function(action, payload)
     -- independently.
     local throttle = action == "weaponSnapshot" and menuLastSnapshotMs or menuLastActionMs
     if throttle[source] ~= nil and at - throttle[source] < 250 then
-        return menuResult(source, false, "slow down")
+        return menuResult(source, false, "не так быстро")
     end
     throttle[source] = at
     local ok, text = handler(source, type(payload) == "table" and payload or {})
@@ -862,12 +862,12 @@ local restricted = Config.restrictPlayerCommands == true
 
 local function requirePlayer(source, raw)
     if source == nil or source <= 0 then
-        output(source, raw, false, "this command targets the sending player; unavailable from the console")
+        output(source, raw, false, "команда действует на отправившего игрока; из консоли недоступна")
         return false
     end
     rememberPlayer(source)
     if raw ~= "freeroam" and FreeroamActivities and FreeroamActivities.ownsPlayer(source) then
-        output(source, raw, false, "Leave your activity before using sandbox tools.")
+        output(source, raw, false, "Сначала выйди из текущего занятия (гонка, PvP).")
         return false
     end
     return true
@@ -875,14 +875,14 @@ end
 
 RegisterCommand("freeroam", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
-    if args.n ~= 0 then return output(source, raw, false, "usage: freeroam") end
+    if args.n ~= 0 then return output(source, raw, false, "использование: freeroam") end
     requestWeaponSnapshot(source)
     pushGarageState(source)
     pushPlayerState(source)
     TriggerClientEvent("freeroam:menu:open", source, {
         canManageTv = Open77.acl.isAllowed(source, "command.media.spawn") == true,
     })
-    output(source, raw, true, "opening the freeroam menu")
+    output(source, raw, true, "открываю меню freeroam")
 end, false)
 
 RegisterCommand("tv", function(source, args, raw)
@@ -891,33 +891,33 @@ RegisterCommand("tv", function(source, args, raw)
         or not Open77.acl.isAllowed(source, "command.media.spawn") then
         return output(source, raw, false, "permission_denied:administrator_only")
     end
-    if args.n ~= 0 then return output(source, raw, false, "usage: tv") end
+    if args.n ~= 0 then return output(source, raw, false, "использование: tv") end
     TriggerClientEvent("freeroam:menu:open", source, { canManageTv = true, page = "tv" })
 end, true)
 
 RegisterCommand("cinematic", function(source, args, raw)
-    if not source or source <= 0 then return output(source, raw, false, "player command only") end
+    if not source or source <= 0 then return output(source, raw, false, "только для игрока") end
     local choice = tostring(args[1] or ""):lower()
     if args.n > 1 or (choice ~= "" and choice ~= "on" and choice ~= "off") then
-        return output(source, raw, false, "usage: cinematic [on|off]")
+        return output(source, raw, false, "использование: cinematic [on|off]")
     end
     TriggerClientEvent("freeroam:camera:cinematic", source, choice)
 end, false)
 
 RegisterCommand("camchange", function(source, args, raw)
-    if not source or source <= 0 then return output(source, raw, false, "player command only") end
+    if not source or source <= 0 then return output(source, raw, false, "только для игрока") end
     local choice = tostring(args[1] or ""):lower()
     local choices = { [""] = true, classic = true, shoulder = true, centered = true,
         left = true, right = true, shake = true, reset = true }
     if args.n > 1 or not choices[choice] then
-        return output(source, raw, false, "usage: camchange [classic|shoulder|centered|left|right|shake|reset]")
+        return output(source, raw, false, "использование: camchange [classic|shoulder|centered|left|right|shake|reset]")
     end
     TriggerClientEvent("freeroam:camera:change", source, choice)
 end, false)
 
 RegisterCommand("car", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
-    if args.n > 1 then return output(source, raw, false, "usage: car [model]") end
+    if args.n > 1 then return output(source, raw, false, "использование: car [модель]") end
     local id, detail = spawnVehicle(source, args[1])
     if id == nil then
         if detail == "unknown_model" then
@@ -925,49 +925,49 @@ RegisterCommand("car", function(source, args, raw)
             for name in pairs(Config.vehicles.shortcuts) do names[#names + 1] = name end
             table.sort(names)
             return output(source, raw, false,
-                "unknown model; shortcuts: " .. table.concat(names, ", "))
+                "неизвестная модель; короткие имена: " .. table.concat(names, ", "))
         end
-        return output(source, raw, false, "vehicle create rejected: " .. tostring(detail))
+        return output(source, raw, false, "транспорт не создан: " .. tostring(detail))
     end
-    output(source, raw, true, string.format("vehicle %d (%s) delivered", id, detail))
+    output(source, raw, true, string.format("транспорт %d (%s) доставлен", id, detail))
 end, restricted)
 
 RegisterCommand("dv", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
     if args.n > 1 or (args[1] ~= nil and args[1] ~= "all") then
-        return output(source, raw, false, "usage: dv [all]")
+        return output(source, raw, false, "использование: dv [all]")
     end
     local removed = removeVehicles(source, args[1] == "all")
-    if removed == 0 then return output(source, raw, false, "no vehicle to delete") end
-    output(source, raw, true, string.format("%d vehicle(s) deleted", removed))
+    if removed == 0 then return output(source, raw, false, "нет транспорта для удаления") end
+    output(source, raw, true, string.format("удалено транспорта: %d", removed))
 end, restricted)
 
 RegisterCommand("goto", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
-    if args.n ~= 1 then return output(source, raw, false, "usage: goto <location> — see /locations") end
+    if args.n ~= 1 then return output(source, raw, false, "использование: goto <место> — смотри /locations") end
     local location = locationsByName[string.lower(args[1])]
-    if location == nil then return output(source, raw, false, "unknown location — see /locations") end
+    if location == nil then return output(source, raw, false, "неизвестное место — смотри /locations") end
     local ok, reason = teleportTo(source, location.position, location.heading)
-    if not ok then return output(source, raw, false, "teleport rejected: " .. tostring(reason)) end
-    output(source, raw, true, "teleporting to " .. location.label)
+    if not ok then return output(source, raw, false, "телепорт отклонён: " .. tostring(reason)) end
+    output(source, raw, true, "телепорт: " .. location.label)
 end, restricted)
 
 RegisterCommand("tpc", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
-    if args.n < 3 or args.n > 4 then return output(source, raw, false, "usage: tpc <x> <y> <z> [heading]") end
+    if args.n < 3 or args.n > 4 then return output(source, raw, false, "использование: tpc <x> <y> <z> [направление]") end
     local x, y, z = finiteNumber(args[1]), finiteNumber(args[2]), finiteNumber(args[3])
     local heading = args[4] ~= nil and finiteNumber(args[4]) or 0
     if x == nil or y == nil or z == nil or heading == nil then
-        return output(source, raw, false, "invalid coordinates")
+        return output(source, raw, false, "неверные координаты")
     end
     local ok, reason = teleportTo(source, { x = x, y = y, z = z }, heading)
-    if not ok then return output(source, raw, false, "teleport rejected: " .. tostring(reason)) end
-    output(source, raw, true, string.format("teleporting to %.1f, %.1f, %.1f", x, y, z))
+    if not ok then return output(source, raw, false, "телепорт отклонён: " .. tostring(reason)) end
+    output(source, raw, true, string.format("телепорт в %.1f, %.1f, %.1f", x, y, z))
 end, restricted)
 
 RegisterCommand("locations", function(source, _, raw)
     rememberPlayer(source)
-    output(source, raw, true, string.format("destinations (%d):", #Config.teleport.locations))
+    output(source, raw, true, string.format("места (%d):", #Config.teleport.locations))
     for _, location in ipairs(Config.teleport.locations) do
         output(source, raw, true, string.format("  %s — %s (%.0f, %.0f, %.0f)",
             location.name, location.label,
@@ -977,32 +977,32 @@ end, false)
 
 RegisterCommand("spawn", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
-    if args.n > 1 then return output(source, raw, false, "usage: spawn [name]") end
+    if args.n > 1 then return output(source, raw, false, "использование: spawn [точка]") end
     local point
     if args[1] ~= nil then
         point = spawnsByName[string.lower(args[1])]
-        if point == nil then return output(source, raw, false, "unknown spawn point") end
+        if point == nil then return output(source, raw, false, "неизвестная точка появления") end
     else
         local position = Open77.players.position(source)
         point = pickSpawn(position)
-        if point == nil then return output(source, raw, false, "no spawn point configured") end
+        if point == nil then return output(source, raw, false, "точка появления не настроена") end
     end
     local ok, reason = teleportTo(source, point.position, point.heading)
-    if not ok then return output(source, raw, false, "teleport rejected: " .. tostring(reason)) end
-    output(source, raw, true, "returning to spawn " .. (point.label or point.name))
+    if not ok then return output(source, raw, false, "телепорт отклонён: " .. tostring(reason)) end
+    output(source, raw, true, "возврат на точку " .. (point.label or point.name))
 end, restricted)
 
 RegisterCommand("suicide", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
-    if args.n ~= 0 then return output(source, raw, false, "usage: suicide") end
+    if args.n ~= 0 then return output(source, raw, false, "использование: suicide") end
     local ok, reason = Open77.players.kill(source, { cause = "script", weapon = "freeroam:suicide" })
-    if not ok then return output(source, raw, false, "rejected: " .. tostring(reason)) end
-    output(source, raw, true, "see you in a moment")
+    if not ok then return output(source, raw, false, "отклонено: " .. tostring(reason)) end
+    output(source, raw, true, "до скорого")
 end, restricted)
 
 RegisterCommand("revive", function(source, args, raw)
     if not requirePlayer(source, raw) then return end
-    if args.n ~= 0 then return output(source, raw, false, "usage: revive") end
+    if args.n ~= 0 then return output(source, raw, false, "использование: revive") end
     local ok, text = reviveOrHeal(source)
     output(source, raw, ok, text)
 end, restricted)
@@ -1021,7 +1021,7 @@ RegisterCommand("players", function(source, _, raw)
                 playerId, name, life ~= nil and life.phase or "?")
         end
     end
-    output(source, raw, true, string.format("known players (%d):", count))
+    output(source, raw, true, string.format("игроки (%d):", count))
     for _, line in ipairs(lines) do output(source, raw, true, line) end
 end, false)
 
@@ -1038,10 +1038,10 @@ end, false)
 
 RegisterCommand("freeroam.help", function(source, _, raw)
     rememberPlayer(source)
-    output(source, raw, true, "freeroam — player commands:")
+    output(source, raw, true, "freeroam — команды игрока:")
     output(source, raw, true, "  /car [model], /dv [all], /goto <location>, /tpc <x y z> [heading]")
     output(source, raw, true, "  /locations, /spawn [name], /suicide, /revive, /players")
-    output(source, raw, true, "  admin: /freeroam.tp, /freeroam.respawn, /freeroam.revive, /freeroam.cleanup")
+    output(source, raw, true, "  админ: /freeroam.tp, /freeroam.respawn, /freeroam.revive, /freeroam.cleanup")
 end, false)
 
 -- Admin commands (command.freeroam.* ACL) ------------------------------------
@@ -1051,54 +1051,54 @@ end, false)
 -- shadow the admin handler and create a second, incompatible flight owner.
 
 RegisterCommand("freeroam.tp", function(source, args, raw)
-    if args.n ~= 2 then return output(source, raw, false, "usage: freeroam.tp <playerId> <location>") end
+    if args.n ~= 2 then return output(source, raw, false, "использование: freeroam.tp <ID игрока> <место>") end
     local playerId = tonumber(args[1])
     local location = locationsByName[string.lower(args[2] or "")]
-    if playerId == nil then return output(source, raw, false, "invalid playerId") end
-    if location == nil then return output(source, raw, false, "unknown location — see /locations") end
+    if playerId == nil then return output(source, raw, false, "неверный ID игрока") end
+    if location == nil then return output(source, raw, false, "неизвестное место — смотри /locations") end
     local ok, reason = teleportTo(playerId, location.position, location.heading)
-    if not ok then return output(source, raw, false, "teleport rejected: " .. tostring(reason)) end
-    announce(playerId, "An administrator teleported you to " .. location.label .. ".")
-    output(source, raw, true, string.format("player %d teleported to %s", playerId, location.label))
+    if not ok then return output(source, raw, false, "телепорт отклонён: " .. tostring(reason)) end
+    announce(playerId, "Администратор телепортировал тебя: " .. location.label .. ".")
+    output(source, raw, true, string.format("игрок %d телепортирован: %s", playerId, location.label))
 end, true)
 
 RegisterCommand("freeroam.respawn", function(source, args, raw)
-    if args.n < 1 or args.n > 2 then return output(source, raw, false, "usage: freeroam.respawn <playerId> [point]") end
+    if args.n < 1 or args.n > 2 then return output(source, raw, false, "использование: freeroam.respawn <ID игрока> [точка]") end
     local playerId = tonumber(args[1])
-    if playerId == nil then return output(source, raw, false, "invalid playerId") end
+    if playerId == nil then return output(source, raw, false, "неверный ID игрока") end
     local point
     if args[2] ~= nil then
         point = spawnsByName[string.lower(args[2])]
-        if point == nil then return output(source, raw, false, "unknown spawn point") end
+        if point == nil then return output(source, raw, false, "неизвестная точка появления") end
     else
         local life = Open77.players.getLifeState(playerId)
         point = pickSpawn(life ~= nil and life.position or nil)
-        if point == nil then return output(source, raw, false, "no spawn point configured") end
+        if point == nil then return output(source, raw, false, "точка появления не настроена") end
     end
     local ok, reason = respawnAt(playerId, point)
-    if not ok then return output(source, raw, false, "respawn rejected: " .. tostring(reason)) end
-    output(source, raw, true, string.format("player %d respawned at %s", playerId, point.name))
+    if not ok then return output(source, raw, false, "возрождение отклонено: " .. tostring(reason)) end
+    output(source, raw, true, string.format("игрок %d возрождён: %s", playerId, point.name))
 end, true)
 
 RegisterCommand("freeroam.revive", function(source, args, raw)
-    if args.n ~= 1 then return output(source, raw, false, "usage: freeroam.revive <playerId>") end
+    if args.n ~= 1 then return output(source, raw, false, "использование: freeroam.revive <ID игрока>") end
     local playerId = tonumber(args[1])
-    if playerId == nil then return output(source, raw, false, "invalid playerId") end
+    if playerId == nil then return output(source, raw, false, "неверный ID игрока") end
     local ok, reason = Open77.players.revive(playerId, {
         health = Config.spawn.health,
         graceMs = Config.spawn.graceMs,
     })
-    if not ok then return output(source, raw, false, "rejected: " .. tostring(reason)) end
-    output(source, raw, true, string.format("player %d revived in place", playerId))
+    if not ok then return output(source, raw, false, "отклонено: " .. tostring(reason)) end
+    output(source, raw, true, string.format("игрок %d поднят на месте", playerId))
 end, true)
 
 RegisterCommand("freeroam.cleanup", function(source, args, raw)
-    if args.n ~= 0 then return output(source, raw, false, "usage: freeroam.cleanup") end
+    if args.n ~= 0 then return output(source, raw, false, "использование: freeroam.cleanup") end
     local removed = 0
     for playerId in pairs(garages) do
         removed = removed + removeVehicles(playerId, true)
     end
-    output(source, raw, true, string.format("%d gamemode vehicle(s) removed", removed))
+    output(source, raw, true, string.format("удалено транспорта режима: %d", removed))
 end, true)
 
 CreateThread(function()

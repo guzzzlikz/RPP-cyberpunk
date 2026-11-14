@@ -1,5 +1,6 @@
 # Server config: contains the Open77 license key and local addresses
 server/server.jsonc
+server/server.host.jsonc
 
 # Server runtime state: Warden accounts and session secret, the server's master
 # identity, the resource signing key, the audit log and the resource cache.

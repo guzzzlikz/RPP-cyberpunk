@@ -62,7 +62,7 @@ function Open77VoiceSetup.install(api)
             local on=payload==true
             if on then
                 local s=Open77.voice.status()
-                if not s or not s.captureEnabled then return nil,"Enable your microphone before testing." end
+                if not s or not s.captureEnabled then return nil,"Включите микрофон перед проверкой." end
             end
             local ok,why=Open77.voice.setMicrophoneTest(on)
             if not ok then return nil,why end

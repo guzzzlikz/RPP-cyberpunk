@@ -125,7 +125,7 @@
         const copy = document.createElement("span");
         copy.className = "copy";
         const label = document.createElement("strong");
-        label.textContent = String(choice && choice.label || "Interaction").slice(0, 96);
+        label.textContent = String(choice && choice.label || "Действие").slice(0, 96);
         copy.append(label);
         if (choice && choice.description) {
           const description = document.createElement("small");

@@ -630,12 +630,12 @@ local function updateBlip(nextCheckpoint)
     local position = nextCheckpoint.position
     local finish = tonumber(nextCheckpoint.index) == tonumber(state.totalCheckpoints) and
         tonumber(state.lap) == tonumber(state.laps)
-    local title = finish and "Finish" or ("Checkpoint %d/%d"):format(
+    local title = finish and "Финиш" or ("Чекпоинт %d/%d"):format(
         tonumber(nextCheckpoint.index) or 1,
         state and tonumber(state.totalCheckpoints) or 1)
-    local description = state and ("Lap %d/%d · %s"):format(
+    local description = state and ("Круг %d/%d · %s"):format(
         tonumber(state.lap) or 1, tonumber(state.laps) or 1,
-        state.course and tostring(state.course.name) or "Race") or "Race checkpoint"
+        state.course and tostring(state.course.name) or "Гонка") or "Чекпоинт гонки"
     local key = table.concat({
         tostring(state and state.heatId),
         tostring(nextCheckpoint.id),
@@ -942,15 +942,15 @@ local function handleEditorAction(payload)
 end
 
 local editorBindings = {
-    { id = "race_editor_vehicle", name = "Race editor: respawn vehicle", key = "F4", action = "spawnVehicle" },
-    { id = "race_editor_menu", name = "Race editor: open options", key = "F5", action = "menu" },
-    { id = "race_editor_start", name = "Race editor: capture start", key = "F6", action = "captureStart" },
-    { id = "race_editor_grid", name = "Race editor: add grid slot", key = "F7", action = "captureGrid" },
-    { id = "race_editor_checkpoint", name = "Race editor: add checkpoint", key = "F8", action = "addCheckpoint" },
-    { id = "race_editor_undo_checkpoint", name = "Race editor: undo checkpoint", key = "F9", action = "undo" },
-    { id = "race_editor_undo_grid", name = "Race editor: undo grid slot", key = "F10", action = "undoGrid" },
-    { id = "race_editor_save", name = "Race editor: save course", key = "F11", action = "save" },
-    { id = "race_editor_exit", name = "Race editor: exit drive mode", key = "END", action = "close" },
+    { id = "race_editor_vehicle", name = "Редактор трасс: заново создать машину", key = "F4", action = "spawnVehicle" },
+    { id = "race_editor_menu", name = "Редактор трасс: настройки", key = "F5", action = "menu" },
+    { id = "race_editor_start", name = "Редактор трасс: поставить старт", key = "F6", action = "captureStart" },
+    { id = "race_editor_grid", name = "Редактор трасс: добавить место на сетке", key = "F7", action = "captureGrid" },
+    { id = "race_editor_checkpoint", name = "Редактор трасс: добавить чекпоинт", key = "F8", action = "addCheckpoint" },
+    { id = "race_editor_undo_checkpoint", name = "Редактор трасс: отменить чекпоинт", key = "F9", action = "undo" },
+    { id = "race_editor_undo_grid", name = "Редактор трасс: отменить место на сетке", key = "F10", action = "undoGrid" },
+    { id = "race_editor_save", name = "Редактор трасс: сохранить трассу", key = "F11", action = "save" },
+    { id = "race_editor_exit", name = "Редактор трасс: выйти из режима вождения", key = "END", action = "close" },
 }
 
 local function refreshEditorKeys()
@@ -974,7 +974,7 @@ local function editorHotkey(action)
 end
 
 local function registerEditorBindings()
-    RegisterKeyMapping("race_return_checkpoint", "Foot race: return to checkpoint", "F3", function()
+    RegisterKeyMapping("race_return_checkpoint", "Забег: вернуться к чекпоинту", "F3", function()
         if editorState and editorState.draft and editorState.draft.vehicle == "on_foot" then
             handleEditorAction({ action = "returnCheckpoint" })
         elseif state and state.canReturnCheckpoint then

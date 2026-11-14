@@ -28,7 +28,7 @@
       playerId.textContent = `#${id}`;
       sessionValue.textContent = shortId(payload.identifier) || "pending";
     } else {
-      playerName.textContent = "Not connected";
+      playerName.textContent = "Нет подключения";
       playerId.textContent = "";
       sessionValue.textContent = "OFFLINE";
     }

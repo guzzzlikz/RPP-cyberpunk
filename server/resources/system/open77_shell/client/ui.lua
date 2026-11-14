@@ -121,10 +121,10 @@ function U.explainResource(reason, diagnostic)
         owner = "Fix the certificate hostname, expiry and chain, or explicitly advertise a public HTTP URL for signed resources. Do not disable TLS verification."
     elseif code == "resource_http_status" then
         summary = "The resource server returned HTTP " .. status .. "."
-        if status == 404 then owner = "The requested set/package/chunk is missing. Check the public URL path and reverse proxy routing; refresh/re-publish the current resource set."
-        elseif status == 401 or status == 403 then owner = "Resource files must be publicly downloadable without login. Check proxy authentication, WAF and file access rules."
+        if status == 404 then owner = "Нужный файл ресурсов не найден на сервере. Проверьте публичный адрес и прокси, перевыложите набор ресурсов."
+        elseif status == 401 or status == 403 then owner = "Файлы ресурсов должны скачиваться без входа. Проверьте авторизацию прокси, WAF и права доступа к файлам."
         elseif status >= 300 and status < 400 then owner = "The download endpoint redirects. Advertise the final direct resource URL; redirects are not followed."
-        elseif status == 429 or status >= 500 then owner = "Check resource service availability, rate limits and reverse proxy logs. Temporary failures are retried automatically." end
+        elseif status == 429 or status >= 500 then owner = "Проверьте доступность раздачи ресурсов, лимиты и логи прокси. Временные сбои повторяются автоматически." end
     elseif code:find("signature") or code:find("identity_mismatch") then
         summary = "The server resources failed authenticity verification."
         player = "Do not bypass verification. Retry once, then send these details to the server owner."

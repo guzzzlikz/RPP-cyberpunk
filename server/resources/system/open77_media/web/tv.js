@@ -112,11 +112,11 @@
     "2": "paused", "3": "buffering", "5": "cued",
   };
   const YOUTUBE_ERRORS = {
-    "2": "the video id was refused",
-    "5": "the player could not play this video here",
-    "100": "the video does not exist or is private",
-    "101": "the owner does not allow this video to be embedded",
-    "150": "the owner does not allow this video to be embedded",
+    "2": "ID видео отклонён",
+    "5": "плеер не может показать это видео здесь",
+    "100": "видео не существует или скрыто",
+    "101": "владелец запретил встраивать это видео",
+    "150": "владелец запретил встраивать это видео",
     "153": "the player refused the page: it could not read an acceptable referrer",
   };
 
@@ -446,13 +446,13 @@
       showOnly("media");
       report("loading", "host-decoded (" + (answer.video || "audio") + "/" + (answer.audio || "none") +
         " in " + (answer.container || "?") + ")");
-      notice("This link is being decoded by the game host -- first picture in a few seconds.");
+      notice("Ссылку декодирует хост игры — картинка появится через несколько секунд.");
       applyVolume();
       applyPaused();
       return;
     }
     if (answer.verdict === "disabled") {
-      notice(answer.detail || "The host cannot decode links: no decoder tools were staged.");
+      notice(answer.detail || "Хост не может декодировать ссылки: декодер не установлен.");
       report("transcode_disabled", answer.detail || "");
       return;
     }
@@ -477,10 +477,10 @@
       return;
     }
     showOnly("idle");
-    elements.idleDetail.textContent = "this link is not a playable stream";
-    notice("The decoder found nothing playable here" +
+    elements.idleDetail.textContent = "по ссылке нет воспроизводимого потока";
+    notice("Декодер не нашёл здесь ничего воспроизводимого" +
       (answer.detail ? " (" + answer.detail + ")" : "") +
-      ". YouTube links always work.");
+      ". Ссылки YouTube работают всегда.");
     report("not_media", answer.detail || "");
   }
 
@@ -544,8 +544,8 @@
       // Said once, on screen, rather than leaving an operator to wonder why the
       // volume slider moves and nothing happens.
       notice(audible
-        ? "Volume cannot be controlled for an embedded site's own player."
-        : "Mute cannot be controlled for an embedded site's own player.");
+        ? "Громкость встроенного плеера сайта отсюда не меняется."
+        : "Звук встроенного плеера сайта отсюда не выключается.");
     }
 
     elements.volume.value = String(volume);
@@ -563,7 +563,7 @@
           attempt.catch(function () {
             // Autoplay policy, or an unsupported stream. Both are worth saying
             // out loud: one is fixed by a user gesture, the other never is.
-            report("play_refused", "the browser refused playback");
+            report("play_refused", "браузер отказался воспроизводить");
           });
         }
       }
@@ -599,7 +599,7 @@
 
     if (decided.kind === "idle") {
       showOnly("idle");
-      elements.idleDetail.textContent = "no signal -- set a URL from the menu";
+      elements.idleDetail.textContent = "нет сигнала — задайте ссылку в меню";
       notice("");
       showing = { kind: "none" };
       report("idle", "");
@@ -608,7 +608,7 @@
 
     if (decided.kind === "refused") {
       showOnly("idle");
-      elements.idleDetail.textContent = "this link cannot be played here";
+      elements.idleDetail.textContent = "эту ссылку здесь не воспроизвести";
       notice(decided.reason);
       showing = { kind: "none" };
       report("refused", decided.reason);
@@ -622,7 +622,7 @@
       startProbe(decided.url);
       showing = { kind: "probing", url: decided.url };
       showOnly("idle");
-      elements.idleDetail.textContent = "asking the decoder about this link...";
+      elements.idleDetail.textContent = "спрашиваю декодер об этой ссылке...";
       notice("");
       return;
     }
@@ -672,7 +672,7 @@
   /// page recognises as one), and the probe's `nothing` verdict on a link that
   /// names no media container. Both end in the same frame, the same `allow` list
   /// and the same two log lines -- and the second path is the one that used to end
-  /// in "this link is not a playable stream" instead.
+  /// in "по ссылке нет воспроизводимого потока" instead.
   /// Which handoff a late answer belongs to. The host is asked about a link over
   /// the network, and the link under the player can change while the question is
   /// in flight; a stale answer that framed itself would put the previous link's
@@ -888,7 +888,7 @@
         }
         report("embed_refused", answer.violation || "refused");
         frame(src,
-          "This site refuses to be shown on a television" +
+          "Этот сайт запрещает показ на телевизоре" +
           (answer.violation ? " (" + answer.violation + ")" : "") +
           ", and wraps no page that does not.");
       })
@@ -994,7 +994,7 @@
     // report, so it is bounded and named rather than left to hang.
     const giveUp = setTimeout(function () {
       if (youTubeApiState === "ready") return;
-      fallBackToRawEmbed("the player script did not load within six seconds");
+      fallBackToRawEmbed("скрипт плеера не загрузился за шесть секунд");
     }, 6000);
 
     window.onYouTubeIframeAPIReady = function () {
@@ -1012,7 +1012,7 @@
     script.async = true;
     script.addEventListener("error", function () {
       clearTimeout(giveUp);
-      fallBackToRawEmbed("the player script refused to load");
+      fallBackToRawEmbed("скрипт плеера не загрузился");
     });
     document.head.appendChild(script);
   }
@@ -1020,7 +1020,7 @@
   /// "error 153: the player refused the page...", the way the log wants it.
   function errorText(code) {
     const key = String(code);
-    return "error " + key + ": " + (YOUTUBE_ERRORS[key] || "the player reported an error");
+    return "error " + key + ": " + (YOUTUBE_ERRORS[key] || "плеер сообщил об ошибке");
   }
 
   /// The player's own state, reported with the clock: "playing at 5.9s" is the
@@ -1104,7 +1104,7 @@
         },
         onStateChange: function (event) { notePlayerState(event.data, event.target); },
         onError: function (event) {
-          notice("This video will not play here: " + errorText(event.data) + ".");
+          notice("Это видео здесь не воспроизвести: " + errorText(event.data) + ".");
           report("youtube_error", errorText(event.data));
         },
       },
@@ -1289,16 +1289,16 @@
   elements.media.addEventListener("loadeddata", function () {
     if (showing.transcoded) {
       notice("");
-      report("stream_open", "the host is delivering decoded frames");
+      report("stream_open", "хост передаёт декодированные кадры");
     }
   });
   elements.media.addEventListener("error", function () {
     if (showing.transcoded) {
-      notice("The host stopped decoding this link. It may have ended, stalled, or the site refused the decoder.");
-      report("media_error", "host stream ended");
+      notice("Хост перестал декодировать ссылку: поток закончился, завис или сайт отказал декодеру.");
+      report("media_error", "поток хоста закончился");
       return;
     }
-    notice("This file could not be played. A WebM link or a YouTube link will work.");
+    notice("Файл не воспроизвести. Подойдёт ссылка на WebM или YouTube.");
     report("media_error", elements.media.error ? String(elements.media.error.code) : "");
   });
   // The player's own words. Reported rather than acted on: whether a video can
@@ -1321,8 +1321,8 @@
 
     if (payload.event === "onError") {
       const code = String(payload.info);
-      const meaning = YOUTUBE_ERRORS[code] || "the player reported an error";
-      notice("This video will not play here: " + meaning + " (error " + code + ").");
+      const meaning = YOUTUBE_ERRORS[code] || "плеер сообщил об ошибке";
+      notice("Это видео здесь не воспроизвести: " + meaning + " (error " + code + ").");
       report("youtube_error", code + ": " + meaning);
       return;
     }

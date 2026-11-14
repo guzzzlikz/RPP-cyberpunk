@@ -48,16 +48,16 @@ local function accept(payload)
 end
 
 local REFUSALS = {
-    spot_taken = "Someone is already there.",
-    too_far = "Too far away.",
-    already_in_scene = "You are already in a scene.",
-    not_in_scene = "You are not in a scene.",
-    scene_busy = "Wait a moment.",
-    actor_busy = "Finish what you are doing first.",
-    player_in_vehicle = "Not from a vehicle.",
-    player_not_alive = "Not now.",
-    no_spot = "Nothing to use here.",
-    unknown_spot = "This place is not available.",
+    spot_taken = "Здесь уже кто-то есть.",
+    too_far = "Слишком далеко.",
+    already_in_scene = "Вы уже заняты.",
+    not_in_scene = "Вы ничего не делаете.",
+    scene_busy = "Подождите немного.",
+    actor_busy = "Сначала закончите текущее действие.",
+    player_in_vehicle = "Не из машины.",
+    player_not_alive = "Не сейчас.",
+    no_spot = "Здесь нечего использовать.",
+    unknown_spot = "Это место недоступно.",
 }
 
 RegisterNetEvent("open77:scenes:refused", function(payload)
@@ -66,7 +66,7 @@ RegisterNetEvent("open77:scenes:refused", function(payload)
     -- A get-up key pressed as the scene ended another way (an animation card's Stop, a step):
     -- nothing to say.
     if reason == "not_in_scene" and Open77.time.monotonic() - state.endedAt < 3 then return end
-    notify(REFUSALS[reason] or ("Refused: " .. reason))
+    notify(REFUSALS[reason] or ("Отказано: " .. reason))
 end)
 
 RegisterNetEvent("open77:scenes:state", function(payload)
@@ -77,8 +77,8 @@ RegisterNetEvent("open77:scenes:state", function(payload)
         state.spots, state.dirty = {}, true
         if not was then
             local idles = type(payload.idles) == "table" and #payload.idles or 1
-            local text = ("Press %s to get up"):format(tostring(keyName(STAND_KEY, "H")))
-            if idles > 1 then text = text .. (", %s to change pose"):format(tostring(keyName(POSE_KEY, "G"))) end
+            local text = ("Нажмите %s, чтобы встать"):format(tostring(keyName(STAND_KEY, "H")))
+            if idles > 1 then text = text .. (", %s — сменить позу"):format(tostring(keyName(POSE_KEY, "G"))) end
             notify(text)
         end
     elseif was then
@@ -117,7 +117,7 @@ local function promptDefinition(spot)
         distance = PROMPT_REACH + 1.0, markerDistance = 5.0, marker = "dot", requireLookAt = false,
         priority = 5, title = spot.title,
         choices = { {
-            id = "use", label = spot.label or "Use", key = "E",
+            id = "use", label = spot.label or "Использовать", key = "E",
             event = "open77_scenes:choice", data = { spot = spot.id },
         } },
     }
@@ -159,11 +159,11 @@ end)
 -- get-up (live, 2026-10-30).
 -- ---------------------------------------------------------------------------
 pcall(Open77.input.registerKeyMapping, {
-    id = STAND_KEY, name = "Get up (scene)", key = "H",
+    id = STAND_KEY, name = "Встать (сцена)", key = "H",
     onPressed = function() if state.active then TriggerServerEvent("open77:scenes:stand") end end,
 })
 pcall(Open77.input.registerKeyMapping, {
-    id = POSE_KEY, name = "Change pose (scene)", key = "G",
+    id = POSE_KEY, name = "Сменить позу (сцена)", key = "G",
     onPressed = function() if state.active then TriggerServerEvent("open77:scenes:idle") end end,
 })
 

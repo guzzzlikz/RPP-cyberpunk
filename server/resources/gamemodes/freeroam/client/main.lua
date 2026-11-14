@@ -330,7 +330,7 @@ local function createBlips()
             position = location.position,
             sprite = Config.blips.locationSprite,
             title = location.label,
-            description = ("Freeroam destination. /goto %s"):format(location.name),
+            description = ("Место freeroam. /goto %s"):format(location.name),
         })
         if id ~= nil then created = created + 1 end
     end
@@ -341,7 +341,7 @@ local function createBlips()
                 position = point.position,
                 sprite = Config.blips.spawnSprite,
                 title = point.label or point.name,
-                description = ("Freeroam spawn point. /spawn %s"):format(point.name),
+                description = ("Точка появления. /spawn %s"):format(point.name),
             })
             if id ~= nil then created = created + 1 end
         end
@@ -601,7 +601,7 @@ AddEventHandler("onClientResourceStart", function(name)
             if not accepted2 then
                 menu:send("freeroam:result", {
                     ok = false,
-                    text = "network refused: " .. tostring(reason2),
+                    text = "сеть отклонила: " .. tostring(reason2),
                 })
                 return
             end

@@ -358,7 +358,7 @@ function M.create(config)
             lockReticle(math.floor(x * w + 0.5), math.floor(y * h + 0.5))
             clearRows()
             ui:merge("cm", { locked = true, panelShown = true, kindLabel = "Scan", title = "Смотрим",
-                distance = "", statusTag = "SCAN", status = "Resolving the target..." })
+                distance = "", statusTag = "SCAN", status = "Определяю цель..." })
             local first = not S.shown
             S.shown = true
             placePanel(0, 0, first)
@@ -367,7 +367,7 @@ function M.create(config)
             if not S.opened or p.epoch ~= S.epoch then return end
             stopLoading()
             ui:merge("cm", { empty = true, kindLabel = "None", title = "Нет цели",
-                statusTag = "EMPTY", status = tostring(p.message or "Click another object or surface."):sub(1, 120) })
+                statusTag = "EMPTY", status = tostring(p.message or "Нажмите на другой объект или поверхность."):sub(1, 120) })
             ui:animate("#reticle", { from = { scale = 0.85 }, to = { scale = 1 }, spring = { duration = 0.3, bounce = 0.5 } })
         elseif name == "context:menu" then
             if not S.opened or p.epoch ~= S.epoch then return end
@@ -380,7 +380,7 @@ function M.create(config)
             local any = #rows > 0
             ui:merge("cm", { kindLabel = head.kindLabel, title = head.title, distance = head.distance,
                 available = any, empty = not any, hasError = false, busy = false, desc = "",
-                statusTag = any and "" or "NONE", status = any and "" or "Nothing to do with this target." })
+                statusTag = any and "" or "NONE", status = any and "" or "С этим ничего сделать нельзя." })
             ui:rml("#rows", rml)
             placePanel(#rows, groups, false)
             if any then
@@ -410,7 +410,7 @@ function M.create(config)
                 ui:stop("#r" .. i .. " .spin")
             end
             ui:merge("cm", { busy = false, hasError = true, statusTag = "ERROR",
-                status = tostring(p.message or "Action unavailable."):sub(1, 120) })
+                status = tostring(p.message or "Действие недоступно."):sub(1, 120) })
             ui:keyframes("#panel", { channel = "x", stops = {
                 { offset = 0, value = 0 }, { offset = 0.2, value = -7 }, { offset = 0.4, value = 6 },
                 { offset = 0.6, value = -4 }, { offset = 0.8, value = 2 }, { offset = 1, value = 0 } }, duration = 0.34 })

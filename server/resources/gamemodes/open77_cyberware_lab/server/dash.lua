@@ -63,7 +63,7 @@ function CyberwareLabDash.operate(issuer,target,action,preset,mode)
         return true,value and ("Dash "..tostring(value.projection.status).."; phase="..tostring(value.phase).."; charges="..tostring(value.charges).."; airUsed="..tostring(value.airUsed)) or "Dash absent; paid equipment unchanged."
     end
     if action=="test" then
-        if not Open77.dash.current(target) then return false,"Install a Dash preset first." end
+        if not Open77.dash.current(target) then return false,"Сначала установите пресет рывка." end
         return true,hint()
     end
     if action~="install" and action~="remove" then return false,"invalid_action" end
@@ -85,7 +85,7 @@ function CyberwareLabDash.operate(issuer,target,action,preset,mode)
             local record=Open77.cyberware.current(target)
             local effective=Open77.cyberware.effective(target)
             if not record or not record.legs or record.legs.profile~="double_jump" or not effective or not effective.legs or effective.legs.profile~="double_jump" then
-                return false,"Combined requires installed double-jump legs. Use the Double Jump tab or an authorized doctor; Dash never replaces paid equipment."
+                return false,"Для совмещения нужны ноги с двойным прыжком. Откройте вкладку «Двойной прыжок» или обратитесь к риппердоку; рывок не заменяет купленные импланты."
             end
         end
         local result,reason=Open77.dash.grant(target,definition)

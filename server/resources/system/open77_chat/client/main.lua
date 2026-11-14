@@ -31,20 +31,20 @@ local function commandTokens(text)
             if started then
                 tokens[#tokens + 1] = token
                 token, started = "", false
-                if #tokens > 32 then return nil, "Commands are limited to 32 arguments." end
+                if #tokens > 32 then return nil, "У команды не больше 32 аргументов." end
             end
         else
             token = token .. character
             started = true
         end
     end
-    if escaped then return nil, "A command cannot end with an escape character." end
-    if quote ~= nil then return nil, "The command contains an unterminated quote." end
+    if escaped then return nil, "Команда не может заканчиваться символом экранирования." end
+    if quote ~= nil then return nil, "В команде не закрыта кавычка." end
     if started then
         tokens[#tokens + 1] = token
-        if #tokens > 32 then return nil, "Commands are limited to 32 arguments." end
+        if #tokens > 32 then return nil, "У команды не больше 32 аргументов." end
     end
-    if #tokens == 0 or tokens[1] == "" then return nil, "Enter a command after '/'." end
+    if #tokens == 0 or tokens[1] == "" then return nil, "Введите команду после «/»." end
     return tokens
 end
 

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Музыка при заходе</title>
+  <style>html, body { margin: 0; background: transparent; overflow: hidden; }</style>
+</head>
+<body>
+  <audio id="track" preload="auto"></audio>
+  <script>
+  (function () {
+    "use strict";
+    var bridge = window.Open77;
+    var audio = document.getElementById("track");
+    var target = 0.6, fade = null, src = "";
+
+    function emit(event, payload) { if (bridge && bridge.emit) bridge.emit("music:" + event, payload || {}); }
+    function on(event, handler) { if (bridge && bridge.on) bridge.on("music:" + event, handler); }
+
+    // Плавно меняет громкость до `to` за `ms`, затем вызывает done.
+    function ramp(to, ms, done) {
+      if (fade) clearInterval(fade);
+      var from = audio.volume, started = Date.now();
+      if (ms <= 0) { audio.volume = to; if (done) done(); return; }
+      fade = setInterval(function () {
+        var k = Math.min(1, (Date.now() - started) / ms);
+        audio.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+        if (k >= 1) { clearInterval(fade); fade = null; if (done) done(); }
+      }, 50);
+    }
+
+    function play(p) {
+      src = String(p.src || "");
+      target = Math.max(0, Math.min(1, Number(p.volume) || 0.6));
+      audio.loop = p.loop === true;
+      audio.src = src;
+      audio.volume = 0;
+      var attempt = audio.play();
+      if (attempt && attempt.catch) {
+        attempt.catch(function (err) { emit("status", { state: "error", src: src, reason: String(err && err.name || err) }); });
+      }
+      ramp(target, Number(p.fadeInMs) || 0);
+    }
+
+    function stop(p) {
+      ramp(0, Number(p.fadeOutMs) || 0, function () { audio.pause(); audio.removeAttribute("src"); audio.load(); emit("status", { state: "ended" }); });
+    }
+
+    audio.addEventListener("error", function () {
+      var e = audio.error;
+      emit("status", { state: "error", src: src, reason: e ? ("code " + e.code + (e.message ? ": " + e.message : "")) : "unknown" });
+    });
+    audio.addEventListener("ended", function () { emit("status", { state: "ended" }); });
+
+    on("play", play);
+    on("stop", stop);
+    on("noloop", function () { audio.loop = false; });
+    emit("ready");
+  })();
+  </script>
+</body>
+</html>

@@ -280,7 +280,7 @@ end
 -- ---------------------------------------------------------------------------
 RegisterCommand("passport", function(player, _, raw)
     player = tonumber(player)
-    if not player or player <= 0 then return reply(player, raw, false, "passport is a player command") end
+    if not player or player <= 0 then return reply(player, raw, false, "passport — команда игрока") end
     CreateThread(function()
     local entry = load(player)
     if not entry or not entry.citizen then
@@ -296,7 +296,7 @@ end, false)
 
 RegisterCommand("register", function(player, _, raw)
     player = tonumber(player)
-    if not player or player <= 0 then return reply(player, raw, false, "register is a player command") end
+    if not player or player <= 0 then return reply(player, raw, false, "register — команда игрока") end
     CreateThread(function()
         local ok, message = startRegistration(player)
         reply(player, raw, ok, message or "Регистрация открыта.")
@@ -305,7 +305,7 @@ end, false)
 
 RegisterCommand("accept", function(player, _, raw)
     player = tonumber(player)
-    if not player or player <= 0 then return reply(player, raw, false, "accept is a player command") end
+    if not player or player <= 0 then return reply(player, raw, false, "accept — команда игрока") end
     local from = latestOffer(player)
     if not from then return reply(player, raw, false, "Нет активных предложений знакомства.") end
     CreateThread(function()
@@ -316,7 +316,7 @@ end, false)
 
 RegisterCommand("decline", function(player, _, raw)
     player = tonumber(player)
-    if not player or player <= 0 then return reply(player, raw, false, "decline is a player command") end
+    if not player or player <= 0 then return reply(player, raw, false, "decline — команда игрока") end
     local list = offers[player] or {}
     local count = 0
     for from, expires in pairs(list) do

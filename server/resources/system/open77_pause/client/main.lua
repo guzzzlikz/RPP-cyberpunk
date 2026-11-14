@@ -585,7 +585,7 @@ Open77VoiceSetup.install({
             enumeratedVoiceDevices(flow,value)
             local found
             for i,device in ipairs(voiceDevices[flow]) do if device.id==value then found=i-1; break end end
-            if found==nil then return false,"Device unavailable. Refresh the device list." end
+            if found==nil then return false,"Устройство недоступно. Обновите список устройств." end
             value=found
         end
         return setVoiceSetting({name=name,value=value})

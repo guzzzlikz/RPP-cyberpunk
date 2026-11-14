@@ -22,7 +22,7 @@ local function drawCard()
     if not card then return end
     local left = math.max(0, math.ceil((card.endsAt - nowMs())/1000))
     cardShownAt = left
-    uikit('textUI', { text=card.text, eyebrow=('Offer - %d s'):format(left), position='center',
+    uikit('textUI', { text=card.text, eyebrow=('Предложение · %d с'):format(left), position='center',
         actions={ {key=keyFor(ACCEPT_ID,'Y'), label='Принять'}, {key=keyFor(DECLINE_ID,'N'), label='Отклонить'} } })
 end
 local function hideCard(id)

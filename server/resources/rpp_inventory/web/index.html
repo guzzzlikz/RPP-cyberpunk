@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Инвентарь</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="root" class="root hidden">
+    <div class="frame">
+      <header class="top">
+        <div class="title">
+          <span class="eyebrow">NIGHT CITY // ЛИЧНОЕ СНАРЯЖЕНИЕ</span>
+          <h1>Инвентарь</h1>
+        </div>
+        <div class="money" title="Евродоллары">
+          <span class="money-label">ЕВРОДОЛЛАРЫ</span>
+          <span class="money-value"><b id="money">0</b><i>€$</i></span>
+        </div>
+        <button class="close" id="close" title="Закрыть (I / Esc)">✕</button>
+      </header>
+
+      <main class="body">
+        <!-- Левый модуль: экипировка / импланты -->
+        <section class="module left">
+          <div class="module-head">
+            <span class="tag" id="leftTag">01</span>
+            <h2 id="leftTitle">Экипировка</h2>
+            <span class="hint" id="leftHint">ПКМ или клик по предмету: снять или выбросить</span>
+          </div>
+
+          <div id="viewGear" class="view">
+            <div class="paperdoll">
+              <svg class="silhouette" viewBox="0 0 200 420" aria-hidden="true">
+                <path d="M100 18c16 0 27 12 27 29s-11 31-27 31-27-14-27-31 11-29 27-29zM70 88h60l26 14 14 84-14 4-14-60-4 70 6 114-6 70h-26l-8-140h-6l-8 140H70l-6-70 6-114-4-70-14 60-14-4 14-84z"/>
+              </svg>
+              <div class="wear-col left-col" id="wearLeft"></div>
+              <div class="wear-col right-col" id="wearRight"></div>
+            </div>
+            <div class="weapons-title"><span>// ОРУЖИЕ</span><i></i></div>
+            <div class="weapon-slots" id="weaponSlots"></div>
+          </div>
+
+          <div id="viewCyber" class="view hidden">
+            <div class="cyber-head">
+              <span>// КИБЕРИМПЛАНТЫ</span><span id="cyberCount">0 / 0</span>
+            </div>
+            <div class="cyber-grid" id="cyberGrid"></div>
+            <p class="cyber-note">Установка и замена имплантов — у риппердока.</p>
+          </div>
+
+          <button class="switch" id="switchView">
+            <span class="switch-opt active" data-view="gear">Снаряжение</span>
+            <span class="switch-opt" data-view="cyber">Импланты</span>
+          </button>
+        </section>
+
+        <!-- Правый модуль: рюкзак 6x12 -->
+        <section class="module right">
+          <div class="module-head">
+            <span class="tag">02</span>
+            <h2>Рюкзак</h2>
+            <span class="hint" id="capacity">0 / 72</span>
+            <button class="sort" id="sort" title="Сдвинуть предметы к верхнему левому углу">Упорядочить</button>
+          </div>
+          <div class="grid-wrap">
+            <div class="grid" id="grid"></div>
+          </div>
+          <div class="info" id="info">
+            <span class="info-name">Наведите на предмет</span>
+            <span class="info-sub">ЛКМ — перетащить, ПКМ — действия</span>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="menu" class="menu hidden"></div>
+    <div id="submenu" class="menu sub hidden"></div>
+    <div id="ghost" class="ghost hidden"></div>
+  </div>
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

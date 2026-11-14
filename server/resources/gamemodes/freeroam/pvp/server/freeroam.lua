@@ -60,7 +60,7 @@ DM.round.join = function(id, ruleset)
     local accepted, reason = admit(id)
     if not accepted then return nil, reason end
     local _, queued = DM.arena.queuePosition(accepted)
-    if queued then notice(accepted, "Leave the arena queue before joining free-for-all."); return nil, "already_queued" end
+    if queued then notice(accepted, "Выйди из очереди на арену, прежде чем вступать в «каждый сам за себя»."); return nil, "already_queued" end
     return joinFFA(accepted, ruleset)
 end
 DM.arena.enqueue = function(id, format, bots)

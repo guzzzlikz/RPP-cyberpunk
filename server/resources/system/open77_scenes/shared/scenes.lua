@@ -136,7 +136,7 @@ end
 S.define("ripperdoc", {
     profile = "ripperdoc",
     label = "Кресло рипердока",
-    prompt = "Lie down",
+    prompt = "Лечь",
     enter = { clip = "cyberm__ripperdoc__enter", durationMs = 6800 },
     idles = {
         { clip = "cyberm__ripperdoc__idle", label = "Отдых" },

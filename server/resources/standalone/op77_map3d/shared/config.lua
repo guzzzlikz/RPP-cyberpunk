@@ -4,12 +4,12 @@
 --   exports.op77_map3d:setConfig({ theme = { accent = "#3FE0D0" } })   -- client
 Map3DConfig = {
     -- The key that opens the city map (rebindable in the game's key settings).
-    key = { id = "op77_map3d.open", name = "City map (3D)", key = "M" },
+    key = { id = "op77_map3d.open", name = "Карта города (3D)", key = "M" },
     -- Minimap zoom, held to zoom continuously (rebindable). The numpad names need a client
     -- that knows them (Unstable 167+); older ones get `fallback` instead.
     zoomKeys = {
-        zoomIn = { id = "op77_map3d.zoomIn", name = "Minimap: zoom in", key = "NUMPADPLUS", fallback = "PAGEUP" },
-        zoomOut = { id = "op77_map3d.zoomOut", name = "Minimap: zoom out", key = "NUMPADMINUS", fallback = "PAGEDOWN" },
+        zoomIn = { id = "op77_map3d.zoomIn", name = "Миникарта: приблизить", key = "NUMPADPLUS", fallback = "PAGEUP" },
+        zoomOut = { id = "op77_map3d.zoomOut", name = "Миникарта: отдалить", key = "NUMPADMINUS", fallback = "PAGEDOWN" },
     },
 
     -- Take over from the game's own map and minimap while this resource runs.
@@ -83,6 +83,23 @@ Map3DConfig = {
             { id = "vehicle", label = "Транспорт", icon = "car", color = "#7FB4D6" },
             { id = "housing", label = "Жильё", icon = "home", color = "#8FE04A" },
             { id = "default", label = "Другое", icon = "pin" },
+        },
+        -- RPP: тексты страницы карты (по умолчанию английские, см. ui/src/config.ts).
+        keys = {
+            open = "M", close = "ESC", waypoint = "Двойной клик", recenter = "ПРОБЕЛ",
+            rotate = "ПКМ + тянуть", pan = "ЛКМ + тянуть",
+        },
+        locale = {
+            setRoute = "Проложить маршрут", clearRoute = "Сбросить маршрут", waypoint = "Метка",
+            arrived = "Вы прибыли", noRoute = "Туда нет дороги", rerouting = "Перестраиваю маршрут",
+            you = "Вы", legend = "Легенда", recenter = "К себе", northUp = "Север сверху",
+            view3d = "3D", view2d = "2D", search = "Поиск мест", holo = "Голо-GPS",
+            minimap = "Миникарта", noSignal = "НЕТ СИГНАЛА", noResults = "Ничего не найдено",
+            district = "Район",
+            ["m.start"] = "СТАРТ", ["m.straight"] = "ПРЯМО", ["m.left"] = "НАЛЕВО",
+            ["m.right"] = "НАПРАВО", ["m.slight-left"] = "ДЕРЖИТЕСЬ ЛЕВЕЕ",
+            ["m.slight-right"] = "ДЕРЖИТЕСЬ ПРАВЕЕ", ["m.sharp-left"] = "РЕЗКО НАЛЕВО",
+            ["m.sharp-right"] = "РЕЗКО НАПРАВО", ["m.uturn"] = "РАЗВОРОТ", ["m.arrive"] = "ПУНКТ НАЗНАЧЕНИЯ",
         },
     },
 }

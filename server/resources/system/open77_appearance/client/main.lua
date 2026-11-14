@@ -224,7 +224,7 @@ local function reconcile()
         end
         failed = record.revision
         finishMutation()
-        notify("error", "Сохранённую внешность не удалось восстановить: " .. tostring(reason) .. ". Reconnect to retry.")
+        notify("error", "Сохранённую внешность не удалось восстановить: " .. tostring(reason) .. ". Переподключитесь, чтобы повторить.")
         return
     end
     if reopen ~= nil then
@@ -311,8 +311,8 @@ end)
 
 AddEventHandler("open77:playerReset:failed", function()
     reset = false
-    notify("error", "[OP77-INIT-001] Character initialization failed. Server interfaces are still blocked for safety. " ..
-        "Reconnect to retry. Before closing the game, export Diagnostics; the developer console has the pending equipment details.")
+    notify("error", "[OP77-INIT-001] Персонаж не загрузился. Интерфейсы сервера пока заблокированы для безопасности. " ..
+        "Переподключитесь. Перед закрытием игры выгрузите диагностику (Diagnostics): подробности в консоли разработчика.")
 end)
 
 -- The feet variant of the body follows the footwear: republish when a garment

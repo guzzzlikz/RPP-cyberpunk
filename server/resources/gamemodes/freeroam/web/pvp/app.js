@@ -90,7 +90,7 @@
     write('mode', formatNames[state.mode] || 'ARENA');
     write('objective', arena ? `ROUND ${number(arena.round)} · FIRST TO ${number(arena.target)}` : `FIRST TO ${number(state.killLimit) || 25} ELIMINATIONS`);
     const alive = list(arena?.aliveByTeam), side = number(arena?.side) || 1;
-    write('match-hint', arena ? (state.roundState === 'buy' ? '/PVP · CHOOSE YOUR KIT'
+    write('match-hint', arena ? (state.roundState === 'buy' ? '/PVP · ВЫБЕРИ СНАРЯЖЕНИЕ'
       : `${number(alive[side-1])} ALLIES · ${number(alive[side===1 ? 1 : 0])} OPPONENTS ALIVE`) : state.mode === 'blade' ? 'ТОЛЬКО БЛИЖНИЙ БОЙ · CTRL РЫВОК · X ОВЕРДРАЙВ' : '');
     $('scoreline').replaceChildren();
     if (arena) {

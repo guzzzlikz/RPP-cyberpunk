@@ -1413,7 +1413,7 @@ AddEventHandler("open77:weapons:completed", function(
         if instance.ruleset == "blade" and operation == "assign" and reason == "native_arm_slot_owned" then
             bladeChoices[info.playerId] = Config.blade.default
             TriggerClientEvent("deathmatch:notice", info.playerId, { kind="warning", title="КЛИНКИ FFA",
-                message="Your arm implant is already equipped. Using a katana; remove the implant before selecting Mantis Blades." })
+                message="Имплант рук уже установлен, выдана катана. Сними имплант, чтобы выбрать «Клинки богомола»." })
             Loadout.issue(info.playerId, instance, "occupied_arm_fallback")
             Loadout.openPicker(info.playerId, false)
             return

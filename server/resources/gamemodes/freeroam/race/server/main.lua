@@ -87,13 +87,13 @@ local function notify(playerId, kind, title, message, durationMs)
     if Open77.notifications and Open77.notifications.send then
         Open77.notifications.send(playerId, {
             type = kind or "info",
-            title = title or "Race",
+            title = title or "Гонка",
             message = message or "",
             durationMs = durationMs or 3500,
         })
     end
     TriggerClientEvent("race:notice", playerId, {
-        kind = kind or "info", title = title or "RACE", message = message or "",
+        kind = kind or "info", title = title or "ГОНКА", message = message or "",
         durationMs = durationMs or 3500,
     })
 end
@@ -1174,7 +1174,7 @@ local function guardGridVehicles(now)
                 removeRaceVehicle(record, "grid_hold_failed")
                 log(("grid hold failed player=%d: %s"):format(playerId, tostring(reason)))
                 notify(playerId, "error", "СТАРТ НЕ СОБРАН",
-                    "Your vehicle could not be held safely on the starting grid.", 5000)
+                    "Не удалось удержать машину на стартовой сетке.", 5000)
             end
             end
         end
@@ -1340,11 +1340,11 @@ local function beginGrid(forced)
             log(("grid setup failed for %d: vehicle=%s assignment=%s"):format(
                 playerId, tostring(vehicleReason), tostring(assignmentReason)))
             notify(playerId, "error", "СТАРТ НЕ СОБРАН",
-                vehicleId == nil and "Your race vehicle could not be created."
-                    or "You could not be assigned to the race vehicle.", 5000)
+                vehicleId == nil and "Не удалось создать гоночную машину."
+                    or "Не удалось посадить тебя в гоночную машину.", 5000)
         else
             notify(playerId, "info", "СТАРТОВАЯ СЕТКА",
-                "Vehicle held on the grid until GO. Exit remains locked until Race cleanup.", 8000)
+                "Машина стоит на сетке до старта. Выйти можно будет после окончания гонки.", 8000)
         end
         end
     end
@@ -1423,9 +1423,9 @@ local function beginRace()
                 record.state = "dnf"
                 record.dnfReason = seated and "grid_release_failed" or "left_driver_seat"
                 if seated then log("GO release failed: " .. tostring(releaseReason)) end
-                notify(playerId, "error", "DISQUALIFIED",
-                    seated and "Your vehicle could not be released safely."
-                        or "You must be in your assigned driver seat when the race starts.", 5000)
+                notify(playerId, "error", "ДИСКВАЛИФИКАЦИЯ",
+                    seated and "Не удалось безопасно отпустить машину на старте."
+                        or "На старте нужно сидеть за рулём своей машины.", 5000)
             end
         end
     end
@@ -1516,8 +1516,8 @@ local function finishPlayer(playerId, record)
         place = record.place,
         timeMs = record.finishedAtMs - heat.startedAtMs,
     })
-    notify(playerId, "success", "FINISH",
-        ("P%d · %0.3fs"):format(record.place,
+    notify(playerId, "success", "ФИНИШ",
+        ("Место %d · %0.3f с"):format(record.place,
             (record.finishedAtMs - heat.startedAtMs) / 1000.0), 5000)
     if allMembersResolved() then
         resolveHeat("finished")
@@ -1644,7 +1644,7 @@ local function joinQueue(playerId, requestedMode)
     queue[#queue + 1] = playerId
     setState(playerId, "queued")
     maybeArmQueue()
-    notify(playerId, "success", "RACE", ("Queued · P%d"):format(#queue), 3000)
+    notify(playerId, "success", "ГОНКА", ("В очереди · %d-й"):format(#queue), 3000)
     pushAllStates()
     return true
 end
@@ -1652,7 +1652,7 @@ end
 local function leaveRace(playerId, reason)
     if removeFromQueue(playerId) then
         setState(playerId, "freeroam")
-        notify(playerId, "info", "RACE", "Ты вышел из очереди.", 2500)
+        notify(playerId, "info", "ГОНКА", "Ты вышел из очереди.", 2500)
         pushAllStates()
         return true
     end
@@ -1709,7 +1709,7 @@ FreeroamRace.joinPlaytest = joinQueue
 
 local function blankDraft(mode)
     return {
-        name = mode == "foot" and "New Night City Foot Race" or "New Night City Race",
+        name = mode == "foot" and "Новый забег по Найт-Сити" or "Новая гонка по Найт-Сити",
         description = "",
         type = "circuit",
         laps = mode == "foot" and 1 or 3,
@@ -1722,23 +1722,23 @@ local function blankDraft(mode)
 end
 
 local editorErrorMessages = {
-    position_unavailable = "Your current position is not available yet.",
-    editor_world_required = "Return to the editor world before placing a point.",
-    grid_slots_overlap = "This grid slot is too close to another slot.",
-    too_many_checkpoints = "This course already has the maximum number of checkpoints.",
-    invalid_checkpoint_index = "That checkpoint no longer exists.",
-    invalid_grid_index = "That grid slot no longer exists.",
-    course_not_found = "That course no longer exists.",
-    heat_in_progress = "Wait for the current heat to finish before selecting this course.",
-    invalid_vehicle = "Choose one of the race vehicles allowed by the server.",
-    unknown_action = "The editor did not recognize that action.",
+    position_unavailable = "Твоя позиция пока недоступна.",
+    editor_world_required = "Вернись в мир редактора, чтобы ставить точки.",
+    grid_slots_overlap = "Это место на сетке слишком близко к другому.",
+    too_many_checkpoints = "На трассе уже максимум чекпоинтов.",
+    invalid_checkpoint_index = "Этого чекпоинта уже нет.",
+    invalid_grid_index = "Этого места на сетке уже нет.",
+    course_not_found = "Этой трассы уже нет.",
+    heat_in_progress = "Дождись конца текущего заезда, чтобы выбрать эту трассу.",
+    invalid_vehicle = "Выбери одну из разрешённых сервером гоночных машин.",
+    unknown_action = "Редактор не понял это действие.",
 }
 
 local function editorErrorMessage(errorCode)
     local code = tostring(errorCode or "editor_error")
     if editorErrorMessages[code] ~= nil then return editorErrorMessages[code] end
     if code:match("^vehicle_spawn_failed:") then
-        return "The editor vehicle could not be spawned (" ..
+        return "Не удалось создать машину редактора (" ..
             code:sub(#"vehicle_spawn_failed:" + 1) .. ")."
     end
     return code:gsub("_", " ")
@@ -1842,7 +1842,7 @@ local function editorCapturePoint(playerId, session, payload)
                             x = finite(vehicle.x), y = finite(vehicle.y), z = finite(vehicle.z),
                         },
                         heading = headingFrom(payload),
-                    }, "editor vehicle"
+                    }, "машины редактора"
                 end
             end
         end
@@ -1854,7 +1854,7 @@ local function editorCapturePoint(playerId, session, payload)
     return {
         position = { x = position.x, y = position.y, z = position.z },
         heading = headingFrom(payload),
-    }, "player"
+    }, "позиции игрока"
 end
 
 local function loadDraft(id)
@@ -1883,25 +1883,25 @@ RegisterNetEvent("race:editorAction", function(payload)
         local ok, reason = returnToPoint(playerId, point, integer(Config.editor.worldBucket) or 0,
             function(settled, failure)
                 if editors[playerId] ~= session then return end
-                pushEditor(playerId, settled and "Returned to last captured point." or nil,
+                pushEditor(playerId, settled and "Возврат к последней поставленной точке." or nil,
                     not settled and tostring(failure) or nil)
             end)
         if not ok then pushEditor(playerId, nil, reason) end
         return
     elseif action == "spawnVehicle" then
-        if onFoot(session.draft) then return pushEditor(playerId, "On-foot editor: walk to each point.") end
+        if onFoot(session.draft) then return pushEditor(playerId, "Пеший редактор: дойди до каждой точки сам.") end
         local id, reason = spawnEditorVehicle(playerId, headingFrom(payload))
         if id == nil then return pushEditor(playerId, nil, "vehicle_spawn_failed:" .. tostring(reason)) end
-        return pushEditor(playerId, "Editor vehicle ready. Enter it with F.")
+        return pushEditor(playerId, "Машина редактора готова. Сесть — F.")
     elseif action == "new" then
         session.draft = blankDraft(onFoot(session.draft) and "foot" or "vehicle")
-        return pushEditor(playerId, "New course ready.")
+        return pushEditor(playerId, "Новая трасса создана.")
     elseif action == "load" then
         local draft, reason = loadDraft(payload.id)
         if draft == nil then return pushEditor(playerId, nil, reason) end
         session.draft = draft
         if onFoot(draft) then removeEditorVehicle(playerId, "foot_course") end
-        return pushEditor(playerId, "Course loaded.")
+        return pushEditor(playerId, "Трасса загружена.")
     elseif action == "fields" then
         local draft = session.draft
         local previousVehicle = draft.vehicle
@@ -1926,7 +1926,7 @@ RegisterNetEvent("race:editorAction", function(payload)
         if draft.vehicle ~= previousVehicle then
             if onFoot(draft) then
                 removeEditorVehicle(playerId, "foot_course")
-                return pushEditor(playerId, "On-foot course. Walk to capture spawns and checkpoints.")
+                return pushEditor(playerId, "Пешая трасса: ходи пешком, чтобы ставить старты и чекпоинты.")
             end
             local vehicle = RaceCourses.vehicle(draft.vehicle)
             return pushEditor(playerId,
@@ -1939,11 +1939,11 @@ RegisterNetEvent("race:editorAction", function(payload)
         if point == nil then return pushEditor(playerId, nil, captureSource) end
         if action == "captureStart" then
             session.draft.start = point
-            return pushEditor(playerId, "Start captured from " .. captureSource .. ".", nil, "success")
+            return pushEditor(playerId, "Старт поставлен с " .. captureSource .. ".", nil, "success")
         end
         if action == "captureGrid" then
             if onFoot(session.draft) then
-                return pushEditor(playerId, "Automatic grid: F6 sets the start and direction for every runner.")
+                return pushEditor(playerId, "Сетка автоматическая: F6 задаёт старт и направление для всех бегунов.")
             end
             local grid = session.draft.grid
             if type(grid) ~= "table" then grid = {}; session.draft.grid = grid end
@@ -1957,7 +1957,7 @@ RegisterNetEvent("race:editorAction", function(payload)
                 end
             end
             grid[#grid + 1] = point
-            return pushEditor(playerId, ("Grid slot %d captured from %s."):format(
+            return pushEditor(playerId, ("Место на сетке %d поставлено с %s."):format(
                 #grid, captureSource), nil, "success")
         end
         if #session.draft.checkpoints >= Config.editor.maximumCheckpoints then
@@ -1965,7 +1965,7 @@ RegisterNetEvent("race:editorAction", function(payload)
         end
         session.draft.checkpoints[#session.draft.checkpoints + 1] = point
         return pushEditor(playerId,
-            ("Checkpoint %d captured from %s."):format(
+            ("Чекпоинт %d поставлен с %s."):format(
                 #session.draft.checkpoints, captureSource), nil, "success")
     elseif action == "removeCheckpoint" then
         local index = integer(payload.index)
@@ -1973,10 +1973,10 @@ RegisterNetEvent("race:editorAction", function(payload)
             return pushEditor(playerId, nil, "invalid_checkpoint_index")
         end
         table.remove(session.draft.checkpoints, index)
-        return pushEditor(playerId, "Checkpoint removed.", nil, "warning")
+        return pushEditor(playerId, "Чекпоинт удалён.", nil, "warning")
     elseif action == "undo" then
         if #session.draft.checkpoints > 0 then table.remove(session.draft.checkpoints) end
-        return pushEditor(playerId, "Last checkpoint removed.", nil, "warning")
+        return pushEditor(playerId, "Последний чекпоинт удалён.", nil, "warning")
     elseif action == "removeGridSlot" then
         local grid = type(session.draft.grid) == "table" and session.draft.grid or {}
         local index = integer(payload.index)
@@ -1984,16 +1984,16 @@ RegisterNetEvent("race:editorAction", function(payload)
             return pushEditor(playerId, nil, "invalid_grid_index")
         end
         table.remove(grid, index)
-        return pushEditor(playerId, "Grid slot removed.", nil, "warning")
+        return pushEditor(playerId, "Место на сетке удалено.", nil, "warning")
     elseif action == "undoGrid" then
         local grid = type(session.draft.grid) == "table" and session.draft.grid or {}
         if #grid > 0 then table.remove(grid) end
-        return pushEditor(playerId, "Last grid slot removed.", nil, "warning")
+        return pushEditor(playerId, "Последнее место на сетке удалено.", nil, "warning")
     elseif action == "save" then
         local saved, saveError = RaceCourses.save(playerId, session.draft)
         if saved == nil then return pushEditor(playerId, nil, saveError) end
         session.draft = saved
-        pushEditor(playerId, "Course saved to its JSON file.", nil, "success")
+        pushEditor(playerId, "Трасса сохранена в JSON-файл.", nil, "success")
         pushAllStates()
         return
     elseif action == "delete" then
@@ -2002,7 +2002,7 @@ RegisterNetEvent("race:editorAction", function(payload)
         if session.draft and session.draft.id == payload.id then
             session.draft = blankDraft(onFoot(session.draft) and "foot" or "vehicle")
         end
-        pushEditor(playerId, "Course deleted.", nil, "warning")
+        pushEditor(playerId, "Трасса удалена.", nil, "warning")
         pushAllStates()
         return
     elseif action == "select" then
@@ -2012,7 +2012,7 @@ RegisterNetEvent("race:editorAction", function(payload)
         local ok, reason = RaceCourses.select(payload.id)
         if not ok then return pushEditor(playerId, nil, reason) end
         if queuedCourse ~= nil or queueDeadlineMs ~= nil then queuedCourse = chooseNextCourse() end
-        pushEditor(playerId, "Selected for the next heat.", nil, "success")
+        pushEditor(playerId, "Выбрана для следующего заезда.", nil, "success")
         pushAllStates()
         return
     elseif action == "close" then
@@ -2038,7 +2038,7 @@ RegisterNetEvent("race:ready", function()
     if editor ~= nil then
         Open77.routingBuckets.setPlayer(playerId, integer(Config.editor.worldBucket) or 0)
         setState(playerId, "editing")
-        pushEditor(playerId, "Drive mode restored.")
+        pushEditor(playerId, "Режим вождения восстановлен.")
         TriggerClientEvent("race:courseClear", playerId)
         TriggerClientEvent("race:panel", playerId, false)
         if editor.vehicleId == nil and not onFoot(editor.draft) then
@@ -2077,7 +2077,7 @@ end)
 
 RegisterNetEvent("race:join", function(mode)
     local ok, reason = joinQueue(source, mode)
-    if not ok then notify(source, "error", "RACE", tostring(reason), 3500) end
+    if not ok then notify(source, "error", "ГОНКА", tostring(reason), 3500) end
 end)
 
 RegisterNetEvent("race:vote", function(payload)
@@ -2099,7 +2099,7 @@ end)
 
 RegisterNetEvent("race:leave", function(reason)
     if not leaveRace(source, tostring(reason or "left")) then
-        notify(source, "warning", "RACE", "Ты не в очереди и не в гонке.", 3000)
+        notify(source, "warning", "ГОНКА", "Ты не в очереди и не в гонке.", 3000)
     end
 end)
 
@@ -2326,7 +2326,7 @@ RegisterNetEvent("chat:ready", function()
 end)
 
 RegisterCommand("race", function(source)
-    if source <= 0 then return output(source, "race", false, "race must be used in-game") end
+    if source <= 0 then return output(source, "race", false, "команду race нужно вводить в игре") end
     ensurePlayer(source).menuMode = "vehicle"
     TriggerClientEvent("race:panel", source, true)
     pushState(source)
@@ -2340,15 +2340,15 @@ RegisterCommand("footrace", function(source)
 end, false)
 
 RegisterCommand("race.join", function(source, _, raw)
-    if source <= 0 then return output(source, raw, false, "race.join must be used in-game") end
+    if source <= 0 then return output(source, raw, false, "race.join нужно вводить в игре") end
     local ok, reason = joinQueue(source)
-    output(source, raw, ok, ok and "joined the Race queue" or ("join failed: " .. tostring(reason)))
+    output(source, raw, ok, ok and "ты в очереди на гонку" or ("не удалось вступить: " .. tostring(reason)))
 end, false)
 
 RegisterCommand("race.leave", function(source, _, raw)
-    if source <= 0 then return output(source, raw, false, "race.leave must be used in-game") end
+    if source <= 0 then return output(source, raw, false, "race.leave нужно вводить в игре") end
     local ok = leaveRace(source, "command")
-    output(source, raw, ok, ok and "left Race" or "not queued or racing")
+    output(source, raw, ok, ok and "ты вышел из гонки" or "ты не в очереди и не в гонке")
 end, false)
 
 RegisterCommand("race.status", function(source, _, raw)
@@ -2387,12 +2387,12 @@ RegisterCommand("race.force", function(source, _, raw)
 end, true)
 
 RegisterCommand("race.editor", function(source, args, raw)
-    if source <= 0 then return output(source, raw, false, "race.editor must be used in-game") end
+    if source <= 0 then return output(source, raw, false, "race.editor нужно вводить в игре") end
     if FreeroamPvp and FreeroamPvp.isReserved(source) then
-        return output(source, raw, false, "leave PvP or its queue before editing")
+        return output(source, raw, false, "сначала выйди из PvP или его очереди")
     end
     if heat ~= nil and memberOfCurrentHeat(source) then
-        return output(source, raw, false, "leave the active heat before editing")
+        return output(source, raw, false, "сначала выйди из текущего заезда")
     end
     local foot = args[1] == "--foot"
     local draft = blankDraft(foot and "foot" or "vehicle")
@@ -2402,20 +2402,20 @@ RegisterCommand("race.editor", function(source, args, raw)
         draft = loaded
     end
     local position = Open77.players.position(source)
-    if position == nil then return output(source, raw, false, "position unavailable") end
+    if position == nil then return output(source, raw, false, "позиция недоступна") end
     local life = Open77.players.getLifeState(source)
     if not Open77.ready.isReady(source) or life == nil or life.phase ~= "alive" then
-        return output(source, raw, false, "player not ready")
+        return output(source, raw, false, "игрок не готов")
     end
     if FreeroamRace.ownsPlayer(source) and editors[source] == nil then
-        return output(source, raw, false, "return to Freeroam before editing")
+        return output(source, raw, false, "сначала вернись в freeroam")
     end
     local wasEditing = editors[source] ~= nil
-    if not rememberReturn(source) then return output(source, raw, false, "return position unavailable") end
+    if not rememberReturn(source) then return output(source, raw, false, "точка возврата недоступна") end
     local bucket = integer(Config.editor.worldBucket) or 0
     if not Open77.routingBuckets.setPlayer(source, bucket) then
         if not wasEditing then players[source].returnPosition = nil end
-        return output(source, raw, false, "editor world unavailable")
+        return output(source, raw, false, "мир редактора недоступен")
     end
     removeFromQueue(source)
     removeEditorVehicle(source, "editor_reopened")
@@ -2429,13 +2429,13 @@ RegisterCommand("race.editor", function(source, args, raw)
     record.lastPosition = nil
     setState(source, "editing")
     record.menuMode = onFoot(draft) and "foot" or "vehicle"
-    pushEditor(source, onFoot(draft) and "Capture the start facing the route, then checkpoints. Runners line up behind you."
+    pushEditor(source, onFoot(draft) and "Поставь старт лицом к трассе, затем чекпоинты. Бегуны встанут за тобой."
         or "Drive mode active. Use the mapped editor keys in the HUD.")
     TriggerClientEvent("race:courseClear", source)
     TriggerClientEvent("race:panel", source, false)
     if not onFoot(draft) then TriggerClientEvent("race:editorRequestVehicle", source) end
     pushState(source)
-    output(source, raw, true, "Race drive editor enabled")
+    output(source, raw, true, "Редактор трасс включён")
 end, true)
 
 RegisterCommand("race.where", function(source, args, raw)
@@ -2443,7 +2443,7 @@ RegisterCommand("race.where", function(source, args, raw)
     if playerId == nil or playerId <= 0 then return output(source, raw, false, "usage: race.where [id]") end
     local position = Open77.players.position(playerId)
     local record = players[playerId]
-    if position == nil then return output(source, raw, false, "position unavailable") end
+    if position == nil then return output(source, raw, false, "позиция недоступна") end
     output(source, raw, true, ("player=%d state=%s pos=%.2f,%.2f,%.2f bucket=%s lap=%s next=%s"):format(
         playerId, record and record.state or "unknown", position.x, position.y, position.z,
         tostring(position.bucket), tostring(record and record.lap),

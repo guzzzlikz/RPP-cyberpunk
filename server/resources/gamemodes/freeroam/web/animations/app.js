@@ -112,7 +112,7 @@
       button.addEventListener('click', () => select(item.key));
       button.addEventListener('dblclick', () => { select(item.key); play(); });
       const star = document.createElement('button'); star.type = 'button'; star.className = 'anim-star'; star.append(icon('favorites'));
-      star.setAttribute('aria-label', 'Favourite ' + item.label + ', ' + item.variant);
+      star.setAttribute('aria-label', 'В избранное ' + item.label + ', ' + item.variant);
       star.setAttribute('aria-pressed', String(favorites.has(item.key)));
       star.addEventListener('click', () => {
         if (favorites.has(item.key)) favorites.delete(item.key);

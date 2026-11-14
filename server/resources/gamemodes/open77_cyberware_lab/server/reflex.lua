@@ -68,7 +68,7 @@ function CyberwareLabReflex.operate(issuer,target,action,preset)
             "Reflex absent; paid equipment unchanged."
     end
     if action=="test" then
-        if not Open77.reflex.current(target) then return false,"Grant a Reflex preset first." end
+        if not Open77.reflex.current(target) then return false,"Сначала выдайте пресет рефлексов." end
         return true,hint()
     end
     if action=="cancel" then

@@ -35,7 +35,7 @@ AddEventHandler('onClientResourceStart',function(name)
                     end
                     Wait(100)
                 until Open77.time.monotonic()>deadline
-                if running and serial==current then page:send('idle:clips',{request=p.request,bank=p.bank,error='The bank took too long to load. Try again.'}) end
+                if running and serial==current then page:send('idle:clips',{request=p.request,bank=p.bank,error='Анимации грузились слишком долго. Попробуй ещё раз.'}) end
             end)
         elseif (p.action=='apply' or p.action=='reset') and not busy then
             busy=true

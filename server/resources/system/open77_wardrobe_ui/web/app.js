@@ -59,15 +59,15 @@
       const selected=canonical(currentSlots()[slot])===item.record;row.classList.toggle("selected",selected);
       const choose=document.createElement("button");choose.className="choose catalog-card";choose.dataset.record=item.record;choose.setAttribute("aria-pressed",String(selected));
       choose.title=catalogTitle(item);const title=document.createElement("strong");title.textContent=catalogTitle(item);
-      const subtitle=document.createElement("small");subtitle.textContent=selected?"SELECTED":M.labels[item.slot].toUpperCase();
+      const subtitle=document.createElement("small");subtitle.textContent=selected?"ВЫБРАНО":M.labels[item.slot].toUpperCase();
       choose.append(title,subtitle);choose.onclick=()=>preview(()=>editSlot(item.record));
       const favorite=document.createElement("button");favorite.className="favorite";favorite.classList.toggle("on",favorites.has(item.record));favorite.textContent=favorites.has(item.record)?"★":"☆";
-      favorite.setAttribute("aria-label",(favorites.has(item.record)?"Убрать из избранного ":"Favorite ")+catalogTitle(item));
+      favorite.setAttribute("aria-label",(favorites.has(item.record)?"Убрать из избранного ":"В избранное ")+catalogTitle(item));
       favorite.disabled=!favoritesReady;favorite.onclick=()=>{favoritesReady=false;document.querySelectorAll(".favorite").forEach(button=>button.disabled=true);emit("wardrobe:favorite",{record:item.record,enabled:!favorites.has(item.record)});};
       row.append(choose,favorite);grid.append(row);
     });
     if(!entries.length){const empty=document.createElement("p");empty.className="empty";empty.textContent=favoritesOnly?"В этой категории нет избранного. Отметь одежду звёздочкой.":"Ничего не нашлось. Попробуй другой запрос или категорию.";grid.append(empty);}
-    $("count").textContent=entries.length?`${page*PAGE_SIZE+1}–${Math.min(entries.length,(page+1)*PAGE_SIZE)} / ${entries.length} ITEMS`:"0 ITEMS";
+    $("count").textContent=entries.length?`${page*PAGE_SIZE+1}–${Math.min(entries.length,(page+1)*PAGE_SIZE)} / ${entries.length} ШТ.`:"0 ШТ.";
     $("previous").disabled=page===0;$("next").disabled=page===maxPage;
   }
   function render() {
@@ -78,7 +78,7 @@
     for(let i=0;i<7;i++){const b=document.createElement("button");b.textContent=String(i+1).padStart(2,"0");b.title=draft.wardrobe.names[i];b.setAttribute("aria-label",draft.wardrobe.names[i]);b.classList.toggle("selected",i===outfit);b.classList.toggle("active",draft.wardrobe.active===i);b.onclick=()=>{outfit=i;render();};outfits.append(b);}
     $("outfit-name").value=draft.wardrobe.names[outfit];
     const active=draft.wardrobe.active;$("overlay-banner").hidden=active===false;
-    $("overlay-text").textContent=active===false?"":"Wearing “"+draft.wardrobe.names[active]+"» поверх снаряжения.";
+    $("overlay-text").textContent=active===false?"":"Надет «"+draft.wardrobe.names[active]+"» поверх снаряжения.";
     $("wear").textContent=active===outfit?"НАРЯД НАДЕТ":"НАДЕТЬ НАРЯД";
     const nav=$("slots");nav.replaceChildren();
     M.slots.forEach(name=>{const b=document.createElement("button");b.textContent=M.labels[name].toUpperCase();b.classList.toggle("selected",name===slot);b.setAttribute("aria-pressed",String(name===slot));b.onclick=()=>{slot=name;page=0;render();};nav.append(b);});

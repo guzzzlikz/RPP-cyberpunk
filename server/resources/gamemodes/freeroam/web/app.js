@@ -141,7 +141,7 @@
     if (reset) {
       const button = document.createElement("button");
       button.className = "btn";
-      button.textContent = "Reset search & filters";
+      button.textContent = "Сбросить поиск и фильтры";
       button.addEventListener("click", reset);
       empty.append(button);
     }
@@ -164,7 +164,7 @@
       grid.replaceChildren();
       grid.scrollTop = 0;
       for (const item of shown) grid.append(card(item, () => send("car", { model: item.key })));
-      if (!shown.length) emptyState(grid, items.length ? "No vehicles match your search." : "No vehicles are configured on this server.", items.length ? () => {
+      if (!shown.length) emptyState(grid, items.length ? "Транспорт по запросу не найден." : "На сервере не настроен транспорт.", items.length ? () => {
         vehicleCategory = "All";
         document.getElementById("vehicle-search").value = "";
         renderVehicles();
@@ -180,7 +180,7 @@
     const effectiveMax = Number(garageState.maximum) || max;
     document.getElementById("vehicle-hint").textContent = effectiveMax > 0
       ? `Choose a model to spawn. Garage: ${count} / ${effectiveMax}. Oldest replaced when full.`
-      : "Choose a model to spawn it nearby. Your garage has no vehicle limit.";
+      : "Выбери модель — она появится рядом. Лимита машин в гараже нет.";
     const latest = garageState.latest && typeof garageState.latest === "object"
       ? garageState.latest : null;
     const identity = latest && (latest.label || latest.record || `VEHICLE ${latest.id}`);
@@ -188,7 +188,7 @@
       ? `LATEST · ${identity} · ${latest.engineOn ? "ДВИГАТЕЛЬ ВКЛ" : "ДВИГАТЕЛЬ ВЫКЛ"} · ` +
         `${latest.locked ? "LOCKED" : "UNLOCKED"} · ` +
         `${latest.lightsOn ? "ФАРЫ ВКЛ" : "ФАРЫ ВЫКЛ"}`
-      : "Your garage is empty. Choose your first ride below.";
+      : "Гараж пуст. Выбери первую машину ниже.";
   }
 
   function renderWeapons() {
@@ -215,7 +215,7 @@
       button.setAttribute("aria-pressed", String(equipped.record === item.record));
       grid.append(button);
       }
-      if (!shown.length) emptyState(grid, items.length ? "No weapons match your search." : "No weapons are configured on this server.", items.length ? () => {
+      if (!shown.length) emptyState(grid, items.length ? "Оружие по запросу не найдено." : "На сервере не настроено оружие.", items.length ? () => {
         weaponCategory = "All";
         document.getElementById("weapon-search").value = "";
         renderWeapons();
@@ -283,7 +283,7 @@
       button.addEventListener("click", () => send("goto", { name: location.name }));
       locations.append(button);
     }
-    if (!locations.childElementCount) emptyState(locations, query ? "No destinations match your search." : "No destinations configured.");
+    if (!locations.childElementCount) emptyState(locations, query ? "Мест по запросу не найдено." : "Места не настроены.");
 
     const spawns = document.getElementById("spawn-list");
     spawns.replaceChildren();
@@ -299,7 +299,7 @@
       button.addEventListener("click", () => send("spawn", { name: point.name }));
       spawns.append(button);
     }
-    if (!spawns.childElementCount) emptyState(spawns, query ? "No spawn points match your search." : "No spawn points configured.");
+    if (!spawns.childElementCount) emptyState(spawns, query ? "Точек появления по запросу не найдено." : "Точки появления не настроены.");
   }
 
   function render() {
@@ -316,7 +316,7 @@
   function renderPlayerState() {
     const host = document.getElementById("player-status");
     if (!playerState.available) {
-      host.textContent = "PLAYER STATE UNAVAILABLE";
+      host.textContent = "СОСТОЯНИЕ ИГРОКА НЕДОСТУПНО";
       host.classList.remove("signal");
       return;
     }
@@ -324,7 +324,7 @@
     const maximum = Math.round(Number(playerState.maximumHealth) || 0);
     const armor = Math.round(Number(playerState.armor) || 0);
     host.textContent = `HEALTH ${health}/${maximum} · ARMOR ${armor} · ` +
-      (playerState.godMode ? "GOD MODE ON" : "GOD MODE OFF");
+      (playerState.godMode ? "БЕССМЕРТИЕ ВКЛ" : "БЕССМЕРТИЕ ВЫКЛ");
     host.classList.toggle("signal", playerState.godMode === true);
   }
 
@@ -362,7 +362,7 @@
     if (magazineText) {
       const magazine = Number(magazineText);
       if (!Number.isInteger(magazine) || magazine < 0)
-        return showToast(false, "magazine must be a positive integer");
+        return showToast(false, "магазин — целое положительное число");
       payload.magazine = magazine;
     }
     send("weaponAmmo", payload);
@@ -377,13 +377,13 @@
   document.getElementById("coord-go").addEventListener("click", () => {
     const value = id => document.getElementById(id).value.trim();
     if (["coord-x", "coord-y", "coord-z"].some(id => !value(id)))
-      return showToast(false, "Enter X, Y and Z before travelling.");
+      return showToast(false, "Введи X, Y и Z перед перемещением.");
     const x = Number(value("coord-x"));
     const y = Number(value("coord-y"));
     const z = Number(value("coord-z"));
     const heading = Number(value("coord-h") || "0");
     if (![x, y, z, heading].every(Number.isFinite))
-      return showToast(false, "invalid coordinates");
+      return showToast(false, "неверные координаты");
     send("tpc", { x, y, z, heading });
   });
   document.getElementById("player-wardrobe").addEventListener("click", () => send("wardrobe", {}));
@@ -442,8 +442,8 @@
       const empty = document.createElement("p");
       empty.className = "hint";
       empty.textContent = tvCatalogue.length === 0
-        ? "No records received. The open77_media resource may not be running."
-        : "No records match that filter.";
+        ? "Список не получен. Возможно, ресурс open77_media не запущен."
+        : "По фильтру ничего не найдено.";
       grid.appendChild(empty);
     }
   }
@@ -472,7 +472,7 @@
     });
     const rendered = ordered.filter(screen => screen.materialised === true).length;
     document.getElementById("tv-local-count").textContent = ordered.length === 0
-      ? "NO SETS IN RANGE"
+      ? "РЯДОМ НЕТ ЭКРАНОВ"
       : `${ordered.length} SET${ordered.length === 1 ? "" : "S"} — ${rendered} ON THIS CLIENT`;
 
     for (const screen of ordered) {
@@ -483,7 +483,7 @@
       head.textContent = `#${screen.id}  ${screen.label || "television"}`;
       const where = document.createElement("small");
       const distance = screen.distance === null || screen.distance === undefined
-        ? "distance unknown"
+        ? "расстояние неизвестно"
         : `${Number(screen.distance).toFixed(1)} m away`;
       // Which television this row is. A set this client is rendering is the one
       // on its screen; everything else is somewhere else on the map, and its
@@ -554,8 +554,8 @@
       placement.className = "row placement-controls";
       const step = document.createElement("select");
       step.className = "search";
-      step.title = "How far one press moves the set";
-      step.setAttribute("aria-label", "Placement step size");
+      step.title = "На сколько сдвигает одно нажатие";
+      step.setAttribute("aria-label", "Шаг перемещения");
       for (const metres of [0.05, 0.25, 1, 5]) {
         const option = document.createElement("option");
         option.value = String(metres);
