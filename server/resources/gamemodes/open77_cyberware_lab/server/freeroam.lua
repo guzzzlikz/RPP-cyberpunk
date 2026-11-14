@@ -15,7 +15,13 @@ AddEventHandler("onResourceStop", function(resource)
     if resource == GetCurrentResourceName() then stopped = true end
 end)
 
+-- RPP: выключено. Этот цикл раз в секунду ставил КАЖДОМУ игроку ноги «athlete»,
+-- рывок и рефлексы — бесплатно и снова, даже если риппердок их снял
+-- (rpp_ripperdoc). На RP-сервере импланты ставит риппердок. true — вернуть.
+local RPP_FREE_LOADOUT = false
+
 CreateThread(function()
+    if not RPP_FREE_LOADOUT then return end
     while not stopped do
         Wait(1000)
         if stopped then return end

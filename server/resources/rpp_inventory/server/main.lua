@@ -54,7 +54,7 @@ local function describe(id, meta)
                 sub = (WEAR[def.slot] and WEAR[def.slot].label) or "Одежда" }
         end
         return { kind = def.kind, label = def.label, w = def.w or 1, h = def.h or 1, icon = def.icon or "junk",
-            sub = ({ junk = "Хлам", resource = "Ресурс", food = "Еда" })[def.kind] or "Предмет", price = def.price }
+            sub = ({ junk = "Хлам", resource = "Ресурс", food = "Еда", implant = "Киберимплант" })[def.kind] or "Предмет", price = def.price }
     end
     local class = RppWeaponCatalog.classOfRecord(id)
     if class then
@@ -236,8 +236,10 @@ local function cyberView(playerId)
     local function installed(part)
         local entry = record and record[part]
         if type(entry) ~= "table" then return nil end
-        local grade = type(entry.grade) == "table" and (entry.grade.label or entry.grade.id) or entry.grade
-        local name = entry.label or entry.name or entry.definition or entry.profile or "Имплант"
+        local gradeId = type(entry.grade) == "table" and (entry.grade.id or entry.grade.label) or entry.grade
+        local names = RppImplantNames and RppImplantNames[part]
+        local grade = names and gradeId and names.grades[gradeId] or gradeId
+        local name = names and names.name or entry.label or entry.name or entry.definition or entry.profile or "Имплант"
         return { name = tostring(name), grade = grade and tostring(grade) or nil }
     end
     for _, zone in ipairs(RppCyberZones) do
@@ -1434,6 +1436,21 @@ exports("removeItem", function(playerId, item)
         if inst.id == id then state.items[uid] = nil; changed(playerId); return true end
     end
     return false
+end)
+
+--- Предметы в рюкзаке игрока (по виду, например "implant"): { {id, label, uid}, ... }.
+exports("listItems", function(playerId, kind)
+    local state = load(tonumber(playerId))
+    if not state then return {} end
+    local list = {}
+    for uid, inst in pairs(state.items) do
+        local d = describe(inst.id, inst.meta)
+        if d and (kind == nil or d.kind == kind) then
+            list[#list + 1] = { id = inst.id, label = d.label, uid = uid }
+        end
+    end
+    table.sort(list, function(a, b) return a.uid < b.uid end)
+    return list
 end)
 
 exports("describe", function(item)
