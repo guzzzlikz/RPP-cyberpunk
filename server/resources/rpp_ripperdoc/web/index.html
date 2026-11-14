@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Риппердок</title>
+  <style>
+    :root { --y: #fcee0a; --y-dim: rgba(252,238,10,.55); --line: rgba(252,238,10,.3); --text: #f2f0dc;
+            --muted: #8f8c76; --green: #3bff8a; --red: #ff3b3b; --cyan: #5ef2e6; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; color: var(--text);
+                 font-family: "Bahnschrift", "Segoe UI", sans-serif; user-select: none; }
+    .hidden { display: none !important; }
+    .root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,.5), rgba(0,0,0,.85)); }
+    .frame { width: 1040px; background: rgba(6,6,6,.95); border: 1px solid var(--line); padding: 22px 26px 24px; position: relative;
+             clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 26px 100%, 0 calc(100% - 26px)); }
+    .frame::before { content: ""; position: absolute; left: 0; top: 0; width: 220px; height: 4px; background: var(--cyan); }
+    .top { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 16px; }
+    .top .title { flex: 1; }
+    .eyebrow { font-size: 12px; letter-spacing: 3px; color: var(--cyan); }
+    h1 { margin: 2px 0 0; font-size: 30px; letter-spacing: 4px; text-transform: uppercase; color: var(--y); }
+    .patient { font-size: 15px; color: var(--text); margin-top: 4px; }
+    .patient b { color: var(--y); }
+    .btn { border: 1px solid var(--line); background: transparent; color: var(--y); font: inherit; font-size: 13px;
+           padding: 7px 12px; letter-spacing: 1px; cursor: pointer; }
+    .btn:hover:not(:disabled) { background: var(--y); color: #000; }
+    .btn:disabled { opacity: .35; cursor: default; }
+    .btn.danger { color: var(--red); border-color: rgba(255,59,59,.5); }
+    .btn.danger:hover:not(:disabled) { background: var(--red); color: #000; }
+    .consent { padding: 10px 14px; border: 1px solid; margin-bottom: 16px; font-size: 14px; }
+    .consent.ok { border-color: var(--green); color: var(--green); background: rgba(59,255,138,.07); }
+    .consent.no { border-color: var(--red); color: #ff8a8a; background: rgba(255,59,59,.07); }
+    .cols { display: flex; gap: 22px; }
+    .col { flex: 1; border: 1px solid var(--line); background: rgba(0,0,0,.5); padding: 14px; min-height: 380px; }
+    .col h2 { margin: 0 0 12px; font-size: 14px; letter-spacing: 3px; color: var(--y-dim); font-weight: 600; }
+    .slot { border: 1px solid rgba(94,242,230,.35); padding: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 14px; }
+    .slot .s-zone { width: 70px; font-size: 12px; letter-spacing: 2px; color: var(--cyan); text-transform: uppercase; }
+    .slot .s-body { flex: 1; }
+    .slot .s-name { font-size: 16px; }
+    .slot .s-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .slot.empty .s-name { color: rgba(143,140,118,.7); letter-spacing: 2px; font-size: 13px; }
+    .group { font-size: 11px; letter-spacing: 2px; color: var(--muted); margin: 10px 0 6px; text-transform: uppercase; }
+    .imp { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid rgba(252,238,10,.2); margin-bottom: 6px; }
+    .imp .i-name { flex: 1; font-size: 14px; }
+    .imp .i-slot { font-size: 11px; color: var(--cyan); letter-spacing: 1px; }
+    .empty-list { color: var(--muted); font-size: 13px; padding: 4px 0 8px; }
+    .foot { margin-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+    .busy { color: var(--y); }
+  </style>
+</head>
+<body>
+  <div id="root" class="root hidden">
+    <div class="frame">
+      <div class="top">
+        <div class="title">
+          <div class="eyebrow">NIGHT CITY // КЛИНИКА РИППЕРДОКА</div>
+          <h1>Импланты</h1>
+          <div class="patient">Пациент: <b id="patientName">—</b></div>
+        </div>
+        <button class="btn" data-act="refresh">Обновить</button>
+        <button class="btn" data-act="close">✕ Закрыть</button>
+      </div>
+      <div id="consent" class="consent no">—</div>
+      <div class="cols">
+        <div class="col">
+          <h2>// УСТАНОВЛЕНО</h2>
+          <div id="installed"></div>
+        </div>
+        <div class="col">
+          <h2>// ИМПЛАНТЫ ДЛЯ УСТАНОВКИ</h2>
+          <div class="group">Из инвентаря пациента</div>
+          <div id="patientList"></div>
+          <div class="group">Из вашего инвентаря</div>
+          <div id="doctorList"></div>
+        </div>
+      </div>
+      <div class="foot">
+        <span id="status">Снятый имплант попадает в инвентарь пациента. Установить можно только в свободный слот.</span>
+        <span>Esc — закрыть</span>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function () {
+    "use strict";
+    var bridge = window.Open77, view = null, open = false;
+    var $ = function (id) { return document.getElementById(id); };
+    function emit(e, p) { if (bridge && bridge.emit) bridge.emit("rd:" + e, p || {}); }
+    function on(e, h) { if (bridge && bridge.on) bridge.on("rd:" + e, h); }
+    function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+    function render() {
+      if (!view) return;
+      var canOperate = view.consent > 0 && !view.busy && view.ready;
+      $("patientName").textContent = view.patientName || "—";
+      var c = $("consent");
+      if (view.consent > 0) {
+        var m = Math.floor(view.consent / 60), s = view.consent % 60;
+        c.className = "consent ok";
+        c.textContent = "Согласие пациента получено · осталось " + m + ":" + String(s).padStart(2, "0");
+      } else {
+        c.className = "consent no";
+        c.textContent = "Нет согласия. Пациент должен нажать ALT на вас → «Разрешить операцию».";
+      }
+      var labels = view.slotLabels || { arms: "Руки", legs: "Ноги" };
+      $("installed").innerHTML = ["arms", "legs"].map(function (slot) {
+        var it = view.installed && view.installed[slot];
+        return '<div class="slot' + (it ? "" : " empty") + '"><span class="s-zone">' + esc(labels[slot]) + '</span>' +
+          '<div class="s-body"><div class="s-name">' + (it ? esc(it.label) : "НЕТ ИМПЛАНТА") + "</div>" +
+          (it && it.foreign ? '<div class="s-sub">поставлен не риппердоком — при снятии станет тренировочным</div>' : "") + "</div>" +
+          (it ? '<button class="btn danger" data-act="remove" data-slot="' + slot + '"' + (canOperate ? "" : " disabled") + ">Снять</button>" : "") +
+          "</div>";
+      }).join("");
+      function list(items, source) {
+        if (!items || !items.length) return '<div class="empty-list">Нет имплантов.</div>';
+        return items.map(function (it) {
+          var occupied = view.installed && view.installed[it.slot];
+          return '<div class="imp"><span class="i-name">' + esc(it.label) + '</span><span class="i-slot">' + esc(labels[it.slot] || it.slot) + "</span>" +
+            '<button class="btn" data-act="install" data-source="' + source + '" data-item="' + esc(it.id) + '"' +
+            (canOperate && !occupied ? "" : " disabled") + ' title="' + (occupied ? "Слот занят — сначала снимите имплант" : "") + '">Установить</button></div>';
+        }).join("");
+      }
+      $("patientList").innerHTML = list(view.patientImplants, "patient");
+      $("doctorList").innerHTML = list(view.doctorImplants, "doctor");
+      $("status").innerHTML = view.busy ? '<span class="busy">Идёт операция…</span>'
+        : !view.ready ? "Импланты пациента загружаются…"
+        : "Снятый имплант попадает в инвентарь пациента. Установить можно только в свободный слот.";
+    }
+
+    // Кнопки по mouseup: окно Open77 присылает не все события «click».
+    document.addEventListener("mouseup", function (ev) {
+      if (!open || ev.button !== 0) return;
+      var b = ev.target.closest && ev.target.closest("[data-act]");
+      if (!b || b.disabled) return;
+      var act = b.getAttribute("data-act");
+      if (act === "close") { hide(); emit("close"); }
+      else if (act === "refresh") emit("refresh");
+      else if (act === "remove") emit("remove", { slot: b.getAttribute("data-slot") });
+      else if (act === "install") emit("install", { source: b.getAttribute("data-source"), item: b.getAttribute("data-item") });
+    });
+    document.addEventListener("keydown", function (ev) {
+      if (open && (ev.key || "").toLowerCase() === "escape") { hide(); emit("close"); }
+    });
+    // Тикает обратный отсчёт согласия.
+    setInterval(function () { if (open && view && view.consent > 0) { view.consent -= 1; render(); } }, 1000);
+
+    function show() { open = true; $("root").classList.remove("hidden"); render(); }
+    function hide() { open = false; $("root").classList.add("hidden"); }
+    on("show", show);
+    on("hide", hide);
+    on("view", function (v) { view = v; if (open) render(); });
+    emit("ready");
+  })();
+  </script>
+</body>
+</html>

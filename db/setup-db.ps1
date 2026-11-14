@@ -49,18 +49,63 @@ function Read-Credentials {
     }
     return $map
 }
+# Does anything accept connections on 127.0.0.1:$Port? A real TCP connect, not
+# parsing `netstat`: its state column is localized (a translated word on Russian
+# Windows), so the old text match never saw a running MariaDB and started a
+# second one -- which then failed on the locked Aria log ("Unknown storage
+# engine 'Aria'") or on ibdata1 ("must be writable").
 function Test-Listening {
-    [bool](netstat -ano | Select-String "127\.0\.0\.1:$Port\s+.*LISTENING")
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $attempt = $client.BeginConnect('127.0.0.1', $Port, $null, $null)
+        if (-not $attempt.AsyncWaitHandle.WaitOne(700)) { return $false }
+        $client.EndConnect($attempt)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
 }
 # Processes listening on the port on any address, e.g. an installed MySQL service.
+# Get-NetTCPConnection does not depend on the Windows display language.
 function Get-PortOwners {
     $owners = @()
-    foreach ($line in (netstat -ano | Select-String ":$Port\s+\S+\s+LISTENING\s+(\d+)")) {
-        $procId = [int]$line.Matches[0].Groups[1].Value
+    $connections = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
+    foreach ($procId in ($connections | Select-Object -ExpandProperty OwningProcess -Unique)) {
         $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
-        $owners += [pscustomobject]@{ Id = $procId; Name = "$($proc.ProcessName)"; Path = "$($proc.Path)" }
+        $owners += [pscustomobject]@{ Id = [int]$procId; Name = "$($proc.ProcessName)"; Path = "$($proc.Path)" }
     }
     return $owners | Sort-Object Id -Unique
+}
+# This repository's mariadbd processes (any state).
+function Get-OwnDaemons {
+    @(Get-Process mariadbd -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path -like "$Server*" })
+}
+# Aria (the engine of MariaDB's own system tables) cannot start: its log was
+# left locked or damaged by a MariaDB that was killed instead of stopped.
+function Test-AriaFailure {
+    if (-not (Test-Path $ErrLog)) { return $false }
+    [bool](Get-Content $ErrLog -Tail 40 | Select-String "Unknown storage engine 'Aria'|Aria engine|aria_log")
+}
+# Moves the Aria log aside (MariaDB recreates it) and repairs the system tables.
+function Repair-Aria {
+    $aside = Join-Path $Db ("aria-old-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    New-Item -ItemType Directory $aside -Force | Out-Null
+    Get-ChildItem $Data -Filter 'aria_log*' -ErrorAction SilentlyContinue | Move-Item -Destination $aside
+    Step "Aria log moved aside to db\$(Split-Path $aside -Leaf)"
+    $ariaChk = Join-Path $Bin 'aria_chk.exe'
+    $tables = @(Get-ChildItem (Join-Path $Data 'mysql') -Filter '*.MAI' -ErrorAction SilentlyContinue)
+    if ((Test-Path $ariaChk) -and $tables.Count -gt 0) {
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            & $ariaChk -r -q ($tables | ForEach-Object { $_.FullName }) 2>&1 | Out-Null
+        } finally {
+            $ErrorActionPreference = $previous
+        }
+        Step "system tables checked with aria_chk ($($tables.Count) files)"
+    }
 }
 function Show-LogTail {
     if (Test-Path $ErrLog) {
@@ -200,8 +245,27 @@ if ($NoStart) { Step 'done (not started: -NoStart)'; exit 0 }
 
 # 4. Start ---------------------------------------------------------------------
 if (-not (Test-Listening)) {
+    # Our own mariadbd that is alive but not listening is hung (or still dying
+    # after a crash): it holds the data files, so a new one could not start.
+    $stale = Get-OwnDaemons
+    if ($stale.Count -gt 0) {
+        Step "a hung MariaDB process from this folder is still running (PID $(($stale | ForEach-Object { $_.Id }) -join ', ')); stopping it"
+        $stale | Stop-Process -Force -ErrorAction SilentlyContinue
+        foreach ($p in $stale) { try { $p.WaitForExit(10000) | Out-Null } catch { } }
+    }
     Step 'starting MariaDB...'
-    Start-Daemon @()
+    try {
+        Start-Daemon @()
+    } catch {
+        if (-not (Test-AriaFailure)) { throw }
+        # The Aria log was left locked/damaged by a MariaDB that was killed
+        # (window closed, PC turned off) instead of stopped. Repair once, retry.
+        Step "MariaDB could not open its Aria system tables; repairing and retrying"
+        Get-OwnDaemons | Stop-Process -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+        Repair-Aria
+        Start-Daemon @()
+    }
 } else {
     $foreign = @(Get-PortOwners | Where-Object { -not ($_.Path -like "$Server*") })
     if ($foreign.Count -gt 0) {
