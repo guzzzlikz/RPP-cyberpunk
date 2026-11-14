@@ -137,6 +137,29 @@ AddEventHandler("onClientResourceStart", function(name)
     end
 end)
 
+-- RPP: сообщение чата «пузырём» над головой автора (open77_chat шлёт
+-- open77_chat:bubble всем). Рисуется на этой же WebUI-странице над табличкой,
+-- поэтому видно его там же, где видна табличка игрока (не над собой).
+RegisterNetEvent("open77_chat:bubble", function(playerId, payload)
+    if not page or type(payload) ~= "table" then return end
+    local id = tonumber(playerId)
+    if not id then return end
+    local segments = {}
+    for index, segment in ipairs(type(payload.segments) == "table" and payload.segments or {}) do
+        if index > 32 then break end
+        if type(segment) == "table" and type(segment.text) == "string" then
+            segments[#segments + 1] = { text = segment.text, action = type(segment.color) == "table" and segment.color[1] == 255 and segment.color[2] == 154 }
+        end
+    end
+    page:send("nameplates:bubble", {
+        id = tostring(id),
+        kind = payload.kind == "me" and "me" or "say",
+        range = tonumber(payload.range) or 20,
+        text = tostring(payload.text or ""):sub(1, 400),
+        segments = segments,
+    })
+end)
+
 -- Native world exit clears both draw and stream ownership. The Lua resource
 -- may survive that transition, so restore its existing request at world entry.
 AddEventHandler("open77:worldReady", function()

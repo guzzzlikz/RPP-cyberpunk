@@ -14,6 +14,11 @@ local CHAT_SUGGESTIONS = {
         parameters = {}
     },
     {
+        command = "/me",
+        help = "Действие от третьего лица (оранжевым). В обычном сообщении действие — в *звёздочках*.",
+        parameters = { { name = "действие" } }
+    },
+    {
         command = "/id",
         help = "Показать временный ID в этой сессии.",
         parameters = {}
@@ -29,6 +34,86 @@ local function clean(text)
         else text = text:sub(1, MAX_MESSAGE_BYTES) end
     end
     return text
+end
+
+-- RPP: ролевые действия. `*действие*` (звёздочки вплотную к тексту) красится
+-- в оранжевый, сами звёздочки не показываются; /me — вся строка оранжевая.
+-- Каждое сообщение также уходит «пузырём» над головой автора (open77_nameplates).
+local TEXT_COLOR = { 238, 244, 248 }
+local ACTION_COLOR = { 255, 154, 60 }
+
+--- Текст -> фрагменты для чата: обычный текст и *действия* (без звёздочек).
+--- Второе значение — текст без звёздочек (для логов и других ресурсов).
+local function actionSegments(text)
+    local segments, plain, pos = {}, {}, 1
+    local function add(piece, color)
+        if piece == "" then return end
+        local last = segments[#segments]
+        if last and last.color == color then last.text = last.text .. piece
+        else segments[#segments + 1] = { text = piece, color = color } end
+        plain[#plain + 1] = piece
+    end
+    while pos <= #text do
+        local s, e, inner = text:find("%*([^%*]+)%*", pos)
+        if not s then break end
+        if inner:match("^%s") or inner:match("%s$") then
+            -- «* текст *» с пробелами — это не действие: звёздочку оставляем как есть.
+            add(text:sub(pos, s), TEXT_COLOR)
+            pos = s + 1
+        else
+            add(text:sub(pos, s - 1), TEXT_COLOR)
+            add(inner, ACTION_COLOR)
+            pos = e + 1
+        end
+    end
+    add(text:sub(pos), TEXT_COLOR)
+    if #segments > 32 then return nil, text end -- у клиента лимит 32 фрагмента
+    return segments, table.concat(plain)
+end
+
+-- Пузырь видят только те, кто в радиусе голоса автора: шёпот / обычно / крик
+-- из open-voice (событие open-voice:modeApplied). Пока режим не известен —
+-- обычный голос.
+local DEFAULT_VOICE_DISTANCE = 20.0
+local voiceDistance = {} -- [playerId] = метры
+
+AddEventHandler("open-voice:modeApplied", function(player, _, distance)
+    player, distance = tonumber(player), tonumber(distance)
+    if player and distance then voiceDistance[player] = distance end
+end)
+AddEventHandler("onPlayerDisconnected", function(player)
+    voiceDistance[tonumber(player) or -1] = nil
+end)
+
+local function position(player)
+    local ok, pos = pcall(Open77.players.position, player)
+    if ok and type(pos) == "table" and tonumber(pos.x) then return pos end
+    return nil
+end
+
+local function bubble(player, payload)
+    local range = voiceDistance[player] or DEFAULT_VOICE_DISTANCE
+    payload.range = range
+    local origin = position(player)
+    local ok, players = pcall(Open77.players.all)
+    if not origin or not ok or type(players) ~= "table" then
+        -- Позиции недоступны: страница всё равно спрячет пузырь дальше `range`.
+        TriggerClientEvent("open77_chat:bubble", -1, player, payload)
+        return
+    end
+    local limit = (range + 2.0) ^ 2 -- небольшой запас на задержку позиций
+    for _, other in ipairs(players) do
+        other = tonumber(type(other) == "table" and other.id or other)
+        if other and other ~= player then
+            local pos = position(other)
+            if pos and pos.bucket == origin.bucket then
+                local dx, dy, dz = pos.x - origin.x, pos.y - origin.y, pos.z - origin.z
+                if dx * dx + dy * dy + dz * dz <= limit then
+                    TriggerClientEvent("open77_chat:bubble", other, player, payload)
+                end
+            end
+        end
+    end
 end
 
 local function targetId(value)
@@ -60,14 +145,39 @@ RegisterNetEvent("chat:submit", function(raw)
     -- Accepted. Announced host-wide so logging, RP and moderation resources can
     -- observe it without subscribing to `chat:submit` themselves.
     TriggerEvent("chat:message", player, name, text)
+    local segments, plain = actionSegments(text)
+    local hasAction = false
+    for _, segment in ipairs(segments or {}) do
+        if segment.color == ACTION_COLOR then hasAction = true end
+    end
     push(-1, {
         type = "player",
         author = name,
-        text = text,
+        text = plain,
+        segments = hasAction and segments or nil,
         playerId = tostring(player),
         color = { 238, 244, 248 }
     })
+    bubble(player, { kind = "say", text = plain, segments = segments })
 end)
+
+-- /me действие — ролевое действие от третьего лица, оранжевым.
+RegisterCommand("me", function(player, args)
+    player = tonumber(player)
+    if not enabled or not player or player <= 0 then return end
+    local text = clean(table.concat(args or {}, " "))
+    text = text:gsub("%*", "")
+    if text == "" then
+        push(player, { type = "system", author = "/ME", text = "Использование: /me действие", color = { 252, 238, 10 } })
+        return
+    end
+    local name = GetPlayerName(player) or ("Player " .. tostring(player))
+    local verdict = TriggerCancellableEvent("chatMessage", player, name, "/me " .. text)
+    if verdict ~= nil and verdict:await() then return end
+    TriggerEvent("chat:message", player, name, "/me " .. text)
+    push(-1, { type = "action", author = name, text = text, playerId = tostring(player) })
+    bubble(player, { kind = "me", text = text })
+end, false)
 
 -- The WebUI requests suggestions whenever it is created. Other resources may
 -- listen to the same network event and send their own command metadata directly

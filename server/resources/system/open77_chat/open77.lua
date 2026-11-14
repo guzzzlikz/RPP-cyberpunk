@@ -10,4 +10,4 @@ server_script "server/main.lua"
 
 files { "ui/chat.rml", "ui/chat.rcss", "ui/open77-yellow.rcss", "ui/fonts/*.ttf" }
 
-permissions { "network.events", "local.events", "clipboard.write", "player.weapons.read" } -- shots kick the floating chat
+permissions { "network.events", "local.events", "clipboard.write", "player.weapons.read", "players.life.read" } -- shots kick the floating chat; players.life.read: позиции для пузырей над головой (RPP)
