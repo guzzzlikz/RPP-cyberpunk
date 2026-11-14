@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Колесо анимаций</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div id="root" class="root hidden">
+    <div class="stage">
+      <div class="wheel-wrap">
+        <svg id="wheel" class="wheel" viewBox="0 0 600 600" aria-hidden="true"></svg>
+        <div id="labels" class="labels"></div>
+        <button id="stop" class="center" title="Остановить анимацию">
+          <span class="center-top">// АНИМАЦИИ</span>
+          <span class="center-main">СТОП</span>
+          <span class="center-sub" id="hover">Выберите слот</span>
+        </button>
+      </div>
+
+      <div class="side">
+        <button id="toggleList" class="list-btn">Список анимаций</button>
+        <section id="list" class="panel hidden">
+          <div class="panel-head">
+            <span class="tag">ВСЕ</span>
+            <h2>Список анимаций</h2>
+            <span class="count" id="count">0</span>
+          </div>
+          <input id="search" class="search" type="text" placeholder="Поиск: smoke, dance, сидя…" spellcheck="false">
+          <div id="cats" class="cats"></div>
+          <div id="items" class="items"></div>
+          <div class="panel-hint">
+            <b>Двойной клик</b> — проиграть анимацию ·
+            <b>зажмите и перетащите</b> в колесо, чтобы закрепить (на занятый слот — замена)
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="footer-hint">
+      <b>Клик</b> по слоту — проиграть · <b>ПКМ</b> по слоту — убрать · <b>Центр</b> — стоп ·
+      <b>U / Esc</b> — закрыть
+    </div>
+    <div id="ghost" class="ghost hidden"></div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
