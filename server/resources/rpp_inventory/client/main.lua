@@ -258,10 +258,11 @@ local function syncDrops()
                 position = { x = drop.x, y = drop.y, z = drop.z },
                 style = "interaction",
                 radius = 0.45,
-                maxDistance = cfg.dropShowDistance,
+                -- Метку и подсказку видно только вблизи (cfg.dropMarkerDistance, 3 м).
+                maxDistance = cfg.dropMarkerDistance,
                 label = "Подобрать: " .. tostring(drop.label),
                 key = "E",
-                promptDistance = cfg.pickupDistance - 0.5,
+                promptDistance = math.max(1.0, math.min(cfg.pickupDistance, cfg.dropMarkerDistance) - 0.3),
                 labelHeight = 0.6,
                 event = "rpp_inventory:pickupPrompt",
             })
@@ -277,22 +278,48 @@ local function syncDrops()
 end
 
 local syncing, again = false, false
-RegisterNetEvent("rpp_inventory:drops", function(list)
-    wanted = {}
-    for _, drop in ipairs(type(list) == "table" and list or {}) do
-        local id = tonumber(drop.id)
-        if id and tonumber(drop.x) and tonumber(drop.y) and tonumber(drop.z) then wanted[id] = drop end
-    end
+local serverDrops = {}   -- что прислал сервер
+local menuBusy = false   -- открыт инвентарь, меню, карта и т. п.: метки спрятаны
+
+local function requestSync()
+    wanted = menuBusy and {} or serverDrops
     if syncing then again = true; return end
     syncing = true
     CreateThread(function()
         repeat
             again = false
+            wanted = menuBusy and {} or serverDrops
             local called, err = pcall(syncDrops)
             if not called then log("drop sync failed: " .. tostring(err)) end
         until not again
         syncing = false
     end)
+end
+
+RegisterNetEvent("rpp_inventory:drops", function(list)
+    serverDrops = {}
+    for _, drop in ipairs(type(list) == "table" and list or {}) do
+        local id = tonumber(drop.id)
+        if id and tonumber(drop.x) and tonumber(drop.y) and tonumber(drop.z) then serverDrops[id] = drop end
+    end
+    requestSync()
+end)
+
+-- Пока на экране курсор (инвентарь, пауза, карта, ALT-меню, любое окно),
+-- метки «Подобрать» убираются и возвращаются, когда окно закрыто.
+CreateThread(function()
+    while true do
+        Wait(200)
+        local busy = open
+        if not busy and type(Open77.input) == "table" and type(Open77.input.isCaptured) == "function" then
+            local ok, _, cursor = pcall(Open77.input.isCaptured)
+            busy = ok and cursor == true
+        end
+        if busy ~= menuBusy then
+            menuBusy = busy
+            requestSync()
+        end
+    end
 end)
 
 AddEventHandler("rpp_inventory:pickupPrompt", function()

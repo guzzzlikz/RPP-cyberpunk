@@ -106,7 +106,14 @@ local nextQuotaComplaint = 0
 --
 -- `cardSupport` is nil until the first anchor settles it, so a client without
 -- the native styles falls back to the page rather than showing nothing.
-local cardSupport = nil
+-- RPP: нативная карточка рисуется шрифтом Open77.dll без кириллицы, и русские
+-- подсказки («Подобрать: …», «Открыть гонки») выходили пустыми. false —
+-- подсказку рисует WebUI-страница (шрифты Windows, кириллица есть); при резком
+-- повороте камеры она чуть отстаёт. true — вернуть штатную карточку (только
+-- латиница). См. docs/ui-theme.md.
+local RPP_NATIVE_CARD = false
+local function initialCardSupport() if RPP_NATIVE_CARD then return nil end return false end
+local cardSupport = initialCardSupport()
 local nativeCardHandle = nil
 local pageHidden = false
 
@@ -3333,7 +3340,7 @@ AddEventHandler("onClientResourceStop", function(name)
         -- about to be destroyed is exactly the dangling reference worth not
         -- writing.
         releaseAnchors()
-        cardSupport, nativeCardHandle, pageHidden = nil, nil, false
+        cardSupport, nativeCardHandle, pageHidden = initialCardSupport(), nil, false
         page, ready, entries, identities = nil, false, {}, {}
         ownerGenerations, ownerEnabled, nextOwnerSweep = {}, {}, 0
         targets, targetIdentities, nextTargetResolve = {}, {}, 0
