@@ -96,7 +96,8 @@ function N.rowRml(m)
         return ('%s<span class="dot">●</span><span class="text">%s %s%s</span>'):format(time, esc(m.author ~= "" and m.author or "Player"), what, esc(extra))
     end
     if m.kind == "action" then
-        return ('%s<span class="text">* %s %s</span>'):format(time, esc(m.author ~= "" and m.author or "Player"), esc(m.text))
+        -- RPP: /me — вся строка оранжевая, без звёздочек.
+        return ('%s<span class="text" style="color: #ff9a3c;">%s %s</span>'):format(time, esc(m.author ~= "" and m.author or "Player"), esc(m.text))
     end
     local tag = ('<span class="tag" style="color: %s; border-color: %s66;">%s</span>'):format(m.channelColor, m.channelColor, CHANNELS[m.channel].label)
     local pid = m.playerId:match("^%d+$") and ('<span class="pid">[%s]</span>'):format(m.playerId) or ""

@@ -25,7 +25,7 @@ RppIdentityConfig = {
     introduceCooldownSeconds = 2,
 
     -- Подписи над головами.
-    nameplateDistance = 35,
+    nameplateDistance = 40,      -- не меньше дальности крика (open-voice): иначе пузырь чата над головой не виден на всю дальность
     knownColor = "#5CF2A6",     -- знакомые
     strangerColor = "",          -- пусто = цвет темы сервера
 }
