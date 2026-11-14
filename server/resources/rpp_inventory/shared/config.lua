@@ -41,6 +41,12 @@ RppInventoryConfig = {
 
     -- Не чаще стольких действий в секунду от одного игрока.
     actionsPerSecond = 8,
+
+    -- Обмен между игроками (ALT на игроке -> «Предложить обмен»).
+    tradeDistance = 4.0,      -- м, с какого расстояния можно предложить и начать
+    tradeKeepDistance = 10.0, -- м, дальше — обмен отменяется
+    tradeOfferSec = 60,       -- сколько живёт предложение
+    tradeDelaySec = 3,        -- пауза после «Готов» у обоих до самого обмена
 }
 
 -- Размер оружия в ячейках (w x h) по классу из shared/weapons.lua.
@@ -101,6 +107,18 @@ RppItemDefs = {
     junk_chip      = { kind = "junk", label = "Сгоревший чип", w = 1, h = 1, icon = "chip", price = 15 },
     junk_scrap     = { kind = "junk", label = "Электронный лом", w = 2, h = 1, icon = "junk", price = 20 },
     junk_bottle    = { kind = "junk", label = "Пустая бутылка", w = 1, h = 2, icon = "bottle", price = 2 },
+
+    -- Ресурсы
+    res_metal      = { kind = "resource", label = "Металлолом", w = 2, h = 1, icon = "junk" },
+    res_plastic    = { kind = "resource", label = "Пластик", w = 1, h = 1, icon = "junk" },
+    res_electronics = { kind = "resource", label = "Электроника", w = 1, h = 1, icon = "chip" },
+    res_chem       = { kind = "resource", label = "Химикаты", w = 1, h = 2, icon = "bottle" },
+
+    -- Еда
+    food_bar       = { kind = "food", label = "Батончик", w = 1, h = 1, icon = "food" },
+    food_noodles   = { kind = "food", label = "Лапша", w = 1, h = 1, icon = "food" },
+    food_burger    = { kind = "food", label = "Синтобургер", w = 1, h = 1, icon = "food" },
+    food_soda      = { kind = "food", label = "Газировка", w = 1, h = 2, icon = "bottle" },
 
     -- Предметы
     item_bandage   = { kind = "item", label = "Бинт", w = 1, h = 1, icon = "medkit" },

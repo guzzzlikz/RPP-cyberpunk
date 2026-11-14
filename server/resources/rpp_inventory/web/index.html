@@ -49,6 +49,30 @@
             <p class="cyber-note">Установка и замена имплантов — у риппердока.</p>
           </div>
 
+          <div id="viewTrade" class="view hidden">
+            <div class="trade-cols">
+              <div class="trade-col mine" id="tradeMine">
+                <div class="trade-head"><span>ВЫ ОТДАЁТЕ</span><b class="ready-flag" id="mineReady">НЕ ГОТОВ</b></div>
+                <div class="trade-list" id="tradeMineList"></div>
+                <div class="trade-money">
+                  <label>€$</label>
+                  <input id="tradeMoney" type="number" min="0" step="1" value="0">
+                  <button id="tradeMoneySet" class="ghost-btn">Предложить</button>
+                </div>
+              </div>
+              <div class="trade-col theirs">
+                <div class="trade-head"><span id="tradePartner">ПАРТНЁР</span><b class="ready-flag" id="theirsReady">НЕ ГОТОВ</b></div>
+                <div class="trade-list" id="tradeTheirsList"></div>
+                <div class="trade-money"><label>€$</label><b id="tradeTheirsMoney">0</b></div>
+              </div>
+            </div>
+            <div class="trade-status" id="tradeStatus">Перетащите вещи из рюкзака в «Вы отдаёте» или нажмите на них ПКМ.</div>
+            <div class="trade-actions">
+              <button id="tradeCancel" class="ghost-btn danger">Отменить обмен</button>
+              <button id="tradeReady" class="ready-btn">Готов</button>
+            </div>
+          </div>
+
           <button class="switch" id="switchView">
             <span class="switch-opt active" data-view="gear">Снаряжение</span>
             <span class="switch-opt" data-view="cyber">Импланты</span>
