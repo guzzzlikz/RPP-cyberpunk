@@ -79,6 +79,9 @@ body { pointer-events: none; }
 .author.admin { color: #ff3b4e; }
 .author.mod { color: #ff8120; }
 .text { color: #e9e9e9; font-weight: normal; }
+/* RPP: длинные слова и строки переносятся, а не вылезают за рамку чата. */
+.msg { white-space: normal; word-break: break-word; overflow: hidden; }
+.msg span { word-break: break-word; }
 .bold { font-weight: bold; }
 
 /* system, error, warning, presence, action, announcement */
@@ -96,7 +99,9 @@ body { pointer-events: none; }
 .k-leave .dot { color: #676765; }
 .k-join .text, .k-leave .text { color: #979795; }
 .k-action { border-left-color: #ff8120; }
-.k-action .text { color: #ffb47a; font-style: italic; }
+/* RPP: без курсива — у запасного шрифта с кириллицей (Play Bold) нет курсива, и RmlUi
+   не рисовал строку /me вовсе. */
+.k-action .text { color: #ff9a3c; }
 .k-announce { border-left-width: 3dp; border-left-color: #ff2e88; background-color: #1d0a17eb; padding-top: 7dp; padding-bottom: 8dp; }
 .announce-head { display: block; font-family: "Chakra Petch"; font-size: 10dp; letter-spacing: 0.22em; color: #ff2e88; margin-bottom: 3dp; }
 .k-announce .text { color: #f9f9f9; font-size: 17dp; }

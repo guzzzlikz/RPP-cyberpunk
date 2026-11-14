@@ -4,7 +4,7 @@
   const nodes = new Map();
   // RPP: сообщения чата над головой. id игрока -> { el, until }
   const bubbles = new Map();
-  const BUBBLE_MS_MIN = 4000, BUBBLE_MS_PER_CHAR = 70, BUBBLE_MS_MAX = 12000, BUBBLE_MAX_CHARS = 140;
+  const BUBBLE_MS_MIN = 4000, BUBBLE_MS_PER_CHAR = 60, BUBBLE_MS_MAX = 16000, BUBBLE_MAX_CHARS = 256; // длиннее 256 — «…» в конце
 
   function renderBubble(node, data) {
     let el = node.querySelector(".chat-bubble");
@@ -22,16 +22,23 @@
     body.className = "chat-bubble-body";
     let left = BUBBLE_MAX_CHARS;
     const parts = data.kind === "me" || !data.segments.length ? [{ text: data.text, action: data.kind === "me" }] : data.segments;
+    // Больше BUBBLE_MAX_CHARS символов — обрезка и «…» в конце.
+    const total = parts.reduce((sum, part) => sum + String(part.text || "").length, 0);
+    const cut = total > BUBBLE_MAX_CHARS;
+    if (cut) left = BUBBLE_MAX_CHARS - 1;
+    let last = null;
     for (const part of parts) {
       if (left <= 0) break;
       let text = String(part.text || "");
-      if (text.length > left) text = text.slice(0, left - 1) + "…";
+      if (text.length > left) text = text.slice(0, left);
       left -= text.length;
       const span = document.createElement("span");
       if (part.action) span.className = "chat-bubble-action";
       span.textContent = text;
       body.append(span);
+      last = span;
     }
+    if (cut && last) last.textContent = last.textContent.replace(/\s+$/, "") + "…";
     el.append(head, body);
     // Перезапустить анимацию появления.
     el.classList.remove("chat-bubble--in");

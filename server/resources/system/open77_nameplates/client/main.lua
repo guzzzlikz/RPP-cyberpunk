@@ -185,7 +185,7 @@ RegisterNetEvent("open77_chat:bubble", function(playerId, payload)
         id = tostring(id),
         kind = payload.kind == "me" and "me" or "say",
         range = tonumber(payload.range) or 20,
-        text = tostring(payload.text or ""):sub(1, 400),
+        text = tostring(payload.text or ""):sub(1, 4000),
         segments = segments,
     })
 end)

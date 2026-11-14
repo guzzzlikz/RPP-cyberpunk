@@ -25,8 +25,8 @@
         <div id="latest"><span id="unread">0</span><span> новых ниже</span></div>
         <div id="composer">
             <span class="prompt">›</span>
-            <input id="input" type="text" maxlength="256" placeholder="Сообщение всем или / для команд"/>
-            <span id="chars" class="chars">0/256</span>
+            <input id="input" type="text" maxlength="1000" placeholder="Сообщение всем или / для команд"/>
+            <span id="chars" class="chars">0/1000</span>
         </div>
         <div id="suggestions"></div>
         <div id="foot">
