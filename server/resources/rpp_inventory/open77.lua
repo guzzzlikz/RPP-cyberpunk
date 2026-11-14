@@ -48,4 +48,6 @@ permissions {
     "players.life.read",
     -- Сервер: хранение в MySQL (таблица rpp_inventories).
     "database.access",
+    -- Сервер: модель брошенного предмета на земле (Open77.loot).
+    "world.loot",
 }

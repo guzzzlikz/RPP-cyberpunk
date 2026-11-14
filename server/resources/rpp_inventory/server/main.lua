@@ -629,12 +629,58 @@ local function playerPos(playerId)
     return pos
 end
 
+-- Модель предмета на земле: лут Open77 (Open77.loot). У дропа два разных
+-- параметра: `visualItem` — какая модель лежит (запись оружия/одежды), и
+-- `item` — что игра выдаст при подборе. Настоящий предмет кладёт в
+-- инвентарь этот ресурс (onLootPickup ниже), а игра выдаёт только
+-- cfg.dropLootGrant (1 €$ в кошелёк игры) — его не убрать: подбор лута
+-- всегда что-то выдаёт.
+local lootDrops = {} -- [tostring(lootId)] = dropId
+
+local function lootApi()
+    return cfg.dropModels and type(Open77.loot) == "table" and type(Open77.loot.create) == "function"
+end
+
+local function spawnLoot(drop)
+    if not lootApi() then return end
+    local d = describe(drop.inst.id, drop.inst.meta)
+    if not d or not d.record or (d.kind ~= "weapon" and d.kind ~= "clothing") then return end
+    local ok, lootId, reason = pcall(Open77.loot.create, {
+        item = cfg.dropLootGrant, quantity = 1,
+        position = { x = drop.x, y = drop.y, z = drop.z }, bucket = drop.bucket or 0,
+        -- Без своей подписи: игра покажет название предмета сама (подпись Open77
+        -- рисовалась бы нативным шрифтом без кириллицы).
+        radius = cfg.pickupDistance, visualItem = d.record,
+        ttlMs = math.floor(math.max(0, drop.expires - now()) * 1000),
+    })
+    if ok and lootId ~= nil and lootId ~= false then
+        drop.lootId = lootId
+        lootDrops[tostring(lootId)] = drop.id
+    else
+        log("loot model for drop " .. drop.id .. " failed: " .. tostring(ok and reason or lootId))
+    end
+end
+
+local function removeDrop(id)
+    local drop = drops[id]
+    if not drop then return end
+    drops[id] = nil
+    dropCount = dropCount - 1
+    if drop.lootId ~= nil then
+        lootDrops[tostring(drop.lootId)] = nil
+        if type(Open77.loot) == "table" and type(Open77.loot.remove) == "function" then
+            pcall(Open77.loot.remove, drop.lootId)
+        end
+    end
+    sentDrops = {} -- метка пропала у всех
+end
+
 local function addDrop(inst, pos)
     if dropCount >= cfg.dropMax then
         -- Самый старый исчезает первым.
         local oldestId, oldest = nil, math.huge
         for id, drop in pairs(drops) do if drop.expires < oldest then oldestId, oldest = id, drop.expires end end
-        if oldestId then drops[oldestId] = nil; dropCount = dropCount - 1 end
+        if oldestId then removeDrop(oldestId) end
     end
     local id = nextDropId
     nextDropId = id + 1
@@ -645,7 +691,56 @@ local function addDrop(inst, pos)
         bucket = pos.bucket, expires = now() + cfg.dropLifetimeMin * 60,
     }
     dropCount = dropCount + 1
+    spawnLoot(drops[id])
 end
+
+-- Игрок подобрал модель с земли штатным «Взять». Аргументы события в
+-- документации не описаны, поэтому id дропа и игрока ищутся по значениям.
+AddEventHandler("onLootPickup", function(...)
+    local args = table.pack(...)
+    local dropId, playerId = nil, nil
+    local function consider(value)
+        if value == nil then return end
+        if type(value) == "table" then
+            for _, key in ipairs({ "id", "lootId", "dropId", "drop" }) do consider(value[key]) end
+            for _, key in ipairs({ "playerId", "player", "source" }) do
+                local n = tonumber(value[key]); if n and inv[n] then playerId = playerId or n end
+            end
+            return
+        end
+        if not dropId and lootDrops[tostring(value)] then dropId = lootDrops[tostring(value)]; return end
+        local n = tonumber(value)
+        if n and inv[n] and not playerId then playerId = n end
+    end
+    for index = 1, args.n do consider(args[index]) end
+    if not dropId then return end
+    local drop = drops[dropId]
+    if not drop then return end
+    -- Штатный лут уже исчез с земли: дроп закрывается в любом случае.
+    lootDrops[tostring(drop.lootId)] = nil
+    drop.lootId = nil
+    if not playerId then
+        log("loot pickup without a known player, args: " .. args.n)
+        spawnLoot(drop)
+        return
+    end
+    CreateThread(function()
+        local state = load(playerId)
+        if not state then spawnLoot(drop); return end
+        local inst = newInst(state, drop.inst.id, drop.inst.meta)
+        local label = describe(inst.id, inst.meta).label
+        if not putInBag(state, inst) then
+            state.nextUid = state.nextUid - 1
+            spawnLoot(drop) -- вернуть модель на землю
+            notify(playerId, "error", "Инвентарь полон: " .. label .. " не помещается.")
+            return
+        end
+        removeDrop(dropId)
+        markDirty(playerId)
+        pushState(playerId, false)
+        notify(playerId, "success", "Подобрано: " .. label .. ".")
+    end)
+end)
 
 -- ---------------------------------------------------------------------------
 -- Сверка с игрой: оружие и одежда, выданные мимо инвентаря (меню /freeroam,
@@ -805,9 +900,7 @@ action("pickup", function(playerId, state)
         state.nextUid = state.nextUid - 1
         return false, "Инвентарь полон: " .. label .. " не помещается."
     end
-    drops[best.id] = nil
-    dropCount = dropCount - 1
-    sentDrops = {} -- метка пропала у всех
+    removeDrop(best.id)
     return true, "Подобрано: " .. label .. "."
 end)
 
@@ -819,7 +912,7 @@ CreateThread(function()
         tick = tick + 1
         local t = now()
         for id, drop in pairs(drops) do
-            if drop.expires < t then drops[id] = nil; dropCount = dropCount - 1; sentDrops = {} end
+            if drop.expires < t then removeDrop(id) end
         end
         local limit = cfg.dropShowDistance * cfg.dropShowDistance
         for playerId in pairs(inv) do
@@ -827,7 +920,8 @@ CreateThread(function()
             if pos then
                 local near = {}
                 for _, drop in pairs(drops) do
-                    if drop.bucket == pos.bucket then
+                    -- У дропа с моделью своя штатная подсказка «Взять»: метка не нужна.
+                    if drop.bucket == pos.bucket and drop.lootId == nil then
                         local dx, dy, dz = drop.x - pos.x, drop.y - pos.y, drop.z - pos.z
                         local dist = dx * dx + dy * dy + dz * dz
                         if dist <= limit then near[#near + 1] = { drop = drop, dist = dist } end
