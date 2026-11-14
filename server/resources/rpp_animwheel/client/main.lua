@@ -118,20 +118,42 @@ local ERRORS = {
 }
 
 local playSerial = 0
+
+-- Текущая анимация: nil, если ничего не играет. Профиль и клип — в steps[step+1].
+local function activeState()
+    local state = await(Open77.animations.state())
+    if type(state) ~= "table" or state.active == false then return nil end
+    local step = type(state.steps) == "table" and state.steps[(tonumber(state.step) or 0) + 1] or nil
+    return { profile = step and step.profile or state.profile, clip = step and step.clip or state.clip }
+end
+
 local function play(profileId)
     local profile = byId[profileId]
     if not profile then notify(ERRORS.unknown_profile); return end
     playSerial = playSerial + 1
     local serial = playSerial
     CreateThread(function()
-        -- Новая анимация заменяет текущую.
-        await(Open77.animations.cancel())
+        -- Новая анимация заменяет текущую: если что-то играет, сначала
+        -- останавливаем и ждём, пока остановка дойдёт (до 1,5 с).
+        local current = activeState()
+        if current then
+            await(Open77.animations.cancel())
+            local deadline = Open77.time.monotonic() + 1.5
+            while activeState() and Open77.time.monotonic() < deadline do Wait(100) end
+        end
         if serial ~= playSerial then return end
-        local once = profile.kind == "layer" and profile.mode == "once"
-        local options = { clip = profile.clip, loop = not once }
-        if once then options.durationMs = 5000 end
+        -- Те же параметры, что у команды /anim: только loop, без клипа и
+        -- длительности — сервер сам берёт клип профиля по умолчанию.
+        local options = { loop = profile.mode ~= "once" }
         local value, err = await(Open77.animations.request(profile.id, options))
-        if not value and err ~= "cancelled" then notify(ERRORS[err] or ("Анимация недоступна: " .. tostring(err))) end
+        if not value and err ~= "cancelled" then
+            log(("play %s failed: %s"):format(profile.id, tostring(err)))
+            notify(ERRORS[err] or ("Анимация недоступна: " .. tostring(err)))
+            return
+        end
+        local now = activeState()
+        log(("play %s (%s, loop=%s) -> playing %s / %s"):format(profile.id, tostring(profile.kind),
+            tostring(options.loop), tostring(now and now.profile), tostring(now and now.clip)))
     end)
 end
 
