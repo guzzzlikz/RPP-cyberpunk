@@ -132,20 +132,16 @@ RegisterNetEvent("rpp_identity:awaitCreator", function(waitSeconds)
     if awaitingAppearance then return end
     awaitingAppearance = true
     creatorSeen = creatorOpen
-    waitSeconds = tonumber(waitSeconds) or 25
+    waitSeconds = tonumber(waitSeconds) or 90
     notify("info", "Создайте внешность персонажа. После этого вы введёте имя и фамилию.")
     CreateThread(function()
         local started = Open77.time.monotonic()
-        local asked = false
         while awaitingAppearance do
             local t = Open77.time.monotonic() - started
             if creatorSeen and not creatorOpen then return appearanceDone("creator_closed") end
-            if not creatorSeen and not asked and t > waitSeconds then
-                -- Сам не открылся (у персонажа уже есть образ): просим сервер открыть.
-                asked = true
-                TriggerServerEvent("rpp_identity:openCreator")
-            end
-            if not creatorSeen and t > waitSeconds + 20 then return appearanceDone("creator_never_opened") end
+            -- Сами редактор не открываем (он открылся бы дважды): если он так и
+            -- не появился, просто переходим к имени.
+            if not creatorSeen and t > waitSeconds then return appearanceDone("creator_never_opened") end
             Wait(500)
         end
     end)
