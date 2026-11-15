@@ -126,6 +126,8 @@ local function restored()
         if expected == nil then expected = equipment[slot] end
         local info = expected and Open77.equipment.info(expected)
         if info and info.nonvisual then expected = false end
+        -- A layered outfit (Open77.layers) shows nothing in the base clothing slots.
+        if type(Open77.layers) == "table" and Open77.layers.hidesBase() then expected = false end
         if Open77.equipment.visualSettled(slot, expected or false) ~= true then return false end
     end
     return true

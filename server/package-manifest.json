@@ -1,8 +1,8 @@
 {
-  "version": "2.50.0+op77.223",
+  "version": "2.50.0+op77.248",
   "runtime": "win-x64",
-  "clientVersion": "2.50.0+op77.223",
-  "baseCommit": "20e9f561c36f339e2ae0281f62390f959b003916",
+  "clientVersion": "2.50.0+op77.248",
+  "baseCommit": "215ac93b424519805808c02f9e2803a524246109",
   "workingTreeSnapshot": false,
   "defaultTemplate": "freeroam",
   "resources": {
@@ -21,6 +21,7 @@
     "open77_notifications": "system/open77_notifications",
     "open77_death": "system/open77_death",
     "open77_appearance": "system/open77_appearance",
+    "open77_creator": "system/open77_creator",
     "open77_cyberware": "system/open77_cyberware",
     "open77_prediction": "system/open77_prediction",
     "open77_dash": "system/open77_dash",
@@ -42,10 +43,11 @@
     "open77_doors": "system/open77_doors",
     "open77_weapons": "system/open77_weapons",
     "open77_props": "system/open77_props",
-    "open77_media": "system/open77_media",
+    "open77_tv": "system/open77_tv",
     "open77_remote_camera": "system/open77_remote_camera",
     "open77_interactions": "system/open77_interactions",
     "open77_scenes": "system/open77_scenes",
+    "open77_quickhack": "system/open77_quickhack",
     "open77_braindance": "system/open77_braindance",
     "open77_worldui": "system/open77_worldui",
     "open77_zones": "system/open77_zones",
@@ -797,12 +799,12 @@
     {
       "path": "Open77.Directory.Contracts.dll",
       "size": 47104,
-      "sha256": "53ae61424a3772c16f3842bc2fd7fa4ab4667f8bcdd7465e351f09de6e7255ab"
+      "sha256": "2459a246de27172fb64b520013f6d6549f586aaf51582a8be75f7d0ae35c3667"
     },
     {
       "path": "Open77.Directory.Contracts.pdb",
       "size": 18608,
-      "sha256": "80dc9b44b000ba53cbe0c930094c8d117be80c68e276da56299665fdf48fa9de"
+      "sha256": "25d7c5e918ab1a1b271b9f93823b13ab6aebc0bb6baf7076cefce259ccd8ecca"
     },
     {
       "path": "Open77.Platform.dll",
@@ -812,52 +814,57 @@
     {
       "path": "Open77.Protocol.dll",
       "size": 421888,
-      "sha256": "63e6aa348af052f7e02a6c200977235db8df3b0765fcefeb8e2de898b37dffa8"
+      "sha256": "32ad766caf5fce8bd539aba33584efdadd132cdafb5e6bf1a5cdc212243ff3cb"
     },
     {
       "path": "Open77.Protocol.pdb",
       "size": 99004,
-      "sha256": "daa37d318ed7d95ffdb5e0022fa72844ccedf48e8222eb90e97ea0f9b6aaa529"
+      "sha256": "e52a8bcb05c766b264f8dc25f3befafaec4f9f0efc38028b41e21049b96d122f"
     },
     {
       "path": "Open77.Resources.dll",
       "size": 144384,
-      "sha256": "dc5cfed33048c2b8a30dd335fe32dfb40d5255d4c801d45d8cf37f4a1d2f7851"
+      "sha256": "7009e0651b48a4fcb858bdb3aa8e258f4aa76e75b0d3294fbd562d62b176536b"
     },
     {
       "path": "Open77.Resources.pdb",
       "size": 59800,
-      "sha256": "7647388431bbe6f34f468bca255b05f2e6ed77b8726238bb60193a2a461f8cf0"
+      "sha256": "8e1f6f5cb9d14063d8f178a8107a7fd68d649d6466db316bb9a029c7298b0f7c"
     },
     {
       "path": "Open77.Server.Core.dll",
-      "size": 3118080,
-      "sha256": "5c423c94755052644d5f03bc6df624e823b2d438e01210a60dcfc0856ba756fc"
+      "size": 3129856,
+      "sha256": "87354bb51a817e829ec53cf28ddf914200cf8ab7af62f50b084bbd9fc6b939db"
     },
     {
       "path": "Open77.Server.Core.pdb",
-      "size": 517992,
-      "sha256": "d6fd6b393b46534c2bbe943f30b713ca0b8529b3b02cfb9f21dd8485ac141190"
+      "size": 520072,
+      "sha256": "910f862c20cf9e3a31d49464a78d330b241510f1c18ce6bd7dfad1bd66172219"
+    },
+    {
+      "path": "Open77.Server.Escrow.ScriptGo.dll",
+      "size": 52736,
+      "sha256": "c6dbdca86504ec38c321d2ca7e358b44183f24d39d94e915b3d65dc6989034ed"
     },
     {
       "path": "Open77.Server.Scripting.dll",
-      "size": 3423232,
-      "sha256": "de9f40f11b7cd5b5dea4feb408579b891d776e0fb4341680ea801463710e400c"
+      "size": 3600896,
+      "sha256": "238773037c4ee986a2c0b2a125272db9a55e184121577936471245aec98aab3f"
     },
     {
       "path": "Open77.Server.Scripting.pdb",
-      "size": 269928,
-      "sha256": "06b4d54d4623242568df7a335b94999fddf5eb8a0a4985db1c7d9cab2114ae29"
+      "size": 294696,
+      "sha256": "74f7e0dcde05ce17e46a029118fd1e324d46815ce0f83f47765220b45cce66a9"
     },
     {
       "path": "Open77.Server.Transport.Gns.dll",
       "size": 102400,
-      "sha256": "b14ba7786a2fb6bb9fdb499c12bde477c4cbbbfc3e4b5a875f500a7681f9788d"
+      "sha256": "afba9de3e29a1c08e0112478f3f7b50827ba798b6e60740b85651892d062b4fa"
     },
     {
       "path": "Open77.Server.Transport.Gns.pdb",
-      "size": 34964,
-      "sha256": "f5d77e20d84b235bfb6a3cc738f35cff56e7b555e4278e5f7c76a91afd28e0e0"
+      "size": 34968,
+      "sha256": "95e733979224e72f0de0759f858870c371556731583b44ca66d1e09c7427091e"
     },
     {
       "path": "Open77.Server.deps.json",
@@ -866,18 +873,18 @@
     },
     {
       "path": "Open77.Server.dll",
-      "size": 2881024,
-      "sha256": "5b04087363ba9f1d264be97b159fe64228688481519f66dd894264532be4d80a"
+      "size": 2942976,
+      "sha256": "0b1c7bfc4f48bb23268387e0ae736447e5ca7606697fe11c9730091c49b7ad66"
     },
     {
       "path": "Open77.Server.exe",
       "size": 162304,
-      "sha256": "6ed06fccad3f093df060721b0471777dd9add2f640a3e41ce193e9f2fb115434"
+      "sha256": "5226814c88ab18f5f6b8524850a7fc5366a57e01bdf2123bd0399f9884bc1a07"
     },
     {
       "path": "Open77.Server.pdb",
-      "size": 384684,
-      "sha256": "2859e84200890d5a9fba51c886c26b5bfc043085b9d5f0059430c361dd8864dc"
+      "size": 398612,
+      "sha256": "11ac6b44eaae16bda12780f9c8850ec394a780322ec0b615b10e6c3fa3e44c39"
     },
     {
       "path": "Open77.Server.runtimeconfig.json",
@@ -903,6 +910,11 @@
       "path": "SQLitePCLRaw.provider.e_sqlite3.dll",
       "size": 36864,
       "sha256": "1d4cb69b3aaf6a9cf40dfe179cc16dd678f12bc024b212d4297654e0a29e220d"
+    },
+    {
+      "path": "ScriptGo.Escrow.dll",
+      "size": 128512,
+      "sha256": "2e2fbcd808bfcac152ade4bf8877e447380b3f685928bd727be98a08c15136c9"
     },
     {
       "path": "SharpCompress.dll",
@@ -1770,6 +1782,11 @@
       "sha256": "f2bdfd2096aeadf69ea2c9e747f0ca2842127cde1770d1643bf13bfc70649361"
     },
     {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "size": 25254,
+      "sha256": "301eea0c4fb7b0290c21bafe88e1f9fada1053e4aaa2a5f83ff671191bcb8cec"
+    },
+    {
       "path": "WindowsBase.dll",
       "size": 16168,
       "sha256": "40919153c0d41db63182208f07ceb2cdd7a5eaa1231bfae318f64fad929d6646"
@@ -1801,8 +1818,8 @@
     },
     {
       "path": "config/server.schema.json",
-      "size": 33187,
-      "sha256": "922f327c40ee28924c7cac6f42c6c4c8a51370537c9a1dc527841ecd72a6a076"
+      "size": 36483,
+      "sha256": "70032738fb05751a29b4062274bb1c791ed73d4752942e0a6ea2a9b00eec991e"
     },
     {
       "path": "coreclr.dll",
@@ -1821,13 +1838,13 @@
     },
     {
       "path": "docs/rcon.md",
-      "size": 21158,
-      "sha256": "c0926a3bf84e5a9a4854ab006bd73fa1c351f1f6a8190abcbe214e814fa91f7d"
+      "size": 21244,
+      "sha256": "04c2c577bf31a19c1b9ca3d2c538a976304a635019740849927e0365dcb90ec2"
     },
     {
       "path": "docs/server-configuration.md",
-      "size": 27939,
-      "sha256": "38578050beb70c7c348345df7f52d8834add61def4a5750f50eba9f4258ad9b7"
+      "size": 31135,
+      "sha256": "17ec3ab163fd66711cd78c7e7eec8e2ad040f4152ebf8929c755e631a87dc0b9"
     },
     {
       "path": "docs/server-query.md",
@@ -1906,8 +1923,8 @@
     },
     {
       "path": "resources/gamemodes/freeroam/README.md",
-      "size": 24990,
-      "sha256": "50db2f4a50fd49bf3be386984bd5d80e25be08d1f3cba9de3f4463892df9b200"
+      "size": 24520,
+      "sha256": "05767b05ce60c35a653626f693a80fdeebfcd13fc211611b69634bf14a21ca95"
     },
     {
       "path": "resources/gamemodes/freeroam/client/animations.lua",
@@ -1926,8 +1943,8 @@
     },
     {
       "path": "resources/gamemodes/freeroam/client/hud.lua",
-      "size": 15002,
-      "sha256": "2b1c913d238fa674d86b39767a20d5110f451a5b146761dc2afee2b5ef74d75f"
+      "size": 15203,
+      "sha256": "93f2e76b746e178fe4ee582301f52a2a9cb2df45619c8da2e3740fa99630dc19"
     },
     {
       "path": "resources/gamemodes/freeroam/client/idles.lua",
@@ -1941,8 +1958,8 @@
     },
     {
       "path": "resources/gamemodes/freeroam/client/main.lua",
-      "size": 31467,
-      "sha256": "ace90ba90e43a234aa3287c249c6d0c43dab3b5a3bf3d8570c6965519dd17809"
+      "size": 25259,
+      "sha256": "6ed831f43e7b0fcfa2ff6dc62de7b6428296fae087be60a6781f51dfdba80822"
     },
     {
       "path": "resources/gamemodes/freeroam/client/map3d.lua",
@@ -1961,8 +1978,8 @@
     },
     {
       "path": "resources/gamemodes/freeroam/open77.lua",
-      "size": 3330,
-      "sha256": "d33f7889f427350f2293875f4bce55437db7dff7c0f5518d7133e65704bade5e"
+      "size": 3582,
+      "sha256": "8c0fe0924f82da700638dfd60b3ec8f846f149b188cafa5979ee4fa554246e31"
     },
     {
       "path": "resources/gamemodes/freeroam/pvp/README.md",
@@ -2130,9 +2147,14 @@
       "sha256": "920172c222144fda0fa3aba06900d95862dbb94c7b868b2ab293839def7cc514"
     },
     {
+      "path": "resources/gamemodes/freeroam/server/creator.lua",
+      "size": 1292,
+      "sha256": "6a3ae8254591509def95436cc5fdd080a6972e41d572d3e40d2392e9463465b3"
+    },
+    {
       "path": "resources/gamemodes/freeroam/server/main.lua",
-      "size": 55218,
-      "sha256": "88aee15d225758fcf518275743e3cf142cb4a63c8a3637f34e6b3f3bdae33d74"
+      "size": 54854,
+      "sha256": "41f0c7fcb8a57b28b134cae9ef7069692d60e88fae3c660d575474b5c97a187b"
     },
     {
       "path": "resources/gamemodes/freeroam/server/playtest.lua",
@@ -2211,8 +2233,8 @@
     },
     {
       "path": "resources/gamemodes/freeroam/web/app.js",
-      "size": 34048,
-      "sha256": "d8b03853c8d49d3a79225139eb8beefacaa14e9ef41fe0301d78a5130c931de2"
+      "size": 22338,
+      "sha256": "2c4b92c863c66b9fe2e20b88ac10818b952d7fafa6c1c7523f0cfe027a8e4191"
     },
     {
       "path": "resources/gamemodes/freeroam/web/design-system.css",
@@ -2221,8 +2243,8 @@
     },
     {
       "path": "resources/gamemodes/freeroam/web/index.html",
-      "size": 41399,
-      "sha256": "431edec86cf79d55647255af66d4ca347dc5ca56a5182ae750093773332a2e17"
+      "size": 39230,
+      "sha256": "506d8c302d1503a78c28cde62e779e9936f03a23ad4acbf485781abc277f2637"
     },
     {
       "path": "resources/gamemodes/freeroam/web/killfeed.css",
@@ -2376,8 +2398,8 @@
     },
     {
       "path": "resources/open77_equipment/client/main.lua",
-      "size": 10893,
-      "sha256": "98f9d97048f846083fd1f75c617dcfae76970721ccf3dd9f47a5519f4e5dcc75"
+      "size": 12803,
+      "sha256": "31cc9573ca26be1b58cc438f7eef3a921ea3bf93b96d145285e935d45ef8df2c"
     },
     {
       "path": "resources/open77_equipment/config.lua",
@@ -2387,7 +2409,7 @@
     {
       "path": "resources/open77_equipment/open77.lua",
       "size": 357,
-      "sha256": "c2033645eaea992c9ef93f6d7236c734da6837b612ec9e4c3d178cb7db1fece0"
+      "sha256": "502789ea98ae9ef15ad9b0224169a71d39c1a3146a511fc1006d6cd22ddc205c"
     },
     {
       "path": "resources/open77_wardrobe/README.md",
@@ -2396,8 +2418,8 @@
     },
     {
       "path": "resources/open77_wardrobe/client/main.lua",
-      "size": 9125,
-      "sha256": "cd16d307d74a1a7acd42a54c26aad45a066632477ff338ece2b8ffad68a356ea"
+      "size": 9311,
+      "sha256": "0973900f463350ee9d2e1dd4fa2c95990dfd06cf6455b303e070b33b480fcc5e"
     },
     {
       "path": "resources/open77_wardrobe/open77.lua",
@@ -2626,8 +2648,8 @@
     },
     {
       "path": "resources/system/open77_admin/README.md",
-      "size": 53365,
-      "sha256": "d8d52d31004cdf3bae34626be3dfe9ed5db3c130d4fa8f072895346171bf7a65"
+      "size": 53937,
+      "sha256": "17a592ee3381e98dde7a9553af4d0455ddd9ebaf4708ea7b946638a79969cf7f"
     },
     {
       "path": "resources/system/open77_admin/acl-roles.example.jsonc",
@@ -2656,13 +2678,18 @@
     },
     {
       "path": "resources/system/open77_admin/client/menu.lua",
-      "size": 88647,
-      "sha256": "307f8f5f31df2ef186936ab8d842efb1d0204d26d5d54eb86da2fc5e0088b0c8"
+      "size": 89199,
+      "sha256": "1f368fcfe6f10672686e39f19315753d9e636dda2f75d50f25042939d4a0b871"
+    },
+    {
+      "path": "resources/system/open77_admin/client/noclip_hud.lua",
+      "size": 2754,
+      "sha256": "28c2c8ccd56d551fa159f86526311153ba72257a568c733f71515a950fa17f37"
     },
     {
       "path": "resources/system/open77_admin/open77.lua",
-      "size": 7772,
-      "sha256": "e9641b0747ebbabc583da7c0925012723fe10ff0cd569971ad4a38b484c0a533"
+      "size": 8032,
+      "sha256": "73c87623ff747d158c698e4a58ecc92a64c2765e818eea54fdaa2ad7f3c7389e"
     },
     {
       "path": "resources/system/open77_admin/server/bulk.lua",
@@ -2691,8 +2718,8 @@
     },
     {
       "path": "resources/system/open77_admin/server/players.lua",
-      "size": 34021,
-      "sha256": "f3bdd2c94b74385a4d022b6bebf704a1453b23402fc12eaeedb70b479c17b916"
+      "size": 35958,
+      "sha256": "cdd6a9e907d5025120916f5bcd212c4c988a2bb4234ef6b038871f05b589eeb1"
     },
     {
       "path": "resources/system/open77_admin/server/props.lua",
@@ -2765,6 +2792,16 @@
       "sha256": "7ead5f8860045bb87aba1dd9d20052ab558ade259849af40287395d739aa9677"
     },
     {
+      "path": "resources/system/open77_admin/ui/noclip.rcss",
+      "size": 3909,
+      "sha256": "7f259c86f22a9821b585cf9305406a1b445790b2d71266527467715bc221fcb1"
+    },
+    {
+      "path": "resources/system/open77_admin/ui/noclip.rml",
+      "size": 1230,
+      "sha256": "c01db178e5b445b5e69d91eb38c6c84412fa78b071f4bbb2f66fd6e4eada8375"
+    },
+    {
       "path": "resources/system/open77_admin/web/app.css",
       "size": 22144,
       "sha256": "a44025bd7ddbcbbb81765aad5033f191a75301f2a101106a777f0f1c373a5e51"
@@ -2811,8 +2848,8 @@
     },
     {
       "path": "resources/system/open77_animations/client/controller.lua",
-      "size": 24358,
-      "sha256": "7eb08b8011332ba2c488976a93aff949ff5ce0f094dedc97ae2095ad45b8e34d"
+      "size": 24940,
+      "sha256": "81b8aed4683a86b179a44a0d841e80867520393045ead57f9d9bb13285a35290"
     },
     {
       "path": "resources/system/open77_animations/client/idle-controller.lua",
@@ -2821,8 +2858,8 @@
     },
     {
       "path": "resources/system/open77_animations/client/main.lua",
-      "size": 5791,
-      "sha256": "dc885fe4b0e2ff8de0130157b56cf81be8948ddb817b2ff890b8c4e8b702c0db"
+      "size": 6069,
+      "sha256": "0c1642a8b29a8ea6cb74f7c01be57592c4b7b132d2a397268248ea1156a7ee46"
     },
     {
       "path": "resources/system/open77_animations/open77.lua",
@@ -2846,13 +2883,13 @@
     },
     {
       "path": "resources/system/open77_appearance/client/main.lua",
-      "size": 40162,
-      "sha256": "a59abe3b64b5e6940caeb8b461136d7878b32d0808318e05dfce3a13d2535746"
+      "size": 45766,
+      "sha256": "598e1faccf2f0373720a7694fd3d670c564b0336068ac4ec1fcf768f1eb36eef"
     },
     {
       "path": "resources/system/open77_appearance/open77.lua",
-      "size": 475,
-      "sha256": "ff97c61d56d5436eb86de0adae2c48da1596f4ae366a59b153bfcc358c36e07c"
+      "size": 635,
+      "sha256": "48e64a22cebf1a990592f293ef4cdca63dc15f2fae1358260f694cf7d72bcdcd"
     },
     {
       "path": "resources/system/open77_appearance/server/catalog.lua",
@@ -2861,13 +2898,18 @@
     },
     {
       "path": "resources/system/open77_appearance/server/main.lua",
-      "size": 50162,
-      "sha256": "edc0ad77d01c8275b1c086640302562e39004779e77042db75e38644d14fa1a6"
+      "size": 62192,
+      "sha256": "64f9f9072ee6f99bb5f7057703e3aecace1ab9245d83b6369e77baaa73908984"
     },
     {
       "path": "resources/system/open77_appearance/server/presentation.lua",
-      "size": 28840,
-      "sha256": "21abec7c1f6c22ca0e8c579c2207f953a69fb78d9a9c3916feda474d5696a453"
+      "size": 37932,
+      "sha256": "f1025ea66acaef7dd92558e1da742c913fd80c8f7971688fa489d7a1ec194b36"
+    },
+    {
+      "path": "resources/system/open77_appearance/shared/outfit_slots.lua",
+      "size": 5303,
+      "sha256": "48de0a56ee82ddef80d811cf413e10be62e8071164a0c74dbd86cf26f0b10501"
     },
     {
       "path": "resources/system/open77_appearance/sql/001_appearance.sql",
@@ -3003,6 +3045,1281 @@
       "path": "resources/system/open77_contextmenu/ui/contextmenu.rml",
       "size": 2341,
       "sha256": "eca7b47c1558da40861b4e947139c47861c1ec07d37967176dc5deb7fcb0c0c5"
+    },
+    {
+      "path": "resources/system/open77_creator/README.md",
+      "size": 3703,
+      "sha256": "2ae42bc564c1c1fc888f1999c106976ddad4658343e7d50dfd22ce95283f5634"
+    },
+    {
+      "path": "resources/system/open77_creator/client/effects.lua",
+      "size": 5228,
+      "sha256": "8b8a7493a744279d490fcb448cfda53090b9c50c907ae9b38d770e93a869fd8f"
+    },
+    {
+      "path": "resources/system/open77_creator/client/main.lua",
+      "size": 48553,
+      "sha256": "55dbfc4e3439c3027624f4698d6621b788895b1172b85de57a260eeeebd4210d"
+    },
+    {
+      "path": "resources/system/open77_creator/open77.lua",
+      "size": 1475,
+      "sha256": "a2ace23b2fa1a0414fcf8491a5953227c425662a0432445cdd7178daa9e1feee"
+    },
+    {
+      "path": "resources/system/open77_creator/server/main.lua",
+      "size": 9753,
+      "sha256": "a8512e2d9158a065d7dce42c367dea062e3279776b08454e472d43d3c8e6570d"
+    },
+    {
+      "path": "resources/system/open77_creator/shared/config.lua",
+      "size": 4818,
+      "sha256": "89c67b6b73c85b9f3712516b751dc08e5c6816480c8af43e64819932847c550a"
+    },
+    {
+      "path": "resources/system/open77_creator/shared/locale.lua",
+      "size": 4171,
+      "sha256": "aa8682abcb5b7a2b464c44cb6c1b04f355bd90f9cb93d213d2de5472ca31aed9"
+    },
+    {
+      "path": "resources/system/open77_creator/shared/thumbs.lua",
+      "size": 31410,
+      "sha256": "08555a5742c7d16f9db8f1e2ce4ffa042cb4dd336328eeda0544c32e8069791f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/creator.rcss",
+      "size": 17387,
+      "sha256": "072f41bc2a69af7305000d337aa353ec2bfd9fcda66df9f59bd9d54f4b23e03b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/creator.rml",
+      "size": 7810,
+      "sha256": "081d8aa55e0435efe3a8252203f10f5285b179b58e410235a3192cbf60b59ce3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/looks/corpo.png",
+      "size": 151225,
+      "sha256": "45dff53ff62b4992dd94d96721eb21f57f5904a0ff2042bd09794c73228861c9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/looks/nomad.png",
+      "size": 156488,
+      "sha256": "e19462c6d0c957bc44bca2f65f482dc89a1a2d772ac86dc23ca596c8b7303f88"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/looks/street.png",
+      "size": 219082,
+      "sha256": "5e46b2dc9851a3f83979c63c4e8faddaa5dd1cbf9bdd0c3974d0dec0f6cfa5cd"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_blemishes_black.png",
+      "size": 2287,
+      "sha256": "d3844b2a63d913e5e6673a45c5490e303705aadb5ed26eb1a60df13d4dc81ca9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_blemishes_brown.png",
+      "size": 6675,
+      "sha256": "edfc5054e4710a5b5e8ae996066be5716d75a77a7e21be4f4a8ee147e10e1fbc"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_blemishes_default.png",
+      "size": 5046,
+      "sha256": "4864cbfeda6b0745a2c38e6ba94f150cc684f3b8671ed954595951f0d1b82e3f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_blemishes_light1.png",
+      "size": 4538,
+      "sha256": "e9c9c97849d16ed9eeaafd035859c29f7c41b46b7f9479a619037451a9974515"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_blemishes_light2.png",
+      "size": 4052,
+      "sha256": "855e87ab8c4f630bc1bd0afbe58cd74e48e9503041fb76b098d476f085178b1f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_blemishes_red.png",
+      "size": 888,
+      "sha256": "dc13a45eb4f9c824d2bba28bfab931cdf5c8acfce4a77e08d577116b9b9fb596"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_black.png",
+      "size": 6097,
+      "sha256": "c33c6b4ce02d4920e9438de14d3372af60dced1fb3d4b079cb11d91e124885ba"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_blue.png",
+      "size": 5528,
+      "sha256": "2e2e0b6106d4e95cda6f6688ce7fba25eb418cc5be36d51a94ae8d852d4368bc"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_gold.png",
+      "size": 1074,
+      "sha256": "faa65a93aa0bab9f025589f4f55cfe38d1fc6924190d9cbfaf889c54f5dcab73"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_green.png",
+      "size": 767,
+      "sha256": "4f3802daeb5a8c1a89d10ed39e7b87e9271ba46dd16a9193354974462520f8a2"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_pink.png",
+      "size": 831,
+      "sha256": "eae3ea0a509519b444eb1b95a80a10b4dc0fd77ee3574514d8f122118d021461"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_red.png",
+      "size": 750,
+      "sha256": "f19958e2a269cf31817b76ea8be89fe25ace549271e08835314451f8d83a914f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_violet.png",
+      "size": 806,
+      "sha256": "c83db1f222a6874026eaee9a9958992d3692e5e3a63921f9999cecd1b66db7f0"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_white.png",
+      "size": 818,
+      "sha256": "21946745d9cc4a0b49c5ae531b9ff4b7a4d318c78074bc5e828e8bbe16d20417"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeup_lip_color_yellow.png",
+      "size": 901,
+      "sha256": "e048ab05b5a00816ff5f1ec7f59f64f5f1a501ad26b80a72375675ebac589e01"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_black.png",
+      "size": 3668,
+      "sha256": "5f534574bc9bfff2122804cac415638299c9220f3c028bbf7b0297d7c44cae66"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_blue.png",
+      "size": 517,
+      "sha256": "b12e28d5490e4bd41b0b99915ff8526fa33c287d48099c4b390d35ba18186db2"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_gold.png",
+      "size": 636,
+      "sha256": "bb1b4675e093c7a9d9f9a0f4ee9036c421ad38ca972df66c90483409417bbfdb"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_green.png",
+      "size": 623,
+      "sha256": "9e53da48f9fbc85931eeabf49d1635747e3cdc4bbef4e4fe8b22c9d57bc33509"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_pink.png",
+      "size": 599,
+      "sha256": "78492c0a3338cc611f9860bee369ce102f437fe61242b44c080eb9bd69891e72"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_red.png",
+      "size": 660,
+      "sha256": "e282d613051c87643840854f6772ebc8261db09eb9818344d4d54177c0531d5a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_violet.png",
+      "size": 578,
+      "sha256": "053fc20c0afcb39cead958ae1aeeda961e9d59ed88a46135a5fff2725548d3dc"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_white.png",
+      "size": 858,
+      "sha256": "f311c96ca4896080868e19767f967f3e4661fc0b7b86ee51d9f5b0fc25d72f38"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_makeupcolor_yellow.png",
+      "size": 742,
+      "sha256": "196616e14ed3b76cdce7ce7148c871d4d496fc1ba586d53ee8e48e65696c8e55"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_piercing_copper.png",
+      "size": 1016,
+      "sha256": "a1715dcb611512933bce69ca2872bee49c722e8541435b3408ca565b81524fd3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_piercing_gold.png",
+      "size": 1068,
+      "sha256": "7bcedd7fd24b7a0c2091abfbd4ec9a4de74db47003104d6503543636d2c21707"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_piercing_pearl.png",
+      "size": 1141,
+      "sha256": "c929532519b012abf879b115796ccd34abb2b116f3c7e0f364cc47fd254ff89c"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_piercing_plastic_black.png",
+      "size": 806,
+      "sha256": "c4a531190a432b718d34658654d83f2bc54737e7c94db65ccc67dbc4d46e9fcf"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_piercing_plastic_pink.png",
+      "size": 955,
+      "sha256": "024f35a7a725d266315e0c8e26c176335cbee81286e5afef8537f409d03651ae"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_piercing_plastic_red.png",
+      "size": 737,
+      "sha256": "a003c2234969909f35adeb3a1115d103caf59e24d852b8fe7a271a48b4481685"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_piercing_plastic_silver.png",
+      "size": 1072,
+      "sha256": "7fe25b87240bae5e69cb96317aeaae9403e4deca2b405c29398938b27d5d27d6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_pubes_black.png",
+      "size": 668,
+      "sha256": "18666c85cf56ae5405c7a6f595ad6834e51c6e80a7ae58de16bb4b8af7cac670"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_pubes_blonde.png",
+      "size": 938,
+      "sha256": "01a03944a9cd368e0c2bff6c47c91196dcc8cf5652a416b0e675e9902dabb8d9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_pubes_ginger.png",
+      "size": 828,
+      "sha256": "d884b055449e451c6c9afcc889a1874094df02e96cb85e636111d863c36e40da"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_pubes_green.png",
+      "size": 833,
+      "sha256": "6767753d2e22cf27908397cdc0717c32d5a7e88bc9e45817c309b94058b35afa"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_pubes_pink.png",
+      "size": 963,
+      "sha256": "7f66692463d5f425fae745dfede30392826e01e0cb5530e6c937200ebbc9c4b5"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_teeth_copper.png",
+      "size": 1245,
+      "sha256": "a12fecd3554f9c7903962ae54a1f087f5bd257ce738e0a90c425c981b00f2d26"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_teeth_gold.png",
+      "size": 1163,
+      "sha256": "398f591ff8e17f4c02b778b378c5976f65ce1c019d44487d2c7ecd80c1ffd0f5"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_teeth_pink.png",
+      "size": 1022,
+      "sha256": "927c3f6a36fd5a07cc7f4da0c33c8a05c826bf75de8bc3fdd9f06211215384ea"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_teeth_silver.png",
+      "size": 1230,
+      "sha256": "2da75842375d85a6a1ca369664d994efb4840f6acc29d84d5f45c6ff2ee74754"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_02_mox__multilayer.png",
+      "size": 16836,
+      "sha256": "213b4857bf8df8dd5eabe028fb8df479dd70b1f036fdd37c37f040fa74c807a0"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_02_valentinos__multilayer.png",
+      "size": 12890,
+      "sha256": "8f5aa232367a68eead589a74ba15f99ff26ca1afa958c271ea7b1e030cec4898"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_6th_street__multilayer.png",
+      "size": 7077,
+      "sha256": "b199f0e5a2e9f72882b08d16a7f39340393ab442834bf3371aeb2e13cb645649"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_arasaka__multilayer.png",
+      "size": 6634,
+      "sha256": "8d10421f932e1f6103331d222bcece3253bcb67eb4f2619d05e10af0f129faa6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_barghest__multilayer.png",
+      "size": 18364,
+      "sha256": "fd664edf3a54fc7c0650fda71a3c8511fa4418d6c3f1b7dfd1696415d42faeff"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_jinguji__multilayer.png",
+      "size": 4403,
+      "sha256": "dd8c72434789bf809724e4ae599cc0efaf40a7a523cbeb8d5aef7c1b11e192d5"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_maelstrom__multilayer.png",
+      "size": 17445,
+      "sha256": "75c4cdaaee7e5e2c2a64b3d01b09deff55a53c4d6c2fd2fd5225942c20261ab8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_nicola__multilayer.png",
+      "size": 7049,
+      "sha256": "24ebe6c9561a9012454ec0b26a9db6d1b89ef986603385a9b04226e533c594bd"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_sovoil__multilayer.png",
+      "size": 7280,
+      "sha256": "0e3a7fcc7dd28b57844f28d25b458088c11ab7c1b89e6be87e299bf59a84d8e9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_tiger_claws__multilayer.png",
+      "size": 8602,
+      "sha256": "9a5ac43262afdb4325a70e7a032b0c8b873db16fea70ea5697161b2898080d95"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_tsunami__multilayer.png",
+      "size": 6139,
+      "sha256": "1fc3b0c48af1043a6bd7c5585cf7e1b96d9a785d3b091652127866b6ccbe5baa"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_voodoo_boys__multilayer.png",
+      "size": 16735,
+      "sha256": "4ac58178d680f40c85092f1758f3882c4db1276796bae45e816f5bdce7ba0044"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_03_warning_signs__multilayer.png",
+      "size": 4996,
+      "sha256": "654090e48b4d4a55d970aa27c29a479dd313656262cfcf35d3e6d910645af92f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_04_neokitsh_lines__multilayer.png",
+      "size": 15649,
+      "sha256": "21245978a4941d80695ce94d143bcb7268d2f18bbc2d1cd85bb6f351d8b34377"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_04_nude__multilayer.png",
+      "size": 7691,
+      "sha256": "bb3c17b3b0c24afc53ca0230ba9bfd04ad7fbf99a30c8a47588069da81832af4"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_04_relic_multilayer.png",
+      "size": 6257,
+      "sha256": "cb51f04f5c442d7ce4bb17694e87bbbf2d6f0f78a4817d7798949b1ecfc33c0d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_04_trauma_multilayer.png",
+      "size": 6274,
+      "sha256": "e3fdcaba24e12b10a05b174e1a069086b72695e53a7a1e4bd481140d487c2b03"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_black.png",
+      "size": 2724,
+      "sha256": "83b8297b9374cf233044a4c070f8a8da8d37023209430fbaf61f22f0abe21929"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_brown.png",
+      "size": 7404,
+      "sha256": "87ba7468b8aacd5370808df730e4be5e5b447175c961dd9833526810ebb7e251"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_crimson.png",
+      "size": 3584,
+      "sha256": "0b181a1d43607e695a91159e0bbbd860d56e169ac8c3c6fbff8c04c1fc0f75a4"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_gradient_black_red-duplicate.png",
+      "size": 8234,
+      "sha256": "09b8689c28a20ed58b49299725e6523b9c5a6302303f86fe2a73ac91dd6e317a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_gradient_gold-duplicate.png",
+      "size": 10996,
+      "sha256": "5e1bee072ee9ac48403ecca6bf463ae41f2d59a54813e230823db61fea0e5fab"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_gradient_turquoise.png",
+      "size": 8389,
+      "sha256": "f85aa9c4d2459cef6bcbb6303215049c394ea90430d0637967bd538f76271417"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_green.png",
+      "size": 16100,
+      "sha256": "395cf5123e3d9e6d9cd4485e265650ff0ac614c12fb5ea1ea8eb7fe96d2676e7"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_pink.png",
+      "size": 5439,
+      "sha256": "2918c492702141962b7d62153189c54da3ece365e793f43b1abfdcb1488dd316"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_purple.png",
+      "size": 5641,
+      "sha256": "f7287b47973c4ebe064784706d3e3659ad429691d30452aa03c1de3373f6e02d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_red.png",
+      "size": 5773,
+      "sha256": "44f5bccb20806c01a2b23f4b0c1cbe2df97d1baf86b394a67a30ac8d3921728d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_white.png",
+      "size": 2958,
+      "sha256": "96871a67cdac31d8f3eeb95cd342fa0dfc78a0cad4187c2e162113e7031d50ba"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_all_yellow.png",
+      "size": 4579,
+      "sha256": "f832a452fcc0131fa34896b0de6f39e984f79bc356847016069445344d96a435"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_black_gold.png",
+      "size": 12725,
+      "sha256": "42ad544220999ccb9fa62ac893a6dd1ed66d2e855b40954c1c5e32919c221862"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_blue_silver.png",
+      "size": 9338,
+      "sha256": "f4457c7baa59a94eacd5e03658d39338a7ca030c9d1117510a128dca3ead3883"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_chrome_and_black.png",
+      "size": 5663,
+      "sha256": "2809b5f4166be1ed992bf22b1f9474432f93329d98785d4be3ac1e28977dc2de"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_chrome_and_white.png",
+      "size": 5499,
+      "sha256": "2cf086d8add856a22f5d753e6e9504c5def61581fc87e03951cad63535a81120"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_chrome_strap.png",
+      "size": 7213,
+      "sha256": "ca4b55b4fd195f47b186e008e594adb4bac3e11cd262163fadabe7de3fda4acb"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_color_end.png",
+      "size": 4322,
+      "sha256": "81d72111222f60d8d15104b10fc68acc836bb2c881c4d2c8b4a7b959f4508579"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_five_colors.png",
+      "size": 4851,
+      "sha256": "212212844eec78b3f549105c89bf294caa645348ca7cff9d593d9a36961fbc52"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_gradient_chrome.png",
+      "size": 8909,
+      "sha256": "6b9941b38bd04ea62f4fba9de638d63e44349dac9a2ba78a45789fbe9fc10bf2"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_green_heart.png",
+      "size": 9851,
+      "sha256": "ffa4da78c9dc9d2f75caf99defd48b358806db30ede89064698ffeca338877e1"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_ragged_black.png",
+      "size": 6200,
+      "sha256": "92949c5a33fb91b6c5c5f1a1cb76abf48d364d01eb829f57d8b2a512affd731f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_ragged_pink.png",
+      "size": 7708,
+      "sha256": "d5b3b7c5801583b0c7a2cea875e92bfc4f4f4ece7a1b696a30411f0db052be43"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_red_gold.png",
+      "size": 6886,
+      "sha256": "46c36ced853fdd8e61da822fec66abc27daeb5f4925772075b4e53c9b6c83a46"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_red_heart.png",
+      "size": 8974,
+      "sha256": "91185542da292ba58cf7672cfd92817275622e1c8922a7e9faa7a0298fd022ab"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_white_strap.png",
+      "size": 9117,
+      "sha256": "e5d39a42328ea783255af85c09cb7d5de3b1e8e67d358528be634aca7b2ebf2f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_01_zygzag.png",
+      "size": 12368,
+      "sha256": "971f6180cf56df0787fb76cfccbe2c6ccd755dd170489907c9aa1b59f4473041"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_02_blue.png",
+      "size": 14832,
+      "sha256": "db6d9148217286a59d8d583ce2ddfbd91948a11f90154981e1c55b80c0de0f0a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_02_default-duplicate.png",
+      "size": 14570,
+      "sha256": "077a2579a365831908db5f73d8eb037e6417f0188d83b1114000518d449e462f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_02_default_02-duplicate.png",
+      "size": 13527,
+      "sha256": "db56a497666e10711525934cba3df892fbf9aa52809ee03e29ecf5c89c9a0a2e"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_02_fire.png",
+      "size": 12308,
+      "sha256": "6cb42f86e80609d44185fbafc4a8d32b448b8f2200139bdc387eb86afd1ee6c8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_03_default.png",
+      "size": 9053,
+      "sha256": "a6a88572e9bed3030811b1990f31ad8e9c3ba66303bb5a7306ebd36a0b9b0610"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_beige.png",
+      "size": 6208,
+      "sha256": "bbb9508eacbec20323398bd204c60f9510dc8026a496c2613250cfe84f5438b1"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_beige_dark.png",
+      "size": 6029,
+      "sha256": "5c53aeeb4abb8119508d8cfed2e9a64edbf6614cada428838f681a70c408ea3a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_checker.png",
+      "size": 8613,
+      "sha256": "65849d647909a7470a68eabc1e69bee1126258c9e88033864cb72cb80a86fa5d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_dots_01.png",
+      "size": 6473,
+      "sha256": "3ec369870dbd87b48533238f39b362518a2afca275949ba825e7670774315eb7"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/00_thumb_nail_gray_light.png",
+      "size": 4398,
+      "sha256": "97ed68ef4cd4451dc11a746c63edea32e7da20ec71cfc7308329b7af0b14537e"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/01_blonde_platinum.png",
+      "size": 9626,
+      "sha256": "74cea5950691ce22a863071b6e61870ab6bbb0403383519a92ef0485475e82df"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/02_red_merlot.png",
+      "size": 5419,
+      "sha256": "2fb32d6c2945ba89fbbe72c8278b4a958531f0a696e6770dfa9fb6498c498a4f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/03_ginger_copper.png",
+      "size": 5808,
+      "sha256": "2fbd0188b361963265816291bd9f99d157241ab379a3714dae976110296d422b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/04_teal_ombre.png",
+      "size": 5975,
+      "sha256": "dc6bcfc0db9929cfa18faf0fa3a9fa0f5c58ef827e33440bf85a5333131da4b3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/05_brown_liquorice.png",
+      "size": 6503,
+      "sha256": "dffa852080b83e57f688424b2fa307cbe67e7e1d00894ae74663f22bf24d904b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/06_black_carbon.png",
+      "size": 4421,
+      "sha256": "5a2464e5f9c5ae35f6c812f18dc767128e78a0d0d22a46c981dce4bedab6dd63"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/07_blonde_golden.png",
+      "size": 9206,
+      "sha256": "f7fa27170eeeb6427264a1f992d13fea1dfa5c0b8230d6ec338c3d3c05dd17a6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/08_blonde_dishwater.png",
+      "size": 8464,
+      "sha256": "5f32d4f7be0f2074aff485b7fd82a91485fb0bc702d05dcaf864bcc1689a963d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/09_blue_sapphire.png",
+      "size": 6880,
+      "sha256": "74f64f298325a98d00553ef75f4fa83a906c97ea5bfd496f681711351e4d9f10"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/10_brown_ombre.png",
+      "size": 7400,
+      "sha256": "865d172e232d6b71666e6e47dc21ea8de31b0a02df53ee04da06542b91269635"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/11_red_apple.png",
+      "size": 8260,
+      "sha256": "bea470ba1faa0515d1fc8955c51b5a55390ad70b0ead0c91a0a33946aa6589ce"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/12_gray_gunmetal.png",
+      "size": 7220,
+      "sha256": "c6d72451ca12addf9640c037551ffe6542e58e42462e75570ed64c4522a6a439"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/13_ginger_strawberry.png",
+      "size": 8724,
+      "sha256": "6f4b19fbc373e472dc9dd55a4e47aa81db886cd598ca8d5ee238b5f795bd2232"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/14_teal_ash.png",
+      "size": 7366,
+      "sha256": "1f3b69857594b8f1700f9f9290e4f0efaeaa610351526f74606b2208c0e03e36"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/15_pink_magenta.png",
+      "size": 8723,
+      "sha256": "cadd7d102b8fbd490fda4af8792733014e64c69f255ae485839efa806d124f61"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/16_pink_rose.png",
+      "size": 7661,
+      "sha256": "cf9ed7eb0fc8fcfd12db7d186d4659f32587973ab0d8202941590a86873156e0"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/17_blue_steel.png",
+      "size": 9994,
+      "sha256": "e540eebb78ce1412da3288d3f60c90415daefd79cc246a0582473c4c514e5159"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/18_blue_red_ombre.png",
+      "size": 5411,
+      "sha256": "3e6322e15b55119ec2ed24bee27147642222e47778771e741635620cc17b3e3f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/19_cold_white.png",
+      "size": 7663,
+      "sha256": "cd1c28a4ccd3ddbb26a5d37100a5e92df19285490ec7957d7da0f1f2b3958cd8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/1_blue.png",
+      "size": 23140,
+      "sha256": "7570c4363c1a8b8a163813482d5c25885757734e226c4a641572540e3875fa83"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/20_cyberpunk_yellow.png",
+      "size": 9891,
+      "sha256": "d496b49dee5855dbb9422220a3258dce5319e67d838aed953df300c15312793f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/21_goblin_green.png",
+      "size": 4567,
+      "sha256": "aa28c6016bec4ad571c846b930a99771b49bc3d07b75e727c7ac2b70ccc3ece0"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/22_liliac.png",
+      "size": 9001,
+      "sha256": "6f34e99315d80b114a089eb836138a77ffe387e84bec0c20c322176cfe615777"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/23_mermaid_aquamarine.png",
+      "size": 7896,
+      "sha256": "4a92bb1b06c5fba7b67b992fe1def3decb925d4fac4a7b22687f91f5a1ee4d56"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/24_purple_ombre.png",
+      "size": 8299,
+      "sha256": "81a3e162178e3806ce1505c25a177b6eb528031db79edf7895bd81f76c0ac2e2"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/25_black_salt_n_pepper.png",
+      "size": 6833,
+      "sha256": "04c54e9e409c998693d74d091c99a16d5963fb96e62d49f53069acb19ee20a92"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/26_green_toxic.png",
+      "size": 8909,
+      "sha256": "c2083ddc84fee29fdc35fbca292012810edca65abd8e798dd24494874fda9397"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/27_brown_medium.png",
+      "size": 6293,
+      "sha256": "4ed3195131e7fbdb951d9e5763a9353615a6790b5ca69e3414e4837e828d1956"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/28_blue_sky.png",
+      "size": 9918,
+      "sha256": "d55ed6416c53aed7a32123245a73416cf461dcfe029847cde98d301f61dcac17"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/29_citrus_yellow.png",
+      "size": 9458,
+      "sha256": "d4f9686f61a2d23c1b8968bbe6d750dfb2eebe2f630792acda75abb514341e27"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/2_mixed.png",
+      "size": 21218,
+      "sha256": "56def73af0ba4be81a2868e859728e73ca1763571f37fcfde68c304facf66776"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/30_dark_purple.png",
+      "size": 7118,
+      "sha256": "c6cd23e4853e74066479c1de664ba999df6eca7d0be7c755166cc4b8b5d1b9b3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/31_green_orange.png",
+      "size": 8735,
+      "sha256": "0b1b46427c4a63535be4e806046c540f8db3bc685c6563bca86ef8818893af74"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/32_liliac_ombre.png",
+      "size": 9013,
+      "sha256": "d7d4c27ecbfcb65962b6fdc448df19f8695045e12acaaa919bbc3977333dda9b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/33_phoenix_fire.png",
+      "size": 8088,
+      "sha256": "e30493a869d01376d2e03854eb8a4235aca601a0f8590c885a2aa8e1c17bea01"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/34_purple_blonde.png",
+      "size": 9564,
+      "sha256": "bb6bf016d510e12074062b1b8df1b7663e55ddaa5839ac0967de21a5acb6e4c6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/35_silver_rose.png",
+      "size": 9061,
+      "sha256": "ed3d36d9cbfd969d5b56a73963949915a2263adc12fbfdbb40393cf66481aff6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/3_mixed2.png",
+      "size": 20479,
+      "sha256": "586db3f676faa1e1d71b24b566fd63749789d375ba174db544e6fcb3041d9da0"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/4_neon_teal.png",
+      "size": 11379,
+      "sha256": "2bf699266eaa65ea57f76a248ab4502e1b3de93f7aa615cc33f6687c9f5c29a8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/5_pink_metalic.png",
+      "size": 25501,
+      "sha256": "22f4dc074350399a9a54e44fb2ec4f8ffbdf0d72496f11174151229b621c8637"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/6_rainbow.png",
+      "size": 21224,
+      "sha256": "b5f86c8cc6c8a5916bfa7cc5c32da88ba0d7717c2e09e2ef4556d593a599ad6d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/7_rose_gold.png",
+      "size": 10662,
+      "sha256": "50401a47f30f2f652b7492ba13430c733de108076ba03bb2523636371a1a8d35"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/8_steel.png",
+      "size": 18192,
+      "sha256": "281600e4c2e374f1b9e5ecd3f060549dd43dcb1a950146dc30d923ae4fc52089"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/9_wood.png",
+      "size": 16322,
+      "sha256": "a106d7e31abe9f02a122f828f1cd116a23477c3a4046a97b79186e157ad076cb"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient__green.png",
+      "size": 20059,
+      "sha256": "abc63a47839bdbd248fa74c3c26134cdd13b4e29d199ae756b934203ae1d9d09"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient_black.png",
+      "size": 19437,
+      "sha256": "b73fed366657d840b5cec8bf8697e151650ed94f12d1b1fbefce9bbfeb04ad0f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient_blue.png",
+      "size": 20340,
+      "sha256": "64f13e94bc00c2132e65af149e66c69b79d2386ff568a3d37e6051804088e4b1"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient_brown.png",
+      "size": 19633,
+      "sha256": "4ae3c5dd33416201148eaf9ac942101b5f78ace23c5a6030ea7f95c7b38723e9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient_grey.png",
+      "size": 20301,
+      "sha256": "490c65fcbdad268ffe7a3d4a0417d09f3ac8b9a858ef85c3b821b16354aefb32"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient_red.png",
+      "size": 19848,
+      "sha256": "1f633d1671ed8f32f82849f1070acb7d5f212873eac99a9d9bd33127d2e684c9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient_violet.png",
+      "size": 20618,
+      "sha256": "365768ddc8c4f522d6047271d024163a27dc331021350c6c84a3ae415bc93130"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_blood_gradient_yellow.png",
+      "size": 19561,
+      "sha256": "c4c893d54a2e707f0b71fba41285c789cfd8ece228c76329c582504c387b317b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_circle_orange.png",
+      "size": 9545,
+      "sha256": "2f37e7d11e1c143a04ce3c25039cabc9c34c333372d0fcfb7775fb979f41b212"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_circle_pink.png",
+      "size": 9232,
+      "sha256": "fffe65159ada204285e6adfdae75164f663bb1ce59f239f886d637bbfda98749"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_cybereye.png",
+      "size": 15882,
+      "sha256": "98189c48a3ad4baec9dc15b94fade410b72c4ee723c543d7611949d1a6c4e1db"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_cybereye_black.png",
+      "size": 14690,
+      "sha256": "e1cb728a04b51a5d6d4e1048674e38a810b5dbe3e15a631cf419a29c3a492da8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_doubleeye.png",
+      "size": 13104,
+      "sha256": "96290aa9d0afe759ae52d737fcfdf9267c474ad3d6fbcc02869ed75b232dbe7f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_doubleeye_black.png",
+      "size": 11974,
+      "sha256": "15e19b06e4ff224f9bad1e4e7a993b778cdd37c7119082af0a0adc7482b4957c"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_black.png",
+      "size": 17291,
+      "sha256": "0eb17afd7ebaa1f90de5c085a879c5fe749e0ba36058617ec6a4ccf0f9041390"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_blue.png",
+      "size": 18246,
+      "sha256": "b7af9e3c4e1bb7372acb4afda4b77d4af87f3029fa85ff141e2ab3ef84e4fbdf"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_brown.png",
+      "size": 16826,
+      "sha256": "7c9320360db1bf877b721db15e4ad8379cb3e618012bc4d9d311843d7a9a158f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_green.png",
+      "size": 17864,
+      "sha256": "86353cfc3dbfed70350d8f37379d0b578764e5b36743882c55854915502a547c"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_grey.png",
+      "size": 18236,
+      "sha256": "646a03f2318971d91a4d45c8d6a41b90899974482f399568033c3153f2fea5d9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_light_blue.png",
+      "size": 18584,
+      "sha256": "95f82fb97c640c1a946851c221f8698a0047527efde3e8afb4bf93562397ad33"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_red.png",
+      "size": 17713,
+      "sha256": "5bb2028457a6c93e8a3f90f483f4dc51c290d757fdb3c98bab218026c57e5c85"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_violet.png",
+      "size": 18568,
+      "sha256": "2ba94ebc706cacd5e7e2af925d70a51b69794e5d4570273bdb9cb3c88466748d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_gradient_yellow.png",
+      "size": 17456,
+      "sha256": "bdb636aaacaf3d8440329edc3523e10b741a861a8585e01e2f124c437243438b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_arasaka.png",
+      "size": 15043,
+      "sha256": "64a810ad7067199e9f0578f6a79996df2ffab328c2528757333566aab9c3cda8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_arasaka_black.png",
+      "size": 15990,
+      "sha256": "85f05bc628cc87e94392d350307354e3f255d492f04efb4190a03d9a12b62da4"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_arasaka_logo.png",
+      "size": 10016,
+      "sha256": "909b4e86c4da9f9d69095b2fcca2967d232b7251c22cc60f86098180b3541beb"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_arasaka_logo_black.png",
+      "size": 8443,
+      "sha256": "6660024a3ca4c50e8306285002cbf4c4740f8b888832c91b957785a23d221cf6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_black.png",
+      "size": 2308,
+      "sha256": "7479c225a536533d1109b8d9cb5b61a402c5a50673a951d5f95c18944aaddbe5"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_cpu.png",
+      "size": 15394,
+      "sha256": "4c6b9a0fb06416ac3c661bb631292de0231d1ef16f08c3d69779243007e45223"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_cpu_black.png",
+      "size": 15616,
+      "sha256": "38c4a6bb4df922aa155b7291d9d9a41efcd747b2d9b4670a6cd758d1fc0ced12"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_golden_hexagon.png",
+      "size": 13468,
+      "sha256": "6ca9354a416709315db9f9f099be3a70b37e1d98ef73082f8e3aadf1e7eb1bb2"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_golden_hexagon_black.png",
+      "size": 11732,
+      "sha256": "4cfb3d80773e02cf50d4dfc46180ce5b56bd8156813659f151c603843a4a7f1b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_heart.png",
+      "size": 12614,
+      "sha256": "d81b8fc225bf2bfcbff480911eb61a05e0f8789319f6bd68d6257eb25655c0d3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_heart_black.png",
+      "size": 6465,
+      "sha256": "55f199af33c6ca212e2dbcf105a495aef71acda2a934eb3487ce5fe4a28f4849"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_jinguji.png",
+      "size": 14863,
+      "sha256": "05eb85d89ea4ef6b0c86bbc440b311bda0fde3ff362d90bc7067527990c6cb68"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_jinguji_black.png",
+      "size": 8568,
+      "sha256": "f9c6c2e036e3c0e8341ae8e9050fb6c79661fd4b432367564e7502297b6e9c34"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_lizard.png",
+      "size": 16550,
+      "sha256": "e96ff83848f943223281080ec1c4d50e57a7a5bd66c3231f672f13d57d48a0d3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_lizard_black.png",
+      "size": 15038,
+      "sha256": "ba4432617cb141b28569c62ef3aac5f0b230d77073570a9d537e2853a67529a5"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_mox.png",
+      "size": 10257,
+      "sha256": "fa7674c0caa9ef355a44351fd2f1c0b8cfce5bbefb352d41ad96376169a9883b"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_mox_blue.png",
+      "size": 10873,
+      "sha256": "7c672fe5a8a0982034c23e91c86a711f0a5d439c11b4045e8ac0c57354de30d0"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_nicola.png",
+      "size": 8177,
+      "sha256": "6ddc4343941a5257baf4a6353c2725fdda7664b1f21c52971a3dd19787841222"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_nicola_pink.png",
+      "size": 4047,
+      "sha256": "2359de14139f4cd2669bfe80e94f85b4de1e836ea361b8f9efdd589f72ef30f9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_ring.png",
+      "size": 13783,
+      "sha256": "910781a3a886f8f645986d6a629f1ad847faf9c7138fd957029c36333e06989d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_ring_black.png",
+      "size": 7311,
+      "sha256": "f34af269f585f515a7adb22c79cbe234c8351aa42d89cbe509d4a5114c58c4ff"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_skull.png",
+      "size": 10940,
+      "sha256": "0cd17be5421b085882639a227751a04b1c34164a5141a196b74f3f8a16768e9a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_skull_black.png",
+      "size": 8189,
+      "sha256": "ada2da9f9d5454efa576c29a5c6a0804586888ce18505dbc1ef0413581b7d1db"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_spider.png",
+      "size": 24458,
+      "sha256": "f256efe70e151659a43f802545465d8c80ffc78a90d08a28c3595fe28b7b7e26"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_spider_black.png",
+      "size": 25602,
+      "sha256": "93e34ca6d8ec5762569811e4cdd849e0c25c6ba031d94e0f35be0c6be8026b70"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_spiral.png",
+      "size": 24101,
+      "sha256": "f2ff3ef03278df1987e2d4ad75dcbfe0a33cef061a8bab85d54f24eceec8f8dc"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_spiral_black.png",
+      "size": 23777,
+      "sha256": "28c36a0aa2ec699f0a90532a446a4bb858c73e052d4b43e617c1390833c8fc0a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_splash.png",
+      "size": 16620,
+      "sha256": "9f6d350e19c4c871b614f30bf23ccc29539e5f20d4b04647bb637939a4d9295a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_splash_black.png",
+      "size": 13734,
+      "sha256": "6a5c3fcc2bedf955bdb0fd0d1e7470359a5080998e981d6e3a281d296b96dda8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_target.png",
+      "size": 13131,
+      "sha256": "9cfe454dea89218126d3c162e973b80c4b89f7637c63a1af031062d1645a5b6a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_target_black.png",
+      "size": 13768,
+      "sha256": "480022ff9b710248cdd3052fa6b7f28ba54befa45489e575d300aab239f693a0"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_valentinos.png",
+      "size": 11544,
+      "sha256": "809f476d569e9df234c971fabddb3bf6c11eaf5e756e5e67d54620fc87cfa144"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_valentinos_black.png",
+      "size": 5296,
+      "sha256": "f9010579daaf40929c3be3938190fa86ac39571a81cb6947c2433816f757ab02"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_warning.png",
+      "size": 4940,
+      "sha256": "2f57e4cfb182c5db5311d106894f342d5f8504c2b014fc68d37062329ec8afb1"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_warning_black.png",
+      "size": 4068,
+      "sha256": "91d9818960b00eaf09a5bf221c363e1542f969921997038151fa367ed3d59261"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_x_sign.png",
+      "size": 12392,
+      "sha256": "32314dfd6a25fa96d574c0dc8400acd48c67cabe81b2f9c7b6af3ff8722e99ea"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_multilayer_x_sign_black.png",
+      "size": 11425,
+      "sha256": "c712af24723b0cd9b883bf1cc861ab195408a4e9afb26e7a4236eb5fda5407b4"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_rebecca_baby_pink.png",
+      "size": 8114,
+      "sha256": "fd9ad106f2837a19ba4168d4d6045eaf44ce96365151ed1f6a0d7c0c8da59a8f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_rebecca_blue.png",
+      "size": 7687,
+      "sha256": "b615a56d4a16611fd29069d84d6cfb3e7ee71c0cc66a828b412e9af291db8917"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_rebecca_cyan.png",
+      "size": 7589,
+      "sha256": "489146f93a7ad8656c4742ddd2bf241de86c67a95f00bfed1518ada52abbf312"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_rebecca_green.png",
+      "size": 7732,
+      "sha256": "3abf9152ec2d4bcd4cf1a0d8aa8da17d0ea0e56c4435e04f6b12fd81e33dbbf2"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_rebecca_pink.png",
+      "size": 8062,
+      "sha256": "cac7a2b7a2ecc50acf2485a2b0468fc17fdfeea0dad6d6586fec44f583e37765"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_rebecca_red.png",
+      "size": 7216,
+      "sha256": "4b5d2a9def1d0c0ec777a9ddcde2eb2a02bc0f35d34b5770bf2580826aa876f6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_ring_green.png",
+      "size": 12597,
+      "sha256": "d39e1777a98b36f91cbfd6235c795c76d2c8c9e6a38e7a917b583f55e48014ac"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_ring_orange.png",
+      "size": 12809,
+      "sha256": "ca1f3060b2b9b3c76c4405fa2b1e25c4d8e1a64c398d7532e391f2b32e3453b9"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_standclear.png",
+      "size": 16853,
+      "sha256": "942f9416a473a03e7ee532db57c7a697a0dd53702de89ae3d26d3f7f2ae77991"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cc_thumb_standclear_black.png",
+      "size": 15203,
+      "sha256": "b0755aa1351bbf4ef49e9d51532af235676dc03faa33a13acd46e637da6eb198"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_01_ca_pale.png",
+      "size": 802,
+      "sha256": "eb9bfa08f068675388eb7dfbb31a2a4bc4577c8b6a31f4693292bbe2833c1b17"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_02_ca_limestone.png",
+      "size": 757,
+      "sha256": "d0cd6c557cb99924e13723aca58ab8dd6f691e63aa87893a82d5896bca4d2e37"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_03_ca_senna.png",
+      "size": 798,
+      "sha256": "219dc0335f077c92e5fe11c6160798df414889eb25f733a5e9fc8c4e6356bc09"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_04_ca_almond.png",
+      "size": 731,
+      "sha256": "3b9d625600ead4f6079b7d5ec80988094c4801e6905cc2370647b9379e081fda"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_05_bl_espresso.png",
+      "size": 674,
+      "sha256": "0a6a5365f6ce612002bf559e3c465164d6d4af922e466d99928c33a2588d4f96"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_06_bl_dark.png",
+      "size": 613,
+      "sha256": "6141f6c545cadd5cee226dea1bceade67553000a5b67df6cb7dc7b294c142e6e"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_07_warm_ivory.png",
+      "size": 842,
+      "sha256": "ac19b52aac9b61716dfc9aff1f6a232e7a5da06601ff49d214fddf838aa1d266"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_08_beige.png",
+      "size": 935,
+      "sha256": "0d5457b0ecbd7c7a5f8c54b49c44fedc9dff7c41d533d711b3690d91c3436e62"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_09_amber.png",
+      "size": 792,
+      "sha256": "a63f37dbef3608a320ccd4fb27a4686bd677070ed70a5da41a5a701b45482d33"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_10_honey.png",
+      "size": 763,
+      "sha256": "5460d4612054571214815c3ed8843ec39ac54d73244258173eff550ba8b148b1"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_11_band.png",
+      "size": 766,
+      "sha256": "f9f5d6114ae73ffd575279acd472d983e2ba288645ca58aa98c81658c24f5da2"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/ccthumb_12_umber.png",
+      "size": 777,
+      "sha256": "567cd130748ca586600c336f2e9cab157fb57bdea494465642072b2ae9167f10"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__01_Brown.png",
+      "size": 2458,
+      "sha256": "8201c43087bbbdfd16fca8603c86ca1be8530b457498c24f63a4c6ea73beafa6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__02_Pink.png",
+      "size": 5906,
+      "sha256": "080f31b5489838903e56b9f90308560dd7b605446699d65da3af0169200121ca"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__03_Red.png",
+      "size": 4629,
+      "sha256": "45d6518eaaebd6209d8a27b377c5ccb0e126df64d251360b262d7accef0d61a8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__04_goldenbrown.png",
+      "size": 3123,
+      "sha256": "b6abc081a0d68116e846d4c5c438231a5bb734e49b2a3490c7a6c29fb2d4b0fc"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__05_peach.png",
+      "size": 5820,
+      "sha256": "dca18348333345798a2311e82c48483deef628522b448336c168ece3cff2159d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__06_raspberry.png",
+      "size": 2719,
+      "sha256": "800480d2ef2b39c66ea1bb5b5b8185f5f9dc8157376e560f0eab7a44a8f49c36"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__07_magenta.png",
+      "size": 4304,
+      "sha256": "e1509e2dbcf92ab2b273fbb2e70872494c32ead0f8b7f7855cd26d235cbf8bba"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/cheeks_color__08_green.png",
+      "size": 4897,
+      "sha256": "b1c032570a91c489772da9941fecf77053b112f42dbc7b9a911fb2ca50ee63e3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/freckles_01_black.png",
+      "size": 3220,
+      "sha256": "f3a9ef6e6907949f34b1308b72dbaca2c14404ea9f2ee66d6d9cc0ff6975a52c"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/freckles_02_very_ligh_brown.png",
+      "size": 7346,
+      "sha256": "4bc4550d48592e9de57b185599063b600a2ed46478b1b8e1844396a0ea0cf86a"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/freckles_03_light_brown.png",
+      "size": 6956,
+      "sha256": "0df469a2be68b43504d2a0d73eb576769a69aa57844ab22acc707a9b1cbc994f"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/freckles_04_brown.png",
+      "size": 5624,
+      "sha256": "6621567ad071f79e9468d3dbbfa566d8c7cfd967e2dc9a0c1f12d6babe3484b3"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/lips_color__10_peach.png",
+      "size": 8471,
+      "sha256": "948d8daafd1eee40f1724aecda5f1c5350988b067092754ef7e0b863514f97a8"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/lips_color__11_burgundy.png",
+      "size": 3154,
+      "sha256": "f7c123e8b4aa055b82cd3a03e578fcdec7716cdbe66c94550fafeb53a5406dfe"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/lips_color__12_brown.png",
+      "size": 3405,
+      "sha256": "98ed106ab9ceb6b0ba72e51e95cf75fc57be86b4dd5f2be28d80ece2d2a0a1a6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/lips_color__13_scarlet.png",
+      "size": 4646,
+      "sha256": "67a65af5816c5ad818400118ef119073179ceb40bc3b887ccf7d0792e0e95ddb"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/lips_color__14_pastel_pink.png",
+      "size": 7787,
+      "sha256": "dc7b22a107aca594823a339a4bf84068a056daad41049a7df45eaecec65a42b7"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/makeup_color__10_orange.png",
+      "size": 6500,
+      "sha256": "d61692d9cc0a693faddaf1c559ac9dd6dbac392e9ddc76c924da3fc2d51feefe"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/makeup_color__11_teal.png",
+      "size": 6424,
+      "sha256": "164ee6e045b85fb567f00d131d8abeb24a0061f04b9532af15af992ef57d1b9c"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/makeup_color__12_grey.png",
+      "size": 8985,
+      "sha256": "cb9f521f9d1ecb8aec76c748018f58c079d34a46529349c4fb5a8abf2ae5112d"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/makeup_color__13_brown.png",
+      "size": 3405,
+      "sha256": "98ed106ab9ceb6b0ba72e51e95cf75fc57be86b4dd5f2be28d80ece2d2a0a1a6"
+    },
+    {
+      "path": "resources/system/open77_creator/ui/thumbs/makeup_color__14_neon_yellow.png",
+      "size": 8570,
+      "sha256": "d48b3c646f0dbdb82984a36533d4cd0c3feb2432f0a3f3cd7082f0bc082acda9"
     },
     {
       "path": "resources/system/open77_cyberware/README.md",
@@ -3203,81 +4520,6 @@
       "path": "resources/system/open77_interactions/web/open77-ui.css",
       "size": 9742,
       "sha256": "1abe8c96d51b556bfe353b0d596d456454ee9711b3559568414f85afd6faeab5"
-    },
-    {
-      "path": "resources/system/open77_media/README.md",
-      "size": 2203,
-      "sha256": "f8fa332ef6bde623d97ac0ffb46a3c159900788d26a6aa8b0551016c75725645"
-    },
-    {
-      "path": "resources/system/open77_media/client/main.lua",
-      "size": 43791,
-      "sha256": "d0e7eb1e8653d3e711ea51ef5964da9e2174152fffff050a09313e8bc64de92d"
-    },
-    {
-      "path": "resources/system/open77_media/open77.lua",
-      "size": 4327,
-      "sha256": "134a2bcffecfea528f9fc4a453afccae1014ff8e2dc29408d7fa9a4d2ad47d4f"
-    },
-    {
-      "path": "resources/system/open77_media/server/adblock.lua",
-      "size": 17634,
-      "sha256": "03ce54bd203c3dcebc4d3069c397782bdd81983da42bcf18bcc1b397832d4f28"
-    },
-    {
-      "path": "resources/system/open77_media/server/config.lua",
-      "size": 4379,
-      "sha256": "ad85c79ec3d4d33b3d74938eb26bad3b91f59eb25b2b645f0fbfb836c250bb1e"
-    },
-    {
-      "path": "resources/system/open77_media/server/main.lua",
-      "size": 64450,
-      "sha256": "3e37e36602a526cae84e917dd087046f3a78718b0c4325338fe29ed87b564c00"
-    },
-    {
-      "path": "resources/system/open77_media/shared/placement.lua",
-      "size": 17430,
-      "sha256": "cad2e2b005d739b6fd8cdab4c0225c7a9c30c9169840acd493474f5653b14bf4"
-    },
-    {
-      "path": "resources/system/open77_media/shared/records.lua",
-      "size": 46667,
-      "sha256": "e7f2acf3bb547bf6cf80f1a05db90cb3f21637b1e6c576374689d3b071a8e27e"
-    },
-    {
-      "path": "resources/system/open77_media/tests/adblock_test.lua",
-      "size": 13205,
-      "sha256": "20419704829d9ac54de3a4f482aa83ee34d27d59387f8085417688bae07efd10"
-    },
-    {
-      "path": "resources/system/open77_media/tests/client_test.lua",
-      "size": 29739,
-      "sha256": "b3e4e36e7d419573c6ae876a118aa924f601900b4e0260640170de783fd7a9ea"
-    },
-    {
-      "path": "resources/system/open77_media/tests/placement_test.lua",
-      "size": 22327,
-      "sha256": "94ab7e5df036f43092185fca0733d8b4047ecc31621cf895b61e88cf2ac5abee"
-    },
-    {
-      "path": "resources/system/open77_media/tests/records_test.lua",
-      "size": 34556,
-      "sha256": "5ca2c81bfad76a631fb2f986e47776c428de94b80e33a981dc23ec22ffdbd0b4"
-    },
-    {
-      "path": "resources/system/open77_media/web/tv.css",
-      "size": 13048,
-      "sha256": "2748daa0800cc14700e908de862ad45aead449f589edae8e28c1c7265768858a"
-    },
-    {
-      "path": "resources/system/open77_media/web/tv.html",
-      "size": 7958,
-      "sha256": "e1f354b787affc28edcbf01508383b24453e1b8543ac00f749af09b23585e7e7"
-    },
-    {
-      "path": "resources/system/open77_media/web/tv.js",
-      "size": 64511,
-      "sha256": "c4a0b8c28c1b114573625a317b7fb8d7e428eef022161deb27889e3ba7319e08"
     },
     {
       "path": "resources/system/open77_nameplates/README.md",
@@ -3640,6 +4882,176 @@
       "sha256": "35249ea366fe4d9bc7783fabc7a879fe92627f09bafe2c95410224a7c889c9f9"
     },
     {
+      "path": "resources/system/open77_quickhack/README.md",
+      "size": 1757,
+      "sha256": "1d8cdc62837957520f52de12f3cbecbc173db596f5a0895c72fbef8d1e129108"
+    },
+    {
+      "path": "resources/system/open77_quickhack/client/main.lua",
+      "size": 38120,
+      "sha256": "79461e9468db8473035facdde72aa2ff5957a5caf8a4aa2f83be5e399f0ca7da"
+    },
+    {
+      "path": "resources/system/open77_quickhack/client/ui.lua",
+      "size": 35957,
+      "sha256": "9dec996cc1fa7eddd7d93507fbf965621535c6748e457dc94438212a6f4b23bc"
+    },
+    {
+      "path": "resources/system/open77_quickhack/open77.lua",
+      "size": 1445,
+      "sha256": "28bf4171f7ae34aec0f123efc6df7391621045e588012e890e3979f8b42c3edd"
+    },
+    {
+      "path": "resources/system/open77_quickhack/server/examples.lua",
+      "size": 6224,
+      "sha256": "a84c85f270de00ac3e4d7ccc7971293baaa9d5234590d3ae6a9596b43ca6e4f9"
+    },
+    {
+      "path": "resources/system/open77_quickhack/server/main.lua",
+      "size": 34965,
+      "sha256": "5f0db8af2900e6acddf6a9f4ed713fa56d5d17a4b8772a7a7e175ad2a7611508"
+    },
+    {
+      "path": "resources/system/open77_quickhack/shared/config.lua",
+      "size": 3435,
+      "sha256": "9e6c69d1ad4c1c972dbd3f436da9766bcce42a06420d02a16398b12ed83c173c"
+    },
+    {
+      "path": "resources/system/open77_quickhack/shared/presets.lua",
+      "size": 5696,
+      "sha256": "e475d75c79f54cc4db22f45e9cd873d5e912745e91df3e5e6e7a71be06e4f8ea"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/blind.png",
+      "size": 3001,
+      "sha256": "6b24fc3354771f71c4a73fd02fbcab2bbc92808843b26faa6e23d2970f2e786e"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/breach_protocol.png",
+      "size": 2240,
+      "sha256": "d64e9875d048f2a7f4de9e53e894689176691ced314d1e239c9581ae23daa815"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/contagion.png",
+      "size": 3089,
+      "sha256": "a2ecf6cd904fbbd547583ad3add0b73f7e2760280c6a8f4c30ab33161c41a626"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/cripple_movement.png",
+      "size": 2508,
+      "sha256": "fe0510cf0cecc0e479a3d6b537133ff55e6cebf9c73713ea2f1b65da2cfedacc"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/cyberpsychosis.png",
+      "size": 3730,
+      "sha256": "3532f6905b2c7fad68012a6ee32ee652d72cb5314deb92dfd87db8136f6462de"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/data.png",
+      "size": 1311,
+      "sha256": "5d399245c8ef46f3a46a30505d4165aafe806d1a778884345f3bb9ffce7de5ff"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/detonate_grenade.png",
+      "size": 3117,
+      "sha256": "552c63d792a1721574a2ca38b0ade140780def41082a4f4dfe8e8d780eb31850"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/distract.png",
+      "size": 2215,
+      "sha256": "4b1eac958c0c7f1e7b1b42f57015cdb59a53845d5202f52fd42001a2cb579251"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/generic.png",
+      "size": 2095,
+      "sha256": "3f16eaa0b7c67886a0031be6b9cf7ce45b3cd49709c4f761d15f9ffd341892e4"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/malfunction.png",
+      "size": 3674,
+      "sha256": "b2b97f697a354acf257a66127833cf27dc066eb13d4c9b6f6026a668b833f009"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/memory_wipe.png",
+      "size": 3123,
+      "sha256": "cd11432a211a101aefd305023ce8c3dc2928df3364811f25d363652baee908c2"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/overheat.png",
+      "size": 3764,
+      "sha256": "1942e97d7a0d5878cdd106a2aa46bd53e8b5e53280c453a3e42b19ab20e1bdbf"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/overload.png",
+      "size": 1987,
+      "sha256": "23fd07e8170bc2ac8ee24252fcdc3c2007b95f5465f9edd1a9ac48e8bdb600ec"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/ping.png",
+      "size": 3770,
+      "sha256": "481b681c4373d18c3da736b78a986b328ecaa6b840fc48360c40464f860e9c80"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/ram.png",
+      "size": 1319,
+      "sha256": "a91415136ad4efee0d9b22b61fc09b0b9ad001cc3bfde91dc0b1176a691afda1"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/reboot_optics.png",
+      "size": 4496,
+      "sha256": "472b29b207ceea5236f3276c41233da5ab395751b1619fd13bf9dc0614b59806"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/request_backup.png",
+      "size": 3881,
+      "sha256": "c3e3a85218f89f098022d353fbeb2879c4812bc82d536952f490eb8c59b204cc"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/short_circuit.png",
+      "size": 2317,
+      "sha256": "da1d021540ae05750e78332920e69ea347c6efd1f5313b787ca054d441b2fcb4"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/sonic_shock.png",
+      "size": 2365,
+      "sha256": "819f9901f787ec80608a7812dc03eeba2edc501456b53c35a3d419f1b90d08f8"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/suicide.png",
+      "size": 2657,
+      "sha256": "f4a7040de44ffb6b5f72a38c862465f8cf2db07137249bba54320f19bda41143"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/synapse_burnout.png",
+      "size": 3686,
+      "sha256": "91b327dc3d83be6e927b446e65bdaefdae969ff8d718e8f00e252232d184c9dc"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/system_reset.png",
+      "size": 3104,
+      "sha256": "297d532f7ff9017d1a5a003c48fb139f103d0508dbc33eae285f3d3b096248be"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/takeover.png",
+      "size": 3324,
+      "sha256": "20f714fc8b5bf49d491bf5543509ae246b7bae824df3db6344bea606ba9580db"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/icons/weapon_glitch.png",
+      "size": 2774,
+      "sha256": "e5d9db9dec102c1541b36106c2485ab459f42b55df41f1d101ff3a04ea51b0eb"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/quickhack.rcss",
+      "size": 24179,
+      "sha256": "f31395de63f376d6f3a6ba05fdb6dcaf46fd61f5428b8c73bbec591f89320b86"
+    },
+    {
+      "path": "resources/system/open77_quickhack/ui/quickhack.rml",
+      "size": 7553,
+      "sha256": "8433ff1be7306ac821ab96afbab630bf3949e67a94aa895800f3dee54d5d985c"
+    },
+    {
       "path": "resources/system/open77_reflex/README.md",
       "size": 2096,
       "sha256": "8f273f8a5f81384d3a354a7fc5644ac167cabd2ff24fc64a2c71dbe7325adfcc"
@@ -3771,13 +5183,13 @@
     },
     {
       "path": "resources/system/open77_shell/client/main.lua",
-      "size": 64256,
-      "sha256": "90ec1784ac2a5710696267db8c3245c20ba662ce25e1dcda3c01a39923edc768"
+      "size": 64781,
+      "sha256": "e846767daf56940d103744928fd8dcad4df068d314dfe0b03520f37050aba64d"
     },
     {
       "path": "resources/system/open77_shell/client/ui.lua",
-      "size": 66799,
-      "sha256": "c0663bbc6244d3edc51bc4c54b1ded6c68e04b03ae3682139e2f3c98af1d46a3"
+      "size": 73456,
+      "sha256": "856bc802738a3641c2b9259c3cc9f1a8d10b8570eaf7a93c33d3253631dd99b3"
     },
     {
       "path": "resources/system/open77_shell/open77.lua",
@@ -3841,13 +5253,13 @@
     },
     {
       "path": "resources/system/open77_shell/ui/shell.rcss",
-      "size": 19814,
-      "sha256": "a85acdac5855419726abeb10b676ba96bbf29d7f7870c7f75f2b98f308957b1c"
+      "size": 22741,
+      "sha256": "d5289fcb3988f6f36c77408367b9afcab57da8788aba8ee994bd48cf061e47bb"
     },
     {
       "path": "resources/system/open77_shell/ui/shell.rml",
-      "size": 17559,
-      "sha256": "7e5863c917eb56db65bad95d9c7b7cc1a7b14af7d21c7ac942b5c9c596b617d1"
+      "size": 18785,
+      "sha256": "b6fad929d3bc5b8dee131949e9a5dcd9d6a3c68e88fe55bd32b8fa2cfe21408d"
     },
     {
       "path": "resources/system/open77_traffic/README.md",
@@ -3913,6 +5325,36 @@
       "path": "resources/system/open77_traffic/web/index.html",
       "size": 6314,
       "sha256": "42d7ea9aab7e15fd63d1e03632576031b0abd106a1d800a15248bfa13f9435f9"
+    },
+    {
+      "path": "resources/system/open77_tv/client/main.lua",
+      "size": 3945,
+      "sha256": "33a9c052fca74244e8b597ca79855f94c9c6e2997e729eee80b1b7e451b9a376"
+    },
+    {
+      "path": "resources/system/open77_tv/open77.lua",
+      "size": 703,
+      "sha256": "292fd4e1218039dc4054d20b600f2b39f3c201320f0bf43f61f6348b46158efc"
+    },
+    {
+      "path": "resources/system/open77_tv/server/main.lua",
+      "size": 710,
+      "sha256": "209769dcd6bb8359b74239337d3f37fe9b9d3e845474e6acfc8ac2ca823fb239"
+    },
+    {
+      "path": "resources/system/open77_tv/web/tv.css",
+      "size": 13048,
+      "sha256": "2748daa0800cc14700e908de862ad45aead449f589edae8e28c1c7265768858a"
+    },
+    {
+      "path": "resources/system/open77_tv/web/tv.html",
+      "size": 7958,
+      "sha256": "e1f354b787affc28edcbf01508383b24453e1b8543ac00f749af09b23585e7e7"
+    },
+    {
+      "path": "resources/system/open77_tv/web/tv.js",
+      "size": 64562,
+      "sha256": "c20d2daf8862dbed7b6f3a6f619614154b57fcaff4f4744c93d69cb2c6335f08"
     },
     {
       "path": "resources/system/open77_vehicle_siren/README.md",
@@ -3996,13 +5438,13 @@
     },
     {
       "path": "resources/system/open77_wardrobe_ui/client/main.lua",
-      "size": 15871,
-      "sha256": "67c4f78ea7e8a3a9347da64093fcbaafe867365f34ee301b8849eff8146ee13a"
+      "size": 16313,
+      "sha256": "8fc7ebae8bb6ed79d21ebd215fc5976888a6f30eba7bbf605371139c1a1f270b"
     },
     {
       "path": "resources/system/open77_wardrobe_ui/open77.lua",
       "size": 544,
-      "sha256": "a55fdbd35045a3677f721467e6c9cee724703828ea6eadb7dbf1a295b67f3cf6"
+      "sha256": "b7ed1ce143897e00e74bd4966d8e14a06e0c25e8ab091c43fe8d2bb82b6846a2"
     },
     {
       "path": "resources/system/open77_wardrobe_ui/web/app.css",
@@ -4011,8 +5453,8 @@
     },
     {
       "path": "resources/system/open77_wardrobe_ui/web/app.js",
-      "size": 14927,
-      "sha256": "9d4b302b1daafc4eda055f3d8a97b481cae2644a8c097b19002a11ed7af3d050"
+      "size": 18117,
+      "sha256": "f319db390c862cbdfeddbb1405ad7dda07bb36b62624d14eb6aa0fec5c77fb46"
     },
     {
       "path": "resources/system/open77_wardrobe_ui/web/design-system.css",
@@ -4026,13 +5468,18 @@
     },
     {
       "path": "resources/system/open77_wardrobe_ui/web/index.html",
-      "size": 4075,
-      "sha256": "19e00dda8862c8aa131734463998709f026022c7d4df22f6ebd7adbe1eb14679"
+      "size": 4478,
+      "sha256": "6ad23192a94e4e3fc02aa3ced1f5a358eaa7d6adb76e3c695b73a4a8f02e8c01"
     },
     {
       "path": "resources/system/open77_wardrobe_ui/web/model.js",
-      "size": 2903,
-      "sha256": "c1638fdd80302d18905bdf77a6723b044edfb91676d8f14a6b35f7a7003c0a97"
+      "size": 4447,
+      "sha256": "378e252c074d6efd2f5b83c9f76c879491d4db2033f3d3f152dfcf74049cdf55"
+    },
+    {
+      "path": "resources/system/open77_wardrobe_ui/web/outfit-slots.js",
+      "size": 4986,
+      "sha256": "14a5b22eee197c542c6f47629ba896a8f816b0bf47cf558a5632a5601be8a4d4"
     },
     {
       "path": "resources/system/open77_watermark/README.md",
@@ -4175,9 +5622,24 @@
       "sha256": "3d83864ec72dde1052db576d19b1e771800dbc54c9869c96fff6f26f6fe86952"
     },
     {
+      "path": "runtimes/win-x64/native/scriptgo.dll",
+      "size": 399360,
+      "sha256": "2b985b60a9f4c58504d1c6e172726172ab7aebeb646c9cd2ddb72da7537bb88c"
+    },
+    {
+      "path": "scriptgo-LICENSE.txt",
+      "size": 1080,
+      "sha256": "558c2ef2b6a800c5ce744f7b83f438ee5b48633e22b1df3d2295fef5111bd3ac"
+    },
+    {
+      "path": "scriptgo.THIRD-PARTY-NOTICES.txt",
+      "size": 2825,
+      "sha256": "791fccf66c1108aa20193bed925c602e50905b3afc01ecf00805bd11d92e439e"
+    },
+    {
       "path": "templates/freeroam/template.json",
-      "size": 1666,
-      "sha256": "338409267c1ad4ffb49e8822d8f203f30f0e81725b55d5a9bfb705e785b263ca"
+      "size": 1711,
+      "sha256": "d8f98d2a6fdd4ab95fe3a338c7135af9bf11889b66a209437410be6c67c0d8c8"
     },
     {
       "path": "tools/rcon/README.md",

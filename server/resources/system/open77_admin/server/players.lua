@@ -23,6 +23,46 @@ local placeAt, announce = Admin.placeAt, Admin.announce
 local noclipOn = {}
 local noclipGrant = {}
 
+-- While flying, the operator is out of everybody else's sight and cannot be
+-- hurt by anything the server decides either (the client holds its own shield
+-- for what it simulates: fire, barbed wire, falls, status effects). Applied on
+-- the client's CONFIRMED state, so a refused activation (in a vehicle, dead)
+-- never leaves anyone invisible; released by every way out of flight. What was
+-- already true before flight -- an admin god mode, an admin invisibility -- is
+-- remembered and left exactly as it was.
+local noclipPresence = {}
+
+local function noclipPresenceOn(playerId)
+    if noclipPresence[playerId] then return end
+    local health = Open77.players.getHealth(playerId)
+    local before = {
+        god = health ~= nil and health.godMode == true,
+        visible = Open77.players.isVisible(playerId) ~= false,
+    }
+    noclipPresence[playerId] = before
+    if before.visible then
+        local ok, reason = Open77.players.setVisible(playerId, false)
+        if not ok then Open77.log.warn("admin: noclip invisibility refused: " .. tostring(reason)) end
+    end
+    if not before.god then
+        local ok, reason = Open77.players.setGodMode(playerId, true)
+        if not ok then Open77.log.warn("admin: noclip god mode refused: " .. tostring(reason)) end
+    end
+end
+
+local function noclipPresenceOff(playerId)
+    local before = noclipPresence[playerId]
+    if not before then return end
+    noclipPresence[playerId] = nil
+    if before.visible then Open77.players.setVisible(playerId, true) end
+    if not before.god then Open77.players.setGodMode(playerId, false) end
+end
+
+AddEventHandler("onPlayerDisconnected", function(id)
+    local playerId = tonumber(id)
+    if playerId then noclipPresence[playerId] = nil end
+end)
+
 local function toggleArgument(args, current)
     if args.n == 0 or args[1] == nil then return not current end
     local token = tostring(args[1]):lower()
@@ -42,6 +82,7 @@ local function setNoclip(source, args, raw, label)
     end
     noclipOn[source] = enable or nil
     noclipGrant[source] = enable and label or nil
+    if not enable then noclipPresenceOff(source) end
     TriggerClientEvent("open77_admin:travel", source, "noclip", enable)
 
     -- Apply the configured default the first time this player switches noclip
@@ -70,9 +111,13 @@ RegisterNetEvent("open77_admin:noclipState", function(active)
     if not playerId or playerId <= 0 or type(active) ~= "boolean" then return end
     if active then
         local grant = noclipGrant[playerId]
-        if grant and Admin.allowed(playerId, grant) then noclipOn[playerId] = true end
+        if grant and Admin.allowed(playerId, grant) then
+            noclipOn[playerId] = true
+            noclipPresenceOn(playerId)
+        end
     else
         noclipOn[playerId], noclipGrant[playerId] = nil, nil
+        noclipPresenceOff(playerId)
     end
 end)
 
@@ -582,7 +627,7 @@ Admin.register("admin.moderate.kick", {
     handler = function(source, args, raw)
         local playerId, reason = resolveTarget(source, args[1])
         if playerId == nil then return output(source, raw, false, reason) end
-        local text = trimReason(joinFrom(args, 2), 127) or "Kicked by an administrator."
+        local text = trimReason(joinFrom(args, 2), 127) or "Кикнут администратором."
         local ok, failure = Open77.players.kick(playerId, text)
         if not ok then return output(source, raw, false, "rejected: " .. tostring(failure)) end
         return output(source, raw, true, string.format("player %d kicked -- %s", playerId, text)),
@@ -636,7 +681,7 @@ Admin.register("admin.moderate.ban", {
             -- Anything else is the first word of the reason, and that includes
             -- a bare number. Nothing is refused here.
         end
-        local text = trimReason(joinFrom(args, reasonIndex), 200) or "Banned by an administrator."
+        local text = trimReason(joinFrom(args, reasonIndex), 200) or "Забанен администратором."
         local identifier = Open77.players.identifier(playerId)
 
         -- The server's persistent admission list is independent of master

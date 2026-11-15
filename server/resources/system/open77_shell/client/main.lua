@@ -689,6 +689,14 @@ AddEventHandler("open77:resources:progress", function(
     })
 end)
 
+-- A server resource could not start: the client host's report (resource, file, line, source
+-- window, stack) and the same report as text. It arrives just before the disconnect.
+AddEventHandler("open77:resources:activationFailed", function(reportJson, reportText)
+    local ok, report = pcall(Open77.json.decode, tostring(reportJson or "null"))
+    if not ok or type(report) ~= "table" then return end
+    send("resources:activationFailed", { report = report, text = tostring(reportText or ""):sub(1, 8000) })
+end)
+
 -- The engine's real world-streaming progress (0..1), captured natively from the
 -- vanilla loading-screen fill (see Open77ScriptBridge.reds) and forwarded here.
 -- It arrives after the resource download and during the pristine world handoff,

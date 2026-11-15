@@ -101,6 +101,24 @@ local function askName(player)
     TriggerClientEvent("rpp_identity:askName", player)
 end
 
+local function creatorRunning()
+    if type(GetResourceState) ~= "function" then return false end
+    local ok, state = pcall(GetResourceState, "open77_creator")
+    return ok and (state == "running" or state == "started")
+end
+
+-- Клиент не дождался, что open77_creator откроется сам (например, у игрока уже
+-- есть сохранённый образ): открываем его явно.
+RegisterNetEvent("rpp_identity:openCreator", function()
+    local player = source
+    if stage[player] ~= "appearance" or not creatorRunning() then return end
+    local ok, opened, reason = pcall(function() return exports.open77_creator:open(player) end)
+    if not ok or not opened then
+        log(("player %s: creator did not open (%s)"):format(tostring(player), tostring(ok and reason or opened)))
+        askName(player)
+    end
+end)
+
 local function startRegistration(player)
     local entry = load(player)
     if not entry then return false, "Не удалось определить аккаунт. Переподключитесь." end
@@ -111,7 +129,13 @@ local function startRegistration(player)
         if stage[player] == "name" then askName(player) end
         return true
     end
-    if cfg.customizeBeforeName and dbReady and not created[player] then
+    if cfg.customizeBeforeName and creatorRunning() then
+        -- 77.248: внешность создаётся в open77_creator прямо в мире. Он сам
+        -- открывается новому персонажу; клиент ждёт, пока его закроют.
+        stage[player] = "appearance"
+        TriggerClientEvent("rpp_identity:awaitCreator", player, cfg.creatorWaitSeconds)
+    elseif cfg.customizeBeforeName and dbReady and not created[player] then
+        -- Запасной путь без open77_creator: старый редактор open77_appearance.
         stage[player] = "appearance"
         TriggerClientEvent("rpp_identity:openAppearance", player, cfg.appearanceMode)
     else
@@ -136,13 +160,16 @@ AddEventHandler("open77:appearance:characterCreated", function(player)
     player = tonumber(player)
     if not player then return end
     created[player] = true
-    if stage[player] == "appearance" then askName(player) end
+    -- С open77_creator это событие приходит ДО того, как игрок увидел
+    -- редактор (персонаж создаётся сразу, внешность настраивается потом), так
+    -- что имя спрашиваем только после закрытия редактора (rpp_identity:appearanceDone).
+    if stage[player] == "appearance" and not creatorRunning() then askName(player) end
 end)
 
--- Игрок сохранил внешность в редакторе.
+-- Игрок сохранил внешность в старом редакторе open77_appearance.
 AddEventHandler("open77:appearance:saved", function(player)
     player = tonumber(player)
-    if player and stage[player] == "appearance" then askName(player) end
+    if player and stage[player] == "appearance" and not creatorRunning() then askName(player) end
 end)
 
 -- Клиент сообщает, что редактор закрыт без сохранения, отклонён или не открылся.

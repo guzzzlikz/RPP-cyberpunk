@@ -131,7 +131,10 @@ function RpAnimationController.new(io, catalogue, nonce)
             type(s.active) ~= 'boolean' or not integer(s.bucket, 0, 4294967295) or
             (s.clientRequestId ~= nil and s.clientRequestId ~= '' and not text(s.clientRequestId, 64)) or
             not array(s.steps, 16) or #s.steps < 1 or
-            not integer(s.step, 0, #s.steps - 1) or not integer(s.cycle, 0, 9007199254740991) then return false end
+            not integer(s.step, 0, #s.steps - 1) or not integer(s.cycle, 0, 9007199254740991) or
+            (s.instant ~= nil and type(s.instant) ~= 'boolean') or
+            (s.stand ~= nil and (type(s.stand) ~= 'table' or type(s.stand.x) ~= 'number' or
+                type(s.stand.y) ~= 'number' or type(s.stand.z) ~= 'number')) then return false end
         local _, anchorOk = anchorOf(s)
         if not anchorOk then return false end
         for _, step in ipairs(s.steps) do
@@ -420,7 +423,11 @@ function RpAnimationController.new(io, catalogue, nonce)
                 local old = rendered[player]
                 if not old or old.signature ~= signature then
                     local restart = old and old.profile == step.profile and old.clip == step.clip or false
-                    local ok, err = io.play(entity, step.profile, step.clip, restart, anchor)
+                    -- `instant`: no slide onto the anchor, no blend into the clip. `stand`:
+                    -- where the subject's own body waits beside a placed action.
+                    local options = nil
+                    if s.instant or s.stand then options = { instant = s.instant == true, stand = s.stand } end
+                    local ok, err = io.play(entity, step.profile, step.clip, restart, anchor, options)
                     if ok then
                         rendered[player] = { entity = entity, signature = signature, profile = step.profile, clip = step.clip }
                     elseif player ~= current.playerId and TRANSIENT[err] then

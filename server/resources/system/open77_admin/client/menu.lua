@@ -575,7 +575,7 @@ builders.root = function()
         opener("Server actions", "bulk"),
         opener("Freeroam playtest", "playtest"),
         opener("Recent actions", "audit"),
-        { label = "Close", run = function() closeMenu("item") end },
+        { label = "Закрыть", run = function() closeMenu("item") end },
     }
 end
 
@@ -634,12 +634,12 @@ builders.player = function(playerId)
         health = string.format("%d/%d", math.floor(row.health), math.floor(row.maxHealth))
     end
     return title, {
-        { label = "Identity", value = tostring(row.identifier or "unknown") },
+        { label = "Личность", value = tostring(row.identifier or "unknown") },
         { label = "Role", value = table.concat(row.roles or {}, ", ") ~= "" and table.concat(row.roles, ", ") or "player" },
-        { label = "State", value = not row.incarnated and "loading" or (row.dead and "dead" or "alive") },
+        { label = "Состояние", value = not row.incarnated and "loading" or (row.dead and "dead" or "alive") },
         { label = "Routing bucket", value = tostring(row.bucket or 0) },
         { label = "Health / armor", value = (health or "--") .. " / " .. tostring(row.armor or 0) },
-        { label = "Position", value = row.position and string.format("%.0f %.0f %.0f", row.position.x, row.position.y, row.position.z) or "unavailable" },
+        { label = "Позиция", value = row.position and string.format("%.0f %.0f %.0f", row.position.x, row.position.y, row.position.z) or "unavailable" },
         -- The bucket is disclosed rather than prevented: a player in a non-zero
         -- routing bucket is inside a gamemode's match, this resource cannot ask
         -- that gamemode whether the move is safe, and the server says the same
@@ -750,12 +750,12 @@ builders.speed = function()
         return false
     end
     return "SPEED CAPS", {
-        { label = "Cap", value = capLabel,
+        { label = "Лимит", value = capLabel,
           adjust = function(delta)
               speedCapKph = math.max(bounds.min,
                   math.min(bounds.max, speedCapKph + delta * (bounds.step or 5.0)))
           end },
-        { label = "Cap my car", value = capLabel, permission = "admin.veh.speed.here", run = function()
+        { label = "Ограничить мою машину", value = capLabel, permission = "admin.veh.speed.here", run = function()
               if requireCap() then execute("admin.veh.speed.here", capToken) end
           end },
         action("Uncap my car", nil, "admin.veh.speed.clear", "here"),
@@ -974,7 +974,7 @@ builders.effects = function()
     local rounds = tostring(math.floor(tonumber(fireworks.rounds) or 8))
     local items = {
         opener("Scripted shows", "shows"),
-        { label = "Fireworks show", value = rounds .. " volleys", permission = "admin.fx.fireworks",
+        { label = "Фейерверк", value = rounds .. " volleys", permission = "admin.fx.fireworks",
           run = function() runShowAtAim("admin.fx.fireworks", rounds) end },
         action("Stop the show", nil, "admin.fx.show.stop"),
         -- The venue, not a show: looping effects that stay until they are taken
@@ -1088,7 +1088,7 @@ builders.self = function()
         opener("Morph / original character", "morph"),
         action("Noclip", noclip, "admin.self.noclip"),
         action("Fly", nil, "admin.self.fly"),
-        { label = "Noclip speed", permission = "admin.self.speed",
+        { label = "Скорость ноклипа", permission = "admin.self.speed",
           value = string.format("%.0f m/s", data.noclipSpeed or speed.default),
           -- The value is written by the command's own reply, not guessed here:
           -- `admin.self.speed` is the authority and the client half mirrors it
@@ -1153,7 +1153,7 @@ builders.morph = function()
     local model = type(GetPlayerModel) == "function" and GetPlayerModel() or nil
     return "MORPH", {
         {label="Current model", value=model and model.record or "Original character"},
-        {label="State", value=model and model.status or "original"},
+        {label="Состояние", value=model and model.status or "original"},
         action("Unmorph — original character", nil, "admin.self.unmorph"),
         inputItem("Search all morphs…", {tokens={"admin.self.morph.search"}, label="Character name, ID or category",
             hint="Extracted records, not guaranteed compatible. Up to 8 words.",
@@ -1205,9 +1205,9 @@ builders.morphCatalogue = function()
             tokens={"admin.self.morph",entry.record,morphAppearance}}, entry.category)
     end
     if result.total == 0 then items[#items+1]={label="No matching records"} end
-    if result.page > 1 then items[#items+1]={label="Previous page",permission="admin.self.morph.search",
+    if result.page > 1 then items[#items+1]={label="Предыдущая страница",permission="admin.self.morph.search",
         run=function() searchModels(request.category,request.query,result.page-1,false) end} end
-    if result.page < result.pages then items[#items+1]={label="Next page",permission="admin.self.morph.search",
+    if result.page < result.pages then items[#items+1]={label="Следующая страница",permission="admin.self.morph.search",
         run=function() searchModels(request.category,request.query,result.page+1,false) end} end
     items[#items+1]=action("Unmorph — original character",nil,"admin.self.unmorph")
     return "MORPH CATALOGUE",items
@@ -1243,7 +1243,7 @@ builders.targetDoor = function(selected)
     if not door then return "DOOR", {{label="Door is no longer streamed"}} end
     local items = {
         {label="Door ID", value=door.id},
-        {label="State", value=door.sealed and "SEALED" or door.locked and "LOCKED" or door.open and "OPEN" or "CLOSED"},
+        {label="Состояние", value=door.sealed and "SEALED" or door.locked and "LOCKED" or door.open and "OPEN" or "CLOSED"},
     }
     if door.lift then
         items[#items+1] = {label="Lift door", value="Controlled by elevator"}
@@ -1778,8 +1778,13 @@ AddEventHandler("onClientResourceStart", function(name)
         draw()
     end)
 
-    -- Reuse the existing transparent HUD: no extra browser/surface for flight.
+    -- The flight strip is a NativeUI document (client/noclip_hud.lua); the WebUI
+    -- panel in web/menu.html is only the fallback for a client without NativeUI.
     -- Poll at 10 Hz and send only changes; keyboard ownership remains native.
+    -- Guarded: a host that loads this file alone (the Lua tests do) has no NoclipHud.
+    local strip, stripWhy = nil, "noclip_hud_missing"
+    if type(NoclipHud) == "table" then strip, stripWhy = NoclipHud.create() end
+    if not strip then Open77.log.info("admin: noclip strip on WebUI (" .. tostring(stripWhy) .. ")") end
     CreateThread(function()
         local previous, previousSpeed, previousPaused, previousBoost, previousSlow
         while page ~= nil do
@@ -1790,9 +1795,10 @@ AddEventHandler("onClientResourceStart", function(name)
             local paused = Open77.input.isCaptured() == true or Open77.session.isMenuOpen() == true
             local boost = active and not paused and (Open77.input.isDown("shift") or Open77.input.isDown("padLeftShoulder")) == true
             local slow = active and not paused and (Open77.input.isDown("alt") or Open77.input.isDown("padRightShoulder")) == true
-            if pageReady and (active ~= previous or speed ~= previousSpeed or paused ~= previousPaused or boost ~= previousBoost or slow ~= previousSlow) then
-                page:send("menu:noclip", { active = active, speed = speed, paused = paused,
-                    effective = speed * (boost and 4 or 1) * (slow and 0.25 or 1), boost = boost, slow = slow })
+            if (pageReady or strip) and (active ~= previous or speed ~= previousSpeed or paused ~= previousPaused or boost ~= previousBoost or slow ~= previousSlow) then
+                local sample = { active = active, speed = speed, paused = paused,
+                    effective = speed * (boost and 4 or 1) * (slow and 0.25 or 1), boost = boost, slow = slow }
+                if strip then strip.update(sample) else page:send("menu:noclip", sample) end
                 TriggerEvent("open77_admin:noclipChanged", active, speed)
                 -- Only transitions hit the network, never wheel/keyboard samples.
                 if previous ~= nil and active ~= previous then
@@ -1804,6 +1810,7 @@ AddEventHandler("onClientResourceStart", function(name)
             end
             Wait(active and 100 or 300)
         end
+        if strip then strip.destroy() end
     end)
 
     page:on("menu:viewport", function(payload)

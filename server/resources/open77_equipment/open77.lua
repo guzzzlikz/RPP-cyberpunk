@@ -1,5 +1,5 @@
 resource "open77_equipment"
-version "0.2.1"
+version "0.3.0"
 open77_version ">=0.0.1"
 auto_start true
 reload_policy "local"

@@ -15,7 +15,11 @@ RppIdentityConfig = {
     -- Даже при true кастомизация пропускается, если на сервере нет MySQL:
     -- без неё редактор open77_appearance не открывается.
     customizeBeforeName = true,
-    -- Режим редактора: "ripperdoc" (всё тело) или "hairdresser" (причёска).
+    -- Если запущен open77_creator (77.248), внешность создаётся в нём, MySQL не нужна.
+    -- Сколько секунд ждать, что он откроется сам, прежде чем открыть его явно.
+    creatorWaitSeconds = 25,
+    -- Запасной путь без open77_creator: старый редактор open77_appearance.
+    -- Режим: "ripperdoc" (всё тело) или "hairdresser" (причёска).
     appearanceMode = "ripperdoc",
 
     -- Знакомство: максимальная дистанция (м) и сколько секунд живёт предложение.

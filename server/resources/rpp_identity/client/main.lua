@@ -118,6 +118,39 @@ RegisterNetEvent("rpp_identity:openAppearance", function(mode)
     end)
 end)
 
+-- 77.248: внешность создаётся в open77_creator. Он открывается сам, когда
+-- новый персонаж встал в мире (это может занять несколько секунд). Ждём, пока
+-- его закроют (сохранили или «Позже»), и только тогда просим имя.
+local creatorOpen = false
+local creatorSeen = false
+AddEventHandler("open77_creator:visibility", function(open)
+    creatorOpen = open == true
+    if creatorOpen then creatorSeen = true end
+end)
+
+RegisterNetEvent("rpp_identity:awaitCreator", function(waitSeconds)
+    if awaitingAppearance then return end
+    awaitingAppearance = true
+    creatorSeen = creatorOpen
+    waitSeconds = tonumber(waitSeconds) or 25
+    notify("info", "Создайте внешность персонажа. После этого вы введёте имя и фамилию.")
+    CreateThread(function()
+        local started = Open77.time.monotonic()
+        local asked = false
+        while awaitingAppearance do
+            local t = Open77.time.monotonic() - started
+            if creatorSeen and not creatorOpen then return appearanceDone("creator_closed") end
+            if not creatorSeen and not asked and t > waitSeconds then
+                -- Сам не открылся (у персонажа уже есть образ): просим сервер открыть.
+                asked = true
+                TriggerServerEvent("rpp_identity:openCreator")
+            end
+            if not creatorSeen and t > waitSeconds + 20 then return appearanceDone("creator_never_opened") end
+            Wait(500)
+        end
+    end)
+end)
+
 AddEventHandler("open77:appearance:cancelled", function() appearanceDone("cancelled") end)
 RegisterNetEvent("open77:appearance:rejected", function(_, reason)
     appearanceDone("rejected:" .. tostring(reason))

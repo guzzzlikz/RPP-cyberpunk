@@ -99,6 +99,7 @@
 
 | Команда | Доступ | Что делает |
 |---|---|---|
+| `/creator` | Игрок | Создание персонажа `open77_creator` (77.248): тело, лицо, волосы, макияж, тату. Новому персонажу открывается само. Работает и без MySQL |
 | `/appearance [ripperdoc\|hairdresser] [male\|female]` | Игрок | Открыть редактор внешности (рипердок — всё тело, парикмахер — причёска) |
 | `/appearance male` / `/appearance female` | Игрок | Полный редактор с выбором тела |
 | `/barber` | Игрок | Редактор причёски |
@@ -138,7 +139,7 @@
 | Команда | Что делает |
 |---|---|
 | `freeroam.tp`, `freeroam.respawn`, `freeroam.revive`, `freeroam.cleanup` | Управление игроками и уборка мира |
-| `tv` | Телевизоры (общие экраны `open77_media`) |
+| `tv [url]` | Поставить перед собой телевизор с видео (YouTube, Vimeo, файл), `open77_tv`. Его видит только тот, кто поставил. **J** — сесть перед экраном |
 | `race.editor`, `race.course.select`, `race.force`, `race.probe` | Редактор трасс и управление гонкой |
 | `dm.goto`, `dm.leash`, `dm.map`, `dm.bot`, `dm.survey`, `dm.stats.of`, `dm.rating.sim`, `dm.arena.mock` | Служебные команды PvP: карты, боты, рейтинг |
 | `admin.playtest.foot`, `.race`, `.ffa`, `.blade`, `.cancel` | Массово отправить игроков в режим для теста |

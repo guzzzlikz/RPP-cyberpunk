@@ -168,7 +168,14 @@ local function applyPreview(value)
     end
     local ok, reason = Open77.wardrobe.activate(value.wardrobe.active)
     if not ok then return nil, reason end
-    return Open77.equipment.apply(value.equipment, {replace=true,allowRestricted=true})
+    ok, reason = Open77.equipment.apply(value.equipment, {replace=true,allowRestricted=true})
+    if not ok then return nil, reason end
+    -- Layered look (Equipment-EX slots). A client without the layer API keeps the base preview.
+    if type(value.layers) == "table" and type(Open77.layers) == "table" then
+        local slots = type(value.layers.slots) == "table" and value.layers.slots or {}
+        return Open77.layers.apply({active=value.layers.active == true, slots=slots}, {replace=true})
+    end
+    return true
 end
 RegisterNetEvent("open77:presentation:commitResult", function(id, ok, reason, value)
     if not opened or not waiting or waiting.id ~= id then return end
