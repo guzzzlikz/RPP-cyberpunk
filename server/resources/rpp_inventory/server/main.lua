@@ -20,6 +20,7 @@ local dropCount, nextDropId = 0, 1
 local sentDrops = {}  -- [playerId] = подпись последнего отправленного списка
 local trades = {}     -- [tradeId] = обмен (см. раздел «Обмен» ниже)
 local playerTrade = {} -- [playerId] = tradeId
+local playerContainer = {} -- [playerId] = ключ открытого хранилища (см. «Хранилища»)
 
 local WEAR = {}       -- [slot] = { wire, label }
 for _, row in ipairs(RppWearSlots) do WEAR[row.slot] = row end
@@ -1180,6 +1181,8 @@ local function offerTrade(from, target)
     if not inv[from] or not load(target) then return false, "Игрок недоступен." end
     if playerTrade[from] then return false, "Вы уже в обмене." end
     if playerTrade[target] then return false, "Этот игрок уже с кем-то меняется." end
+    if playerContainer[from] then return false, "Сначала закройте багажник." end
+    if playerContainer[target] then return false, "Этот игрок сейчас занят." end
     local d = distance(from, target)
     if d and d > cfg.tradeDistance then return false, "Подойдите ближе, чтобы предложить обмен." end
     -- Встречное предложение — сразу начинаем.
@@ -1207,6 +1210,7 @@ local function acceptTrade(target, from)
     list[from] = nil
     pushOffers(target)
     if playerTrade[from] or playerTrade[target] then return false, "Кто-то из вас уже в обмене." end
+    if playerContainer[from] or playerContainer[target] then return false, "Кто-то из вас сейчас у багажника." end
     local d = distance(from, target)
     if d and d > cfg.tradeDistance then return false, "Подойдите ближе, чтобы начать обмен." end
     startTrade(from, target)
@@ -1371,6 +1375,180 @@ RegisterCommand("trade", function(player, args, raw)
         if message then reply(player, raw, ok == true, message) end
     end)
 end, false)
+
+-- ---------------------------------------------------------------------------
+-- Хранилища: багажник машины и т. п.
+--
+-- Хранилище открывает другой серверный ресурс (rpp_vehicles) через экспорт
+-- openContainer — права и дистанцию проверяет он и сам закрывает хранилище
+-- (closeContainer), когда игрок отошёл или потерял права. Здесь — только
+-- предметы: список без сетки, вместимость в ячейках (сумма w*h).
+-- Одно хранилище могут открыть несколько игроков сразу: все видят одно и то же.
+-- ---------------------------------------------------------------------------
+local containers = {}       -- [key] = { key, label, capacity, nextUid, items = { inst... }, viewers = { [playerId] = true } }
+local containerLoading = {} -- [key] = true
+local CONTAINER_MAX_ITEMS = 60
+
+local function containerUsed(c)
+    local used = 0
+    for _, inst in ipairs(c.items) do local w, h = sizeOf(inst); used = used + w * h end
+    return used
+end
+
+local function getContainer(key)
+    while containerLoading[key] do Wait(20) end
+    if containers[key] then return containers[key] end
+    containerLoading[key] = true
+    local data, err = RppInvStore.loadContainer(key)
+    containerLoading[key] = nil
+    if err then log("container " .. key .. " load failed: " .. tostring(err)); return nil end
+    local c = { key = key, label = "Хранилище", capacity = 40, nextUid = 1, items = {}, viewers = {} }
+    for _, row in ipairs(type(data) == "table" and type(data.items) == "table" and data.items or {}) do
+        if type(row) == "table" and describe(row.id, row.meta) then
+            local uid = math.floor(tonumber(row.uid) or c.nextUid)
+            c.items[#c.items + 1] = { uid = uid, id = row.id, meta = row.meta }
+            if uid >= c.nextUid then c.nextUid = uid + 1 end
+        end
+    end
+    containers[key] = c
+    return c
+end
+
+local function saveContainer(c)
+    local items = {}
+    for _, inst in ipairs(c.items) do items[#items + 1] = { uid = inst.uid, id = inst.id, meta = inst.meta } end
+    local ok, err = RppInvStore.saveContainer(c.key, { v = 1, nextUid = c.nextUid, items = items })
+    if not ok then log("container " .. c.key .. " save failed: " .. tostring(err)) end
+    return ok
+end
+
+local function pushContainer(c)
+    local items = {}
+    for _, inst in ipairs(c.items) do items[#items + 1] = view(inst) end
+    table.sort(items, function(l, r) return l.uid < r.uid end)
+    local payload = { key = c.key, label = c.label, capacity = c.capacity, used = containerUsed(c), items = items }
+    for viewer in pairs(c.viewers) do TriggerClientEvent("rpp_inventory:container", viewer, payload) end
+end
+
+local function closeContainerFor(playerId, reason)
+    local key = playerContainer[playerId]
+    if not key then return false end
+    playerContainer[playerId] = nil
+    local c = containers[key]
+    if c then
+        c.viewers[playerId] = nil
+        if next(c.viewers) == nil then containers[key] = nil end -- всё уже сохранено
+    end
+    TriggerClientEvent("rpp_inventory:containerClosed", playerId, reason)
+    if reason then notify(playerId, "warning", reason) end
+    return true
+end
+
+local function containerEvent(name, handler)
+    RegisterNetEvent("rpp_inventory:" .. name, function(...)
+        local playerId = tonumber(source)
+        if not playerId or not allowed(playerId) then return end
+        local args = table.pack(...)
+        CreateThread(function()
+            local state = load(playerId)
+            local key = playerContainer[playerId]
+            local c = key and containers[key]
+            if not state or not c then return end
+            local ok, changedNow, message = pcall(handler, playerId, state, c, table.unpack(args, 1, args.n))
+            if not ok then log(name .. " failed: " .. tostring(changedNow)); changedNow, message = false, "Внутренняя ошибка инвентаря." end
+            if message then notify(playerId, changedNow and "success" or "error", message) end
+            if changedNow then
+                markDirty(playerId)
+                flush(playerId)   -- сразу: предмет не должен оказаться и тут, и там
+                saveContainer(c)
+                pushContainer(c)
+            end
+            pushState(playerId, false)
+        end)
+    end)
+end
+
+containerEvent("containerPut", function(_, state, c, uid)
+    uid = int(uid)
+    local inst = uid and state.items[uid]
+    if not inst then return false, "Этого предмета нет в рюкзаке." end
+    if #c.items >= CONTAINER_MAX_ITEMS then return false, "Здесь больше нет места." end
+    local w, h = sizeOf(inst)
+    if containerUsed(c) + w * h > c.capacity then return false, "Не помещается: не хватает места." end
+    state.items[uid] = nil
+    c.items[#c.items + 1] = { uid = c.nextUid, id = inst.id, meta = inst.meta }
+    c.nextUid = c.nextUid + 1
+    return true
+end)
+
+containerEvent("containerTake", function(_, state, c, uid)
+    uid = int(uid)
+    local index
+    for i, inst in ipairs(c.items) do if inst.uid == uid then index = i; break end end
+    if not index then return false end
+    local inst = c.items[index]
+    if not putInBag(state, newInst(state, inst.id, inst.meta)) then return false, "Рюкзак полон." end
+    table.remove(c.items, index)
+    return true
+end)
+
+RegisterNetEvent("rpp_inventory:containerClose", function()
+    local playerId = tonumber(source)
+    if playerId then closeContainerFor(playerId, nil) end
+end)
+
+AddEventHandler("onPlayerDisconnected", function(playerIdStr)
+    local playerId = tonumber(playerIdStr)
+    if playerId then closeContainerFor(playerId, nil) end
+end)
+
+--- Открыть игроку хранилище. Вызывать из CreateThread серверного ресурса,
+--- который уже проверил права. options: { label, capacity }.
+exports("openContainer", function(playerId, key, options)
+    playerId = tonumber(playerId)
+    if not playerId or type(key) ~= "string" or #key > 64 or not key:match("^[%w_:%.%-]+$") then
+        return false, "invalid_arguments"
+    end
+    options = type(options) == "table" and options or {}
+    local state = load(playerId)
+    if not state then return false, "inventory_unavailable" end
+    if playerTrade[playerId] then return false, "Сначала закончите обмен." end
+    if playerContainer[playerId] and playerContainer[playerId] ~= key then closeContainerFor(playerId, nil) end
+    local c = getContainer(key)
+    if not c then return false, "storage_unavailable" end
+    if type(options.label) == "string" and options.label ~= "" then c.label = options.label:sub(1, 64) end
+    local capacity = tonumber(options.capacity)
+    if capacity and capacity >= 1 and capacity <= 500 then c.capacity = math.floor(capacity) end
+    c.viewers[playerId] = true
+    playerContainer[playerId] = key
+    pushState(playerId, false)
+    pushContainer(c)
+    return true
+end)
+
+exports("closeContainer", function(playerId, reason)
+    playerId = tonumber(playerId)
+    if not playerId then return false end
+    return closeContainerFor(playerId, type(reason) == "string" and reason or nil)
+end)
+
+--- Какое хранилище сейчас открыто у игрока (ключ) или nil.
+exports("openedContainer", function(playerId) return playerContainer[tonumber(playerId) or -1] end)
+
+--- Кто сейчас смотрит хранилище: список ID игроков.
+exports("containerViewers", function(key)
+    local list = {}
+    for viewer in pairs(containers[key] and containers[key].viewers or {}) do list[#list + 1] = viewer end
+    return list
+end)
+
+--- Удалить хранилище со всем содержимым (например, машину удалили).
+exports("deleteContainer", function(key)
+    if type(key) ~= "string" then return false end
+    for viewer in pairs(containers[key] and containers[key].viewers or {}) do closeContainerFor(viewer, nil) end
+    containers[key] = nil
+    return RppInvStore.deleteContainer(key)
+end)
 
 -- ---------------------------------------------------------------------------
 -- API для других ресурсов

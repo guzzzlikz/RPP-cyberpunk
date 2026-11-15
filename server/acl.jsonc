@@ -1,6 +1,11 @@
 {
-  // Managed from the Warden panel (Players -> Rights, and the Access tab).
-  // Hand edits are still honoured; the server reloads this file on acl.reload.
-  "version": 1,
-  "principals": []
+  "version": 2,
+  "principals": [
+    {
+      "name": "guzzzlik [056b4d86]",
+      "userId": "056b4d86-6dc3-47d5-80d3-302f0fd28604",
+      "role": "admin",
+      "permissions": []
+    }
+  ]
 }

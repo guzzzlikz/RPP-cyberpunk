@@ -9,6 +9,7 @@
   var state = { cols: 6, rows: 12, money: 0, items: [], weapons: [], weaponSlots: 3, wear: [], wearSlots: [], cyber: [] };
   var open = false;
   var trade = null;  // состояние обмена с сервера или null
+  var box = null;    // открытое хранилище (багажник) с сервера или null
   var view = "gear";
   var drag = null;   // { item, from: "bag"|"weapon"|"wear", key, offX, offY, startX, startY, moved }
 
@@ -113,13 +114,15 @@
 
   function setView(next) {
     view = next;
-    var t = view === "trade";
+    var t = view === "trade", b = view === "container";
     $("viewGear").classList.toggle("hidden", view !== "gear");
     $("viewCyber").classList.toggle("hidden", view !== "cyber");
     $("viewTrade").classList.toggle("hidden", !t);
-    $("switchView").classList.toggle("hidden", t);
-    $("leftTitle").textContent = t ? "Обмен" : view === "gear" ? "Экипировка" : "Киберимпланты";
+    $("viewContainer").classList.toggle("hidden", !b);
+    $("switchView").classList.toggle("hidden", t || b);
+    $("leftTitle").textContent = t ? "Обмен" : b ? (box && box.label || "Хранилище") : view === "gear" ? "Экипировка" : "Киберимпланты";
     $("leftHint").textContent = t ? "Обмен произойдёт, когда оба нажмут «Готов»"
+      : b ? "Вещи здесь видят все, у кого есть доступ"
       : view === "gear" ? "ПКМ или клик по предмету: снять или выбросить" : "Установленные импланты по зонам тела";
     document.querySelectorAll(".switch-opt").forEach(function (el) {
       el.classList.toggle("active", el.getAttribute("data-view") === view);
@@ -193,6 +196,9 @@
       else entries.push(entry("Предложить в обмен", function () { act("tradeAdd", { uid: item.uid }); }));
     } else if (trade) {
       return; // экипированное во время обмена не трогаем
+    } else if (box && where === "bag") {
+      entries.push(entry("Положить: " + (box.label || "хранилище"), function () { act("containerPut", { uid: item.uid }); }));
+      entries.push(entry("Выбросить", function () { act("drop", { where: "bag", key: item.uid }); }, { danger: true }));
     } else if (where === "bag") {
       if (item.kind === "weapon") {
         entries.push(entry("Экипировать", null, { submenu: weaponSlotEntries(item) }));
@@ -354,6 +360,10 @@
       if (zone) return { type: "trade", el: zone, ok: !item.offered && !trade.mine.ready };
       return null;
     }
+    if (box && drag.from === "bag") {
+      var boxZone = el && el.closest("#boxZone");
+      if (boxZone) return { type: "box", el: boxZone, ok: box.used + item.w * item.h <= box.capacity };
+    }
     var slot = el && el.closest(".slot");
     if (slot && drag.from === "bag") {
       var where = slot.getAttribute("data-where");
@@ -442,6 +452,8 @@
       }
     } else if (target.type === "trade") {
       act("tradeAdd", { uid: d.item.uid });
+    } else if (target.type === "box") {
+      act("containerPut", { uid: d.item.uid });
     } else if (target.type === "weapon") {
       act("equipWeapon", { uid: d.item.uid, slot: target.slot });
     } else if (target.type === "wear") {
@@ -570,6 +582,40 @@
     countdownEnd = 0;
     if (tradeTimer) { clearInterval(tradeTimer); tradeTimer = null; }
     setView("gear");
+  });
+
+  // ------------------------------------------------------------------
+  // Хранилище (багажник)
+  // ------------------------------------------------------------------
+  function renderBox() {
+    if (!box) return;
+    $("boxLabel").textContent = String(box.label || "Хранилище").toUpperCase();
+    $("boxUsed").textContent = box.used + " / " + box.capacity + " ячеек";
+    $("leftTitle").textContent = box.label || "Хранилище";
+    $("boxList").innerHTML = box.items.length
+      ? box.items.map(function (it) {
+          return '<div class="trade-item" data-uid="' + it.uid + '" title="Нажмите, чтобы забрать в рюкзак">' +
+            icon(it.icon) + '<div><div class="ti-name">' + esc(it.label) + '</div><div class="ti-sub">' +
+            esc((it.sub || window.RppKinds[it.kind] || "") + " · " + it.w + "×" + it.h) + "</div></div></div>";
+        }).join("")
+      : '<div class="trade-empty">Пусто. Перетащите сюда вещи из рюкзака.</div>';
+  }
+  $("boxList").addEventListener("click", function (ev) {
+    var row = ev.target.closest(".trade-item");
+    if (!row || !box) return;
+    act("containerTake", { uid: Number(row.getAttribute("data-uid")) });
+  });
+  $("boxClose").addEventListener("click", function () { if (box) act("containerClose"); });
+  on("container", function (next) {
+    if (!next || !next.items) return;
+    var first = !box;
+    box = next;
+    if (first) setView("container");
+    renderBox();
+  });
+  on("containerClosed", function () {
+    box = null;
+    if (view === "container") setView("gear");
   });
 
   on("show", show);
