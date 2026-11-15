@@ -140,3 +140,7 @@ body { pointer-events: none; }
 scrollbarvertical { width: 3dp; }
 scrollbarvertical slidertrack { background-color: transparent; }
 scrollbarvertical sliderbar { background-color: #fbe70966; }
+
+/* RPP: пока чат открыт, история, плашка «новых ниже», подсказки и поле ввода
+   принимают мышь — колесом листается лог. Закрытый чат мышь не перехватывает. */
+#root.open #log, #root.open #latest, #root.open #suggestions, #root.open #composer { pointer-events: auto; }
