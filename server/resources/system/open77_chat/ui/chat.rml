@@ -13,7 +13,7 @@
         <div id="head">
             <span class="slash">//</span>
             <span class="title">ЧАТ</span>
-            <span id="channel" class="channel">ОБЩИЙ</span>
+            <span id="channel" class="channel">РЯДОМ</span>
             <span class="grow"></span>
             <span class="live"><span class="live-dot"></span><span>В СЕТИ</span></span>
             <span id="count" class="count">00</span>
@@ -25,7 +25,7 @@
         <div id="latest"><span id="unread">0</span><span> новых ниже</span></div>
         <div id="composer">
             <span class="prompt">›</span>
-            <input id="input" type="text" maxlength="1000" placeholder="Сообщение всем или / для команд"/>
+            <input id="input" type="text" maxlength="1000" placeholder="Сказать рядом, /ooc всем или / для команд"/>
             <span id="chars" class="chars">0/1000</span>
         </div>
         <div id="suggestions"></div>
