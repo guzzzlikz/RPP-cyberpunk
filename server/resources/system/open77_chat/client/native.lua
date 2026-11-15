@@ -14,7 +14,11 @@ local CHANNELS = {
     ["local"] = { label = "МЕСТНЫЙ", color = "#8a94a2" },
     squad = { label = "ОТРЯД", color = "#2be58b" },
     whisper = { label = "ШЁПОТ", color = "#7c5cff" },
-    ooc = { label = "OOC", color = "#ffb020" },
+    -- RPP: IC — обычные сообщения рядом; LOOC ((текст)) — вне роли рядом;
+    -- OOC (/ooc) — вне роли всем. Оба OOC серые.
+    ic = { label = "IC", color = "#fcee0a" },
+    looc = { label = "LOOC", color = "#969ea8" },
+    ooc = { label = "OOC", color = "#b8c0cc" },
     admin = { label = "АДМИН", color = "#ff3b4e" },
 }
 

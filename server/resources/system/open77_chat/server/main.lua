@@ -15,8 +15,23 @@ local CHAT_SUGGESTIONS = {
     },
     {
         command = "/me",
-        help = "Действие от третьего лица (оранжевым). В обычном сообщении действие — в *звёздочках*.",
+        help = "Действие от третьего лица (оранжевым), видят игроки рядом. В обычном сообщении действие — в *звёздочках*.",
         parameters = { { name = "действие" } }
+    },
+    {
+        command = "/ooc",
+        help = "Общий чат вне роли (OOC, серым): видят все игроки на сервере.",
+        parameters = { { name = "текст" } }
+    },
+    {
+        command = "/b",
+        help = "Локальный чат вне роли (LOOC, серым): видят игроки рядом. То же, что ((текст)).",
+        parameters = { { name = "текст" } }
+    },
+    {
+        command = "/togooc",
+        help = "Скрыть или снова показать OOC и LOOC других игроков.",
+        parameters = {}
     },
     {
         command = "/roll",
@@ -148,6 +163,81 @@ local function push(target, message)
     return TriggerClientEvent("chat:addMessage", targetId(target), message)
 end
 
+-- RPP: обычные сообщения, LOOC ((текст)), /me и /roll видят автор и те, кто в
+-- радиусе его голоса (шёпот / обычно / крик из open-voice). Если позиции
+-- недоступны, сообщение видит только автор — во всех оно не уходит.
+-- Всем на сервере уходит только /ooc.
+local function deliver(player, message)
+    push(player, message)
+    local list = hearers(player)
+    if not list then
+        print("[open77_chat] player positions unavailable: message shown to its author only")
+        return
+    end
+    for _, other in ipairs(list) do push(other, message) end
+end
+
+local OOC_COLOR = { 150, 158, 168 }
+
+-- Как сказано, по дальности голоса автора: шёпот (до 5 м) и крик (от 35 м).
+local function voiceNote(player)
+    local range = voiceDistance[player] or DEFAULT_VOICE_DISTANCE
+    if range <= 5 then return " (шёпотом)" end
+    if range >= 35 then return " (кричит)" end
+    return ""
+end
+
+local function accept(player, name, text)
+    -- FiveM-compatible veto point. `chatMessage` is host-wide and cancellable: any
+    -- resource can AddEventHandler("chatMessage", ...) and call CancelEvent() to
+    -- drop the message before a single client sees it. Read `player` and `name`
+    -- before awaiting -- the global `source` belongs to whatever task runs next.
+    local verdict = TriggerCancellableEvent("chatMessage", player, name, text)
+    if verdict ~= nil and verdict:await() then return false end
+    -- Accepted. Announced host-wide so logging, RP and moderation resources can
+    -- observe it without subscribing to `chat:submit` themselves.
+    TriggerEvent("chat:message", player, name, text)
+    return true
+end
+
+-- Вне роли, серым, без *действий* и без пузыря над головой.
+-- LOOC — ((текст)) или /b: только рядом. OOC — /ooc: всем на сервере.
+local function oocMessage(player, name, channel, text)
+    return {
+        type = "player", channel = channel, author = name,
+        segments = { { text = "(( " .. text .. " ))", color = OOC_COLOR } },
+        text = "(( " .. text .. " ))", playerId = tostring(player), color = OOC_COLOR,
+    }
+end
+
+local function sendOoc(player, name, text)
+    text = text:match("^%s*(.-)%s*$") or ""
+    if text == "" then return end
+    if not accept(player, name, "((" .. text .. "))") then return end
+    deliver(player, oocMessage(player, name, "looc", text))
+end
+
+local lastGlobalOoc = {}
+RegisterCommand("ooc", function(player, args)
+    player = tonumber(player)
+    if not enabled or not player or player <= 0 then return end
+    local text = clean(table.concat(args or {}, " "))
+    if text == "" then
+        push(player, { type = "system", author = "/OOC", text = "Использование: /ooc текст — сообщение всем вне роли.", color = { 252, 238, 10 } })
+        return
+    end
+    local now = Open77.time.monotonic()
+    if lastGlobalOoc[player] and now - lastGlobalOoc[player] < 3 then
+        push(player, { type = "system", author = "/OOC", text = "Не чаще одного сообщения в 3 секунды.", color = { 252, 238, 10 } })
+        return
+    end
+    lastGlobalOoc[player] = now
+    local name = GetPlayerName(player) or ("Player " .. tostring(player))
+    if not accept(player, name, "/ooc " .. text) then return end
+    push(-1, oocMessage(player, name, "ooc", text))
+end, false)
+AddEventHandler("onPlayerDisconnected", function(player) lastGlobalOoc[tonumber(player) or -1] = nil end)
+
 RegisterNetEvent("chat:submit", function(raw)
     if not enabled then return end
     local text = clean(raw)
@@ -156,24 +246,20 @@ RegisterNetEvent("chat:submit", function(raw)
     local player = source
     local name = GetPlayerName(player) or ("Player " .. tostring(player))
 
-    -- FiveM-compatible veto point. `chatMessage` is host-wide and cancellable: any
-    -- resource can AddEventHandler("chatMessage", ...) and call CancelEvent() to
-    -- drop the message before a single client sees it. Read `player` and `name`
-    -- before awaiting -- the global `source` belongs to whatever task runs next.
-    local verdict = TriggerCancellableEvent("chatMessage", player, name, text)
-    if verdict ~= nil and verdict:await() then return end
+    if text:sub(1, 2) == "((" then
+        return sendOoc(player, name, (text:sub(3):gsub("%)%)%s*$", "")))
+    end
 
-    -- Accepted. Announced host-wide so logging, RP and moderation resources can
-    -- observe it without subscribing to `chat:submit` themselves.
-    TriggerEvent("chat:message", player, name, text)
+    if not accept(player, name, text) then return end
     local segments, plain = actionSegments(text)
     local hasAction = false
     for _, segment in ipairs(segments or {}) do
         if segment.color == ACTION_COLOR then hasAction = true end
     end
-    push(-1, {
+    deliver(player, {
         type = "player",
-        author = name,
+        channel = "ic",
+        author = name .. voiceNote(player),
         text = plain,
         segments = hasAction and segments or nil,
         playerId = tostring(player),
@@ -182,7 +268,19 @@ RegisterNetEvent("chat:submit", function(raw)
     bubble(player, { kind = "say", text = plain, segments = segments })
 end)
 
--- /me действие — ролевое действие от третьего лица, оранжевым.
+-- /b текст — LOOC, как ((текст)).
+RegisterCommand("b", function(player, args)
+    player = tonumber(player)
+    if not enabled or not player or player <= 0 then return end
+    local text = clean(table.concat(args or {}, " "))
+    if text == "" then
+        push(player, { type = "system", author = "/B", text = "Использование: /b текст (или ((текст)))", color = { 252, 238, 10 } })
+        return
+    end
+    sendOoc(player, GetPlayerName(player) or ("Player " .. tostring(player)), text)
+end, false)
+
+-- /me действие — ролевое действие от третьего лица, оранжевым. Видят игроки рядом.
 RegisterCommand("me", function(player, args)
     player = tonumber(player)
     if not enabled or not player or player <= 0 then return end
@@ -193,10 +291,8 @@ RegisterCommand("me", function(player, args)
         return
     end
     local name = GetPlayerName(player) or ("Player " .. tostring(player))
-    local verdict = TriggerCancellableEvent("chatMessage", player, name, "/me " .. text)
-    if verdict ~= nil and verdict:await() then return end
-    TriggerEvent("chat:message", player, name, "/me " .. text)
-    push(-1, { type = "action", author = name, text = text, playerId = tostring(player) })
+    if not accept(player, name, "/me " .. text) then return end
+    deliver(player, { type = "action", author = name, text = text, playerId = tostring(player) })
     bubble(player, { kind = "me", text = text })
 end, false)
 
@@ -212,14 +308,7 @@ RegisterCommand("roll", function(player)
     local name = GetPlayerName(player) or ("Player " .. tostring(player))
     local text = ("бросает кубик (1–100): выпало %d"):format(result)
     TriggerEvent("chat:message", player, name, "/roll " .. result)
-    local message = { type = "action", author = name, text = text, playerId = tostring(player) }
-    push(player, message)
-    local list = hearers(player)
-    if list then
-        for _, other in ipairs(list) do push(other, message) end
-    else
-        push(-1, message)
-    end
+    deliver(player, { type = "action", author = name, text = text, playerId = tostring(player) })
     bubble(player, { kind = "me", text = text })
 end, false)
 AddEventHandler("onPlayerDisconnected", function(player) lastRoll[tonumber(player) or -1] = nil end)
@@ -239,7 +328,10 @@ RegisterCommand("help", function(player)
     push(player, {
         type = "system",
         author = "COMMANDS",
-        text = "Введи /, чтобы увидеть команды. Стрелки — выбор подсказки, Tab — дополнить.",
+        text = "Обычное сообщение видят те, кто в радиусе вашего голоса (шёпот / обычно / крик). " ..
+            "*действие* или /me — действие рядом, ((текст)) или /b — вне роли рядом, " ..
+            "/ooc текст — вне роли всем, /togooc — скрыть OOC. " ..
+            "Введи /, чтобы увидеть команды. Стрелки — выбор подсказки, Tab — дополнить.",
         color = { 252, 238, 10 }
     })
 end, false)

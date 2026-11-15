@@ -132,9 +132,32 @@ local function openChat()
     requestSuggestions()
 end
 
+-- RPP: игрок может скрыть OOC (/ooc) и LOOC ((текст)) других игроков командой /togooc.
+-- Настройка хранится в kvp клиента; свои OOC-сообщения видны всегда.
+local OOC_HIDDEN_KEY = "open77_chat.oocHidden"
+local oocHidden = nil
+
+local function isOocHidden()
+    if oocHidden == nil then
+        local ok, value = pcall(Open77.kvp.get, OOC_HIDDEN_KEY, "0")
+        if not ok then return false end -- kvp ещё недоступен: пока показываем
+        oocHidden = value == "1" or value == true
+    end
+    return oocHidden
+end
+
+local function localPlayerId()
+    local ok, state = pcall(Open77.network.status)
+    return ok and type(state) == "table" and tostring(state.playerId or "") or ""
+end
+
 local function addMessage(message)
     if type(message) == "string" then message = { text = message } end
     if type(message) ~= "table" then return false end
+    if (message.channel == "ooc" or message.channel == "looc") and isOocHidden()
+        and tostring(message.playerId or "") ~= localPlayerId() then
+        return true
+    end
     -- Keep the same 48-message window as the page, with an additional byte
     -- bound. The Lua owner survives a browser crash; the lost DOM does not.
     local ok, encoded = pcall(Open77.json.encode, message)
@@ -150,6 +173,17 @@ local function addMessage(message)
 end
 
 RegisterNetEvent("chat:addMessage", addMessage)
+
+RegisterCommand("togooc", function()
+    oocHidden = not isOocHidden()
+    pcall(Open77.kvp.set, OOC_HIDDEN_KEY, oocHidden and "1" or "0")
+    addMessage({
+        type = "system", author = "OOC",
+        text = oocHidden and "OOC и LOOC других игроков скрыты. /togooc — показать снова."
+            or "OOC и LOOC снова видны. /togooc — скрыть.",
+        color = { 150, 158, 168 }
+    })
+end, false)
 RegisterNetEvent("chat:addSuggestion", function(command, help, parameters)
     send("chat:addSuggestion", {
         command = tostring(command or ""),
