@@ -7,7 +7,7 @@ local N = ChatNative
 local MAX_MESSAGES = 100 -- RPP: было 48, больше истории для прокрутки
 local MAX_LENGTH = 4096
 local STALE_DELAY = 8500
-local CLOSED_ROWS = 6   -- rows shown while the chat is closed (the newest)
+local CLOSED_ROWS = 3   -- RPP: было 6 — закрытый чат показывает 2-3 последних
 local KINDS = { message = true, system = true, announce = true, warning = true, error = true, action = true, join = true, leave = true }
 local CHANNELS = {
     global = { label = "ОБЩИЙ", color = "#fcee0a" },
@@ -227,10 +227,15 @@ function N.create()
         row.token = staleToken
         local tokenAt = row.token
         ui:class(row.serial, "stale", false)
+        ui:class(row.serial, "gone", false)
         if open then return end
         CreateThread(function()
             Wait(row.delay)
-            if row.token == tokenAt and not open and ui then ui:class(row.serial, "stale", true) end
+            if row.token ~= tokenAt or open or not ui then return end
+            ui:class(row.serial, "stale", true)
+            -- RPP: погасшая строка уходит из раскладки — закрытый чат не растёт
+            Wait(700)
+            if row.token == tokenAt and not open and ui then ui:class(row.serial, "gone", true) end
         end)
     end
 
@@ -249,11 +254,11 @@ function N.create()
         if unread > 0 then setUnread(0) end
         local last = rows[#rows]
         if not last then return end
-        ui:scrollTo(last.serial, false)
+        ui:scrollTo(last.serial, "end", false)
         -- the class change that opens the log lays it out on the next frames: pin again then
         CreateThread(function()
             for _ = 1, 2 do Wait(0) end
-            if alive and rows[#rows] == last then ui:scrollTo(last.serial, false) end
+            if alive and rows[#rows] == last then ui:scrollTo(last.serial, "end", false) end
         end)
     end
 
@@ -345,7 +350,9 @@ function N.create()
     local function setOpen(v)
         open = v == true
         ui:class("#root", "open", open)
-        for _, row in ipairs(rows) do schedule(row) end
+        -- RPP: только последние строки — открытый чат и так показывает всё,
+        -- а 100 обращений к разметке на каждое открытие давали лаги.
+        for i = math.max(1, #rows - CLOSED_ROWS + 1), #rows do schedule(rows[i]) end
         if open then
             openedAt = GetGameTimer()
             draftAtOpen = value
@@ -415,12 +422,41 @@ function N.create()
             elseif #history > 0 then historyIndex = math.min(#history + 1, historyIndex + 1); setValue(history[historyIndex] or "") end
         end
     end)
+    -- RPP: колесо мыши. Чат наклонён в 3D и «плавает» за камерой, поэтому курсор
+    -- часто не попадает в лог и RmlUi его не листает. Колесо читаем из ввода
+    -- (Open77.input.axis — счётчик щелчков) и листаем сами по строкам.
+    local SCROLL_STEP = 2
+    local nativeScrollAt = -1
+    -- курсор попал в лог: листает сам RmlUi, мы только ведём счёт (> 0 — вниз)
     ui:on("mousescroll", "#log", function(e)
+        nativeScrollAt = GetGameTimer()
         local delta = tonumber(e.wheel_delta_y or e.wheel_delta or 0) or 0
-        if delta < 0 then scrolledUp = scrolledUp + 1
+        if delta < 0 then scrolledUp = math.min(math.max(0, #rows - 1), scrolledUp + SCROLL_STEP)
         elseif delta > 0 then
-            scrolledUp = math.max(0, scrolledUp - 1)
+            scrolledUp = math.max(0, scrolledUp - SCROLL_STEP)
             if scrolledUp == 0 and unread > 0 then latest() end
+        end
+    end)
+    local function scrollBy(notches) -- > 0: вверх, к старым
+        if #rows == 0 then return end
+        scrolledUp = math.max(0, math.min(#rows - 1, scrolledUp + notches * SCROLL_STEP))
+        if scrolledUp == 0 then latest() return end
+        ui:scrollTo(rows[#rows - scrolledUp].serial, "end", false)
+    end
+    CreateThread(function()
+        local last = nil
+        while alive do
+            Wait(open and 0 or 250)
+            local ok, wheel = false, nil
+            if open and Open77.input and Open77.input.axis then ok, wheel = pcall(Open77.input.axis, "mouseWheel") end
+            if ok and type(wheel) == "number" then
+                if last and wheel ~= last and GetGameTimer() - nativeScrollAt > 300 then
+                    scrollBy(wheel > last and 1 or -1)
+                end
+                last = wheel
+            else
+                last = nil
+            end
         end
     end)
     -- клик по логу не должен уводить фокус из поля ввода
