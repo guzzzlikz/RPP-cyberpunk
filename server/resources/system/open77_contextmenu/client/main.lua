@@ -104,6 +104,17 @@ local function close(reason)
     focused,lostForeground=false,0
     if page then page:setFocus(false,false);send("context:close");page:hide() end
     releaseControls("close:"..tostring(reason))
+    -- RPP: через полсекунды после закрытия — кто держит ввод. menuFocus=true:
+    -- невидимое меню держит мышь; captured=true при menuFocus=false: другое окно.
+    local closedEpoch=epoch
+    SetTimeout(500,function()
+        if active or epoch~=closedEpoch then return end
+        local c=Open77.input.cursor()
+        diag(("after-close(%s): menuFocus=%s captured=%s cursorCaptured=%s keyDown=%s")
+            :format(tostring(reason),tostring(page and page:hasFocus()),tostring(Open77.input.isCaptured()),
+                tostring(c and c.captured),tostring(Open77.input.isDown(key()))))
+        if page and page:hasFocus() then page:setFocus(false,false);releaseControls("after_close_focus") end
+    end)
     if wasOpen then TriggerEvent("open77:contextmenu:closed",reason or "closed") end
 end
 exports("close",function() close("provider_closed");return true end)
@@ -244,8 +255,12 @@ AddEventHandler("open77:pauseKey",function() if active then close("pause") end e
 -- RPP: ручной выход, если камера всё же замёрзла (например, Windows «съела»
 -- отпускание ALT при Shift+Alt — это системное переключение раскладки).
 RegisterCommand("camfix",function()
-    diag("camfix: active="..tostring(active).." controlsHeld="..tostring(controlsHeld))
-    if active then close("camfix") else releaseControls("camfix") end
+    diag("camfix: active="..tostring(active).." controlsHeld="..tostring(controlsHeld)
+        .." menuFocus="..tostring(page and page:hasFocus()))
+    if active then close("camfix") else
+        if page then page:setFocus(false,false) end
+        releaseControls("camfix")
+    end
     armed=true
     pcall(Open77.exports.call,"open77_chat","addMessage",{type="system",author="КАМЕРА",
         text="Управление камерой возвращено.",color={252,238,10}})
@@ -301,6 +316,14 @@ AddEventHandler("onClientResourceStart",function(name)
             else
                 -- RPP: меню закрыто, а управление не вернулось (окно было в фоне) — вернуть.
                 if controlsHeld and Open77.input.cursor() then releaseControls("foreground_back") end
+                -- RPP: при Alt+Tab / Shift+Alt NativeUI запоминает фокус меню
+                -- («restored when it is in front again») и возвращает его, когда
+                -- окно снова активно, хотя меню уже закрыто. Невидимое меню
+                -- держит мышь: камера не крутится, а бегать можно. Снимаем.
+                if page and Open77.input.cursor() and page:hasFocus() then
+                    page:setFocus(false,false)
+                    releaseControls("stale_focus")
+                end
                 registry.sweep()
             end
             Wait(active and config.activePollMs or config.idlePollMs)
