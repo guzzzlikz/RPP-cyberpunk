@@ -39,7 +39,14 @@ RegisterNetEvent('open77:animations:idleResult', idles.receiveResult)
 
 -- Native transport rejects non-server sources for this reserved namespace;
 -- local TriggerEvent cannot manufacture any of these authoritative messages.
-RegisterNetEvent('open77:animations:state', controller.receiveState)
+-- A state is presented as soon as it arrives, not on the next poll below: the
+-- poll added up to 100 ms before every animation started.
+RegisterNetEvent('open77:animations:state', function(s)
+    if controller.receiveState(s) then
+        local current = native._context()
+        if current then controller.tick(current) end
+    end
+end)
 RegisterNetEvent('open77:animations:snapshot', controller.receiveSnapshot)
 RegisterNetEvent('open77:animations:result', controller.receiveResult)
 -- UI commands are ordinary resource events, not authoritative RP wire messages.
@@ -128,6 +135,6 @@ CreateThread(function()
     while running do
         local current = native._context()
         if current then controller.tick(current); idles.tick(current) end
-        Wait(100)
+        Wait(50)
     end
 end)

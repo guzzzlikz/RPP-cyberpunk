@@ -105,13 +105,8 @@ choices. Reduced-motion preferences disable menu transitions.
 - **Weapons** assigns one of the configured templates to slots 1–3, displays the current loadout,
   changes reserve and magazine ammunition, activates or clears a slot, and holsters the weapon.
 - **Travel** searches named destinations, districts and spawn points and accepts explicit coordinates.
-- **Televisions (administrators only)** places shared screens through `open77_media` and controls
-  their URL, sound, playback and placement. Ordinary players cannot open this tab or use `/tv`.
-  The server checks `command.media.spawn` before advertising the tab, and the matching
-  `command.media.*` permission on every management event/command. Grant `command.tv` for
-  the shortcut and `command.media.*` for full TV management to a custom operator role;
-  built-in owner/admin already qualify. Passive viewing of administrator-created screens
-  remains available to players. URL input is read when spawning, not at catalog reception.
+- Televisions are not part of the menu any more: `/tv` belongs to the `open77_tv` resource, a
+  real TV screen in front of the player (Open77.screens, sound from the set).
 - **Player** returns to spawn, restores health and armor, revives, toggles god mode, or enters the
   normal death/respawn flow. Its status strip reflects authoritative health, armor, and god mode.
 - **Race** opens the integrated race activity and course creator.

@@ -1,5 +1,5 @@
 resource "open77_admin"
-version "0.5.1"
+version "0.7.0"
 open77_version ">=0.0.1"
 auto_start true
 dependency "open77_contextmenu >=1.1.0"
@@ -71,6 +71,8 @@ client_script "client/main.lua"
 -- Load order is manifest order, and this file reads `Open77AdminConfig`, which
 -- shared/config.lua above declares. It must not move ahead of it.
 client_script "client/doors.lua"
+-- The noclip strip (NativeUI), read by client/menu.lua: it must load first.
+client_script "client/noclip_hud.lua"
 client_script "client/menu.lua"
 client_script "client/coordinates.lua"
 client_script "client/context.lua"
@@ -82,6 +84,8 @@ client_script "client/context.lua"
 web_ui_page "web/index.html"
 web_ui_auto_create false
 web_files { "web/**" }
+-- The noclip strip (NativeUI documents; client/noclip_hud.lua).
+files { "ui/noclip.rml", "ui/open77-yellow.rcss", "ui/noclip.rcss" }
 
 -- Least privilege, but honestly: an admin package needs most of the platform.
 -- The manifest permission grants access to a BINDING; it never replaces the
@@ -120,6 +124,7 @@ permissions {
 
     -- Server: the roster, life and health.
     "players.life.read",
+    "players.life.visibility",
     "players.model.read",
     "players.model.control",
     "players.life.kill",

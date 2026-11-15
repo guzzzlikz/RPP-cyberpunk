@@ -81,6 +81,31 @@
             <div id="labels"><div id="st0" class="lab"><span class="snum">01</span><div class="ltext"><div class="sname">Личность</div><div class="ssub">Проверка сессии</div></div></div><div id="st1" class="lab"><span class="snum">02</span><div class="ltext"><div class="sname">Подключение</div><div class="ssub">Связь с сервером</div></div></div><div id="st2" class="lab"><span class="snum">03</span><div class="ltext"><div class="sname">Ресурсы</div><div class="ssub">Загрузка и проверка</div></div></div><div id="st3" class="lab"><span class="snum">04</span><div class="ltext"><div class="sname">Персонаж</div><div class="ssub">Располагайся</div></div></div><div id="st4" class="lab"><span class="snum">05</span><div class="ltext"><div class="sname">Найт-Сити</div><div class="ssub">Вход в мир</div></div></div></div>
         </div>
 
+        <!-- a server resource that could not start: which one, where, the source and the stack
+             (client/ui.lua renderScript; the report comes from the client host) -->
+        <div id="errcard" class="glass">
+            <div id="err-edge"></div>
+            <div id="errhead">
+                <div class="grow">
+                    <div class="eyebrow p"><span class="mark">//</span><span>ОШИБКА СКРИПТА СЕРВЕРА</span></div>
+                    <div id="errtitle"></div>
+                </div>
+                <div id="errchips"><span id="errchip" class="chip"></span><span id="errstage" class="chip dim"></span></div>
+            </div>
+            <div id="errmsg"></div>
+            <div id="errbody">
+                <div id="errcodepanel">
+                    <div id="errfile"></div>
+                    <div id="errsrc"></div>
+                </div>
+                <div id="errstackpanel">
+                    <div class="eyebrow"><span>СТЕК ВЫЗОВОВ</span></div>
+                    <div id="errstack"></div>
+                </div>
+            </div>
+            <div id="errhelp"><span id="errplayer"></span><span class="grow"></span><span id="errdev"></span></div>
+        </div>
+
         <div id="diag" class="glass">
             <div id="diag-edge"></div>
             <div id="diaghead">

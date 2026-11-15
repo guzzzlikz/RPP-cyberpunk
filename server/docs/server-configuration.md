@@ -373,6 +373,54 @@ examples.
 `publicBaseUrl` must use HTTPS outside loopback. Place the download listener behind a reverse proxy
 or CDN when exposing it to the Internet.
 
+### Resource escrow
+
+`resourceEscrow` is an optional hook, off by default, for resources that ship their **server**
+scripts encrypted (a folder containing `escrow.json`). With it off, nothing is loaded for it and
+such a folder is refused with one log line.
+
+```jsonc
+"resourceEscrow": {
+  "enabled": false,
+  "master": "https://api.scriptgo.dev",          // the default (SCRIPT//GO); HTTPS, or loopback HTTP
+  "environment": "open77",
+  "identityFile": ".open77/escrow-identity.bin",  // this server's key pair, owned by the native library
+  "tokensDirectory": ".open77/escrow-tokens",     // one <resource>.token file per escrowed resource
+  "trustedSigners": [],                           // empty: trust the signer the key service names
+  "nativeLibrary": null,                          // null: the copy next to the executable
+  "strictClearFiles": false                       // true: an edited clear file refuses the start
+}
+```
+
+No secret belongs in this section: a deployment token is a file under `tokensDirectory`, never a
+value in `server.jsonc` and never a file in the resource folder. Both default locations are under
+`.open77/`, the server's private state directory. `OP77_CONFIG__RESOURCEESCROW__ENABLED=true` and
+`--set resourceEscrow.master=...` work like every other field.
+
+The identity file is binary and created by the native library on first use. On Windows it is
+sealed (DPAPI) for the account that created it: a server moved to another service account or
+another machine cannot open it (`identity`) and has to be bound to its licences again. Back it up
+with the rest of `.open77/`.
+
+Nothing that knows the escrow format is part of the default build. An adapter assembly
+(`Open77.Server.Escrow.ScriptGo.dll`, a thin layer over SCRIPT//GO's `ScriptGo.Escrow` package,
+which carries the native loader) is loaded from next to the executable when the section is enabled.
+Packaged servers ship it: `dotnet publish` downloads the package pinned in
+`vendor/scriptgo/scriptgo-native.json`, refuses it unless its SHA-256 matches, builds the adapter
+against it and stages it with the native loader of the published runtime. In a source tree,
+`server/scripts/stage-scriptgo-escrow.ps1` does the same into the git-ignored
+`server/native/scriptgo-escrow/` and prints the SHA-256 of each file; the server build copies it
+next to the executable when present, like `Open77.Platform.dll`. Without the adapter the server runs normally and refuses every escrowed
+resource with `adapter_missing`; with it but without its native loader, with `native_missing`.
+The key is asked for in the background: an escrowed resource starts at the tick after the answer,
+never blocking the game loop.
+
+This is deterrence, licence binding, revocation and traceability, not a guarantee: the operator of
+the machine can ultimately recover what their own process runs, and client and shared scripts are
+sent to clients in clear whatever this section says. Operation, refusal reasons and limits are in
+the [resource escrow wiki page](../wiki/resource-escrow.md); the design and its open questions in
+[`research/resource-escrow.md`](research/resource-escrow.md).
+
 ### Required mods and unsecured mode
 
 `requiredMods` declares what every player must install before joining (see

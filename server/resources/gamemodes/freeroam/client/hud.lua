@@ -274,8 +274,10 @@ function H.create()
     startFloat(ui, FLOAT.wings, motion, function() return alive end)
     if speedo then startFloat(speedo, FLOAT.speedo, motion, function() return alive end) end
 
-    -- another interface holds the cursor (pause menu, inventory, phone): step aside,
-    -- NativeUI draws above WebUI pages
+    -- another interface holds the cursor (pause menu, inventory, phone) or the character
+    -- creator is open: step aside, NativeUI draws above WebUI pages
+    local creatorOpen = false
+    AddEventHandler("open77_creator:visibility", function(open) creatorOpen = open == true end)
     CreateThread(function()
         while alive do
             Wait(150)
@@ -284,6 +286,7 @@ function H.create()
                 local ok, _, cursor = pcall(Open77.input.isCaptured)
                 busy = ok and cursor == true
             end
+            busy = busy or creatorOpen
             if busy ~= motion.hidden then
                 motion.hidden = busy
                 for _, doc in ipairs(docs) do doc:set("hud", "hidden", busy) end

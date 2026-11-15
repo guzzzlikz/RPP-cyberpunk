@@ -3,7 +3,7 @@
 (function(root) {
   "use strict";
   const slots = ["Head", "Face", "InnerChest", "OuterChest", "Legs", "Feet", "Outfit"];
-  const labels = {Head:"Headwear",Face:"Eyewear",InnerChest:"Tops",OuterChest:"Jackets",Legs:"Bottoms",Feet:"Footwear",Outfit:"Всё тело"};
+  const labels = {Head:"Головные уборы",Face:"Очки",InnerChest:"Верх",OuterChest:"Куртки",Legs:"Низ",Feet:"Обувь",Outfit:"Всё тело"};
   const clone = value => JSON.parse(JSON.stringify(value));
   const equal = (a,b) => {
     if (a === b) return true;
@@ -11,8 +11,19 @@
     const keys = Object.keys(a);
     return keys.length === Object.keys(b).length && keys.every(key => equal(a[key],b[key]));
   };
+  // Layered outfits (Equipment-EX slots): { active, slots: { "OutfitSlots.X": record } }.
+  function layerSet(value) {
+    const v=value && typeof value==="object" ? value : {};
+    const slots={};
+    for(const [name,record] of Object.entries(v.slots || {})) if(record) slots[name]=record;
+    return {active:v.active===true,slots};
+  }
   function normalize(source) {
     const state=clone(source), w=state.wardrobe || {};
+    state.layers=layerSet(state.layers);
+    const outfitLayers=state.outfitLayers || {};
+    state.outfitLayers={};
+    for(let i=0;i<7;i++) state.outfitLayers[i]=outfitLayers[i] || outfitLayers[String(i)] ? layerSet(outfitLayers[i] || outfitLayers[String(i)]) : null;
     state.equipment=Object.assign({},state.equipment || {});
     state.wardrobe={active:Number.isInteger(w.active) && w.active>=0 && w.active<=6 ? w.active:false,outfits:{},names:{}};
     for(let i=0;i<7;i++) {
@@ -29,11 +40,17 @@
       if(original.wardrobe.names[i]!==current.wardrobe.names[i]) wardrobe.names[i]=current.wardrobe.names[i];
     }
     if(original.wardrobe.active!==current.wardrobe.active) wardrobe.active=current.wardrobe.active;
-    return {expectedRevision:original.revision,characterKey:original.characterKey,equipment,wardrobe};
+    const result={expectedRevision:original.revision,characterKey:original.characterKey,equipment,wardrobe};
+    if(!equal(original.layers,current.layers)) result.layers=clone(current.layers);
+    const outfitLayers={};
+    for(let i=0;i<7;i++) if(!equal(original.outfitLayers[i],current.outfitLayers[i])) outfitLayers[i]=current.outfitLayers[i] ? clone(current.outfitLayers[i]) : false;
+    if(Object.keys(outfitLayers).length) result.outfitLayers=outfitLayers;
+    return result;
   }
   function dirty(original,current) {
     const p=patch(original,current);
-    return Object.keys(p.equipment).length>0 || Object.keys(p.wardrobe.outfits).length>0 || Object.keys(p.wardrobe.names).length>0 || Object.hasOwn(p.wardrobe,"active");
+    return Object.keys(p.equipment).length>0 || Object.keys(p.wardrobe.outfits).length>0 || Object.keys(p.wardrobe.names).length>0 || Object.hasOwn(p.wardrobe,"active")
+      || Object.hasOwn(p,"layers") || Object.hasOwn(p,"outfitLayers");
   }
   function title(record) {
     const auditedNames = {
@@ -44,7 +61,21 @@
     if (auditedNames[String(record).toLowerCase()]) return auditedNames[String(record).toLowerCase()];
     return String(record || "").replace(/^Items\./,"").replace(/([a-z])([A-Z])/g,"$1 $2").replace(/_/g," ").replace(/\bbasic\b/gi,"Classic");
   }
-  const api={slots,labels,clone,equal,normalize,patch,dirty,title};
+  // Equipment-EX's auto conversion: where a worn base slot lands in the layered look.
+  const layerOf={Head:"OutfitSlots.Head",Face:"OutfitSlots.Glasses",InnerChest:"OutfitSlots.TorsoInner",OuterChest:"OutfitSlots.TorsoOuter",Legs:"OutfitSlots.LegsMiddle",Feet:"OutfitSlots.Feet",Outfit:"OutfitSlots.BodyMiddle"};
+  // Русские названия слоёв: OutfitSlots.TorsoInner -> «Торс · внутренний».
+  const LAYER_WORDS={Head:"Голова",Balaclava:"Балаклава",Mask:"Маска",Glasses:"Очки",Eyes:"Глаза",Eye:"Глаз",Wreath:"Венок",Ear:"Ухо",
+    Neckwear:"Шейный аксессуар",Necklace:"Ожерелье",Torso:"Торс",Body:"Всё тело",Back:"Спина",Waist:"Пояс",Shoulder:"Плечо",Elbow:"Локоть",
+    Wrist:"Запястье",Hands:"Кисти",Hand:"Рука",Prop:"предмет",Fingers:"Пальцы",Fingernails:"Ногти рук",Legs:"Ноги",Thigh:"Бедро",Knee:"Колено",
+    Ankle:"Лодыжка",Feet:"Обувь",Toes:"Пальцы ног",Toenails:"Ногти ног",Under:"нижний",Inner:"внутренний",Middle:"средний",Outer:"внешний",
+    Aux:"доп.",Tight:"(чокер)",Short:"(короткое)",Long:"(длинное)",Left:"(лев.)",Right:"(прав.)"};
+  function layerTitle(name) { const words=String(name || "").replace(/^OutfitSlots\./,"").match(/[A-Z][a-z]*/g) || [String(name || "")];
+    const out=words.map(word=>LAYER_WORDS[word] || word);
+    return out[0]+(out.length>1?" · "+out.slice(1).join(" "):""); }
+  const AREA_TITLES={Arms:"Руки",Back:"Спина",Body:"Тело",Ears:"Уши",Face:"Лицо",Feet:"Ступни",Fingers:"Пальцы",Hands:"Кисти",Head:"Голова",
+    Legs:"Ноги",Neck:"Шея",Toes:"Пальцы ног",Torso:"Торс",Waist:"Пояс"};
+  function areaTitle(name) { return AREA_TITLES[name] || String(name || ""); }
+  const api={slots,labels,clone,equal,normalize,patch,dirty,title,layerSet,layerOf,layerTitle,areaTitle};
   if(typeof module!=="undefined" && module.exports) module.exports=api;
   else root.WardrobeModel=api;
 })(typeof globalThis!=="undefined"?globalThis:this);

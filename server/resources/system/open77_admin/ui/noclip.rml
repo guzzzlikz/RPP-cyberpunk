@@ -1,0 +1,27 @@
+<rml>
+<head>
+    <title>Open//77 admin flight</title>
+    <link type="text/rcss" href="open77-yellow.rcss"/>
+    <link type="text/rcss" href="noclip.rcss"/>
+</head>
+<body data-model="noclip">
+<div id="root" data-class-on="active" data-class-boost="mode == 'boost'" data-class-slow="mode == 'slow'"
+     data-class-paused="mode == 'paused'">
+    <div id="strip">
+        <div id="badge"><span>НОКЛИП</span></div>
+        <div id="speed">
+            <span id="speed-num">{{speed}}</span>
+            <span id="speed-unit">M/S</span>
+        </div>
+        <div id="mode"><span>{{modeLabel}}</span></div>
+        <div class="sep"></div>
+        <div class="key"><span class="k">КОЛЕСО</span><span class="v">скорость</span></div>
+        <div class="key"><span class="k">SHIFT</span><span class="v">ускорение</span></div>
+        <div class="key"><span class="k">ALT</span><span class="v">точно</span></div>
+        <div class="key"><span class="k">SPACE</span><span class="v">вверх</span></div>
+        <div class="key last"><span class="k">CTRL</span><span class="v">вниз</span></div>
+        <div id="gauge"><div id="gauge-fill" data-style-width="gauge + '%'"></div></div>
+    </div>
+</div>
+</body>
+</rml>

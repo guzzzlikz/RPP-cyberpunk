@@ -104,6 +104,15 @@ occupied vehicle, whose driver is left alive on foot.
 
 ## The one thing to understand before changing anything
 
+### Noclip presence (0.6)
+
+While an operator flies, every other player stops seeing him (`Open77.players.setVisible`)
+and nothing the server decides can hurt him (`Open77.players.setGodMode`); both are applied on
+the client's confirmed flight state and restored on landing, disconnect or resource stop,
+leaving an admin god mode or invisibility that predates the flight untouched. On his own
+screen he flies in third person as a semi-transparent, idle silhouette, immune to damage and
+to harmful status effects (see `wiki/travel.md`, "Noclip and the map pick").
+
 ### Noclip controls (0.4)
 
 `/admin.self.noclip` and `/admin.self.fly` use the same resource-owned native

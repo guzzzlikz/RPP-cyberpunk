@@ -220,6 +220,7 @@ local function applyJoinSpawn(playerId)
         print(string.format(
             "[freeroam] join spawn skipped for %d: already placed by another resource (%s)",
             playerId, tostring(detail)))
+        if FreeroamCreatorPlaced then FreeroamCreatorPlaced(playerId) end
         return
     end
 
@@ -245,11 +246,13 @@ local function applyJoinSpawn(playerId)
         if joinSpawns[playerId] ~= "pending" then return end
         if FreeroamActivities and FreeroamActivities.ownsPlayer(playerId) then
             joinSpawns[playerId] = "complete"
+            if FreeroamCreatorPlaced then FreeroamCreatorPlaced(playerId) end
             return
         end
         local ok, reason = forceSpawnAt(playerId, point)
         if ok then
             joinSpawns[playerId] = "complete"
+            if FreeroamCreatorPlaced then FreeroamCreatorPlaced(playerId) end
             print(string.format(
                 "[freeroam] player %d spawned at %s (%.6f, %.6f, %.6f)",
                 playerId, point.name, point.position.x, point.position.y, point.position.z))
@@ -879,21 +882,9 @@ RegisterCommand("freeroam", function(source, args, raw)
     requestWeaponSnapshot(source)
     pushGarageState(source)
     pushPlayerState(source)
-    TriggerClientEvent("freeroam:menu:open", source, {
-        canManageTv = Open77.acl.isAllowed(source, "command.media.spawn") == true,
-    })
+    TriggerClientEvent("freeroam:menu:open", source, {})
     output(source, raw, true, "открываю меню freeroam")
 end, false)
-
-RegisterCommand("tv", function(source, args, raw)
-    if not requirePlayer(source, raw) then return end
-    if not Open77.acl.isAllowed(source, "command.tv")
-        or not Open77.acl.isAllowed(source, "command.media.spawn") then
-        return output(source, raw, false, "permission_denied:administrator_only")
-    end
-    if args.n ~= 0 then return output(source, raw, false, "использование: tv") end
-    TriggerClientEvent("freeroam:menu:open", source, { canManageTv = true, page = "tv" })
-end, true)
 
 RegisterCommand("cinematic", function(source, args, raw)
     if not source or source <= 0 then return output(source, raw, false, "только для игрока") end

@@ -97,6 +97,12 @@ end)
 
 AddEventHandler("open77:equipment:ready", apply)
 
+-- A runtime body switch (Open77.body) puts the player in another puppet, which wears nothing of
+-- the record yet: state the record again on the body now driven.
+AddEventHandler("open77:body:changed", function(event)
+    if event == "switched" or event == "reverted" then apply() end
+end)
+
 AddEventHandler("open77:worldReady", function()
     record = nil
     pendingApply = false
@@ -128,6 +134,38 @@ RegisterNetEvent("open77:equipment:record", function(player, slots)
     for slot in pairs(SLOTS) do
         Open77.puppets.setSlot(player, slot, slots[slot])
     end
+end)
+
+-- Layered outfits (Equipment-EX slots, docs/layered-outfits.md): the server's layers for
+-- this player are stated whole; another player's go to its puppet. A client without the
+-- layer API (older build) ignores them and keeps showing the base equipment.
+local layersRecord = nil
+local function applyLayers()
+    if layersRecord == nil or previewOwner or type(Open77.layers) ~= "table" then return end
+    local ok, reason = Open77.layers.apply(layersRecord, { replace = true })
+    if not ok then print("[open77_equipment] stating layers failed: " .. tostring(reason)) end
+end
+
+RegisterNetEvent("open77:layers:self", function(layers)
+    if type(layers) ~= "table" then return end
+    layersRecord = { active = layers.active == true, slots = type(layers.slots) == "table" and layers.slots or {} }
+    applyLayers()
+end)
+
+RegisterNetEvent("open77:layers:record", function(player, layers)
+    player = tonumber(player)
+    if player == nil or player == me or type(layers) ~= "table" then return end
+    if type(Open77.puppets.setLayers) == "function" then Open77.puppets.setLayers(player, layers) end
+end)
+
+-- Other client resources (fitting room, gamemode menus) state the local layered outfit
+-- through the server, which validates, saves and replicates it.
+AddEventHandler("open77:layers:request", function(layers)
+    if type(layers) == "table" then TriggerServerEvent("open77:layers:set", layers) end
+end)
+
+AddEventHandler("open77:body:changed", function(event)
+    if event == "switched" or event == "reverted" then applyLayers() end
 end)
 
 RegisterNetEvent("open77:equipment:me", function(player)
@@ -229,8 +267,9 @@ exports("endPreview", function()
     if GetInvokingResource() ~= previewOwner then return nil, "preview_owner_denied" end
     previewOwner = nil
     apply()
+    applyLayers()
     return true
 end)
 AddEventHandler("onClientResourceStop", function(name)
-    if name == previewOwner then previewOwner = nil; apply() end
+    if name == previewOwner then previewOwner = nil; apply(); applyLayers() end
 end)
