@@ -121,7 +121,8 @@ local function openChat()
     -- `input.focus()`. Both travel the same ordered pipe, so asking for browser
     -- focus first means the element focus lands in a browser that already has
     -- it, instead of racing a browser that does not yet.
-    local focused = chat:setFocus(true, false)
+    -- RPP: с курсором — чтобы колесом мыши листать историю чата.
+    local focused = chat:setFocus(true, true)
     if not focused then
         print("[open77_chat] open deferred: NativeUI focus is unavailable")
         return
@@ -158,13 +159,13 @@ local function addMessage(message)
         and tostring(message.playerId or "") ~= localPlayerId() then
         return true
     end
-    -- Keep the same 48-message window as the page, with an additional byte
+    -- Keep the same 100-message window as the page, with an additional byte
     -- bound. The Lua owner survives a browser crash; the lost DOM does not.
     local ok, encoded = pcall(Open77.json.encode, message)
     if ok and type(encoded) == "string" and #encoded <= 262144 then
         messageHistory[#messageHistory + 1] = encoded
         messageHistoryBytes = messageHistoryBytes + #encoded
-        while #messageHistory > 48 or messageHistoryBytes > 262144 do
+        while #messageHistory > 100 or messageHistoryBytes > 262144 do
             messageHistoryBytes = messageHistoryBytes - #table.remove(messageHistory, 1)
         end
     end

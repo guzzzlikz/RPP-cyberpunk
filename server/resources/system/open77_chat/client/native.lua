@@ -4,7 +4,7 @@
 ChatNative = {}
 local N = ChatNative
 
-local MAX_MESSAGES = 48
+local MAX_MESSAGES = 100 -- RPP: было 48, больше истории для прокрутки
 local MAX_LENGTH = 4096
 local STALE_DELAY = 8500
 local CLOSED_ROWS = 6   -- rows shown while the chat is closed (the newest)
@@ -234,7 +234,19 @@ function N.create()
         end)
     end
 
+    -- RPP: прокрутка колесом мыши. Пока игрок пролистал вверх, новые сообщения
+    -- не дёргают лог вниз, а копятся в плашке «N новых ниже». scrolledUp —
+    -- примерная глубина в «щелчках» колеса (позицию прокрутки RmlUi не отдаёт).
+    local scrolledUp, unread = 0, 0
+    local function setUnread(n)
+        unread = n
+        ui:text("#unread", tostring(n))
+        ui:class("#latest", "on", n > 0)
+    end
+
     local function latest()
+        scrolledUp = 0
+        if unread > 0 then setUnread(0) end
         local last = rows[#rows]
         if not last then return end
         ui:scrollTo(last.serial, false)
@@ -266,7 +278,7 @@ function N.create()
         end
         markOld()
         updateCount()
-        latest()
+        if open and scrolledUp > 0 then setUnread(unread + 1) else latest() end
         schedule(row)
     end
 
@@ -403,6 +415,17 @@ function N.create()
             elseif #history > 0 then historyIndex = math.min(#history + 1, historyIndex + 1); setValue(history[historyIndex] or "") end
         end
     end)
+    ui:on("mousescroll", "#log", function(e)
+        local delta = tonumber(e.wheel_delta_y or e.wheel_delta or 0) or 0
+        if delta < 0 then scrolledUp = scrolledUp + 1
+        elseif delta > 0 then
+            scrolledUp = math.max(0, scrolledUp - 1)
+            if scrolledUp == 0 and unread > 0 then latest() end
+        end
+    end)
+    -- клик по логу не должен уводить фокус из поля ввода
+    ui:on("click", "#log", function() ui:focusElement("#input") end)
+    ui:on("click", "#latest", function() latest(); ui:focusElement("#input") end)
     ui:on("click", ".sg", function(e)
         local i = tonumber(tostring(e.id or ""):match("sg%-(%d+)"))
         if i then selected = i end
