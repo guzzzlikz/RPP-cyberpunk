@@ -87,6 +87,7 @@ end
 -- что управление ещё не возвращено, и цикл ниже возвращает его ещё раз.
 local controlsHeld=false
 local function diag(text) print("[contextmenu] "..text) end
+local inputState -- снимок ввода/камеры, задаётся ниже (у /camfix)
 local function releaseControls(why)
     local f1,f2,r1,r2="-","-","-","-"
     if Open77.players and Open77.players.freezeRotation then f1,f2=pcall(Open77.players.freezeRotation,false) end
@@ -113,11 +114,23 @@ local function close(reason)
         diag(("after-close(%s): menuFocus=%s captured=%s cursorCaptured=%s keyDown=%s")
             :format(tostring(reason),tostring(page and page:hasFocus()),tostring(Open77.input.isCaptured()),
                 tostring(c and c.captured),tostring(Open77.input.isDown(key()))))
+        if inputState then diag("after-close state: "..inputState()) end
         if page and page:hasFocus() then page:setFocus(false,false);releaseControls("after_close_focus") end
     end)
     if wasOpen then TriggerEvent("open77:contextmenu:closed",reason or "closed") end
 end
 exports("close",function() close("provider_closed");return true end)
+-- RPP: цель «уехала» (машина качнулась, луч ушёл в стекло), а ALT ещё зажат.
+-- Не закрываем меню посреди нажатия — после такого закрытия отпускание ALT
+-- приходит без меню и камера зависает. Возвращаемся к выбору цели; меню
+-- закроется, когда игрок отпустит ALT.
+local function lostTarget()
+    if not active then return end
+    if not Open77.input.isDown(key()) then close("target_changed");return end
+    epoch=epoch+1;selection,busy,visibleActions=nil,false,{}
+    send("context:open",{epoch=epoch,key=key(),appearance=config.appearance})
+    diag("target lost, back to picking epoch="..tostring(epoch))
+end
 exports("setTargetingEnabled",function(value)
     local r,g=owner()
     if not r or not g then return false,"export_call_required" end
@@ -210,7 +223,7 @@ local function selectAction(payload)
     local request=epoch
     busy=true;send("context:busy",{epoch=request,token=payload.token})
     local current=contextAt(selection.screen.x,selection.screen.y)
-    if not sameTarget(selection,current) or not registry.matches(action,current) then close("target_changed");return end
+    if not sameTarget(selection,current) or not registry.matches(action,current) then lostTarget();return end
     local allowed=not action.canInteract or call(action,action.canInteract,current,request)==true
     if not validRequest(request) then return end
     -- Revalidate after a yielding predicate, not just before it.
@@ -254,9 +267,28 @@ end
 AddEventHandler("open77:pauseKey",function() if active then close("pause") end end)
 -- RPP: ручной выход, если камера всё же замёрзла (например, Windows «съела»
 -- отпускание ALT при Shift+Alt — это системное переключение раскладки).
+-- RPP: снимок «кто держит мышь» на момент /camfix — для разбора зависания.
+local function snap(label,fn,...)
+    local ok,a,b=pcall(fn,...)
+    if not ok then return label.."=err" end
+    local function s(v) if type(v)=="table" then local ok2,j=pcall(json.encode,v);return ok2 and j or "table" end;return tostring(v) end
+    return label.."="..s(a)..(b~=nil and ("/"..s(b)) or "")
+end
+inputState=function()
+    local I,P,C=Open77.input or {},Open77.perspective or {},Open77.camera or {}
+    local parts={}
+    local function add(label,fn,...) if type(fn)=="function" then parts[#parts+1]=snap(label,fn,...) end end
+    add("captured",I.isCaptured);add("cursor",I.cursor)
+    for _,k in ipairs({"ALT","LSHIFT","LCONTROL","MOUSE_LEFT","MOUSE_RIGHT","TAB"}) do add("down."..k,I.isDown,k) end
+    for _,a in ipairs({"CameraMouseX","CameraMouseY","Camera","Look","Movement","RadialWheels","Attack"}) do add("blocked."..a,I.isActionBlocked,a) end
+    add("mouseX",I.axis,"mouseX");add("mouseY",I.axis,"mouseY")
+    add("perspective",P.state);add("cameras",C.cameras)
+    return table.concat(parts," ")
+end
 RegisterCommand("camfix",function()
     diag("camfix: active="..tostring(active).." controlsHeld="..tostring(controlsHeld)
         .." menuFocus="..tostring(page and page:hasFocus()))
+    diag("camfix state: "..inputState())
     if active then close("camfix") else
         if page then page:setFocus(false,false) end
         releaseControls("camfix")
@@ -311,7 +343,7 @@ AddEventHandler("onClientResourceStart",function(name)
                 elseif selection and not busy and now()>=nextCheck then
                     nextCheck=now()+config.revalidateMs
                     local current=contextAt(selection.screen.x,selection.screen.y)
-                    if not sameTarget(selection,current) then close("target_changed") end
+                    if not sameTarget(selection,current) then lostTarget() end
                 end
             else
                 -- RPP: меню закрыто, а управление не вернулось (окно было в фоне) — вернуть.
