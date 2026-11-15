@@ -57,7 +57,11 @@ local ACTIONS = {
     equipClothing = function(p) TriggerServerEvent("rpp_inventory:equipClothing", p.uid) end,
     unequip = function(p) TriggerServerEvent("rpp_inventory:unequip", p.where, p.key) end,
     drop = function(p) TriggerServerEvent("rpp_inventory:drop", p.where, p.key) end,
+    containerPut = function(p) TriggerServerEvent("rpp_inventory:containerPut", p.uid) end,
+    containerTake = function(p) TriggerServerEvent("rpp_inventory:containerTake", p.uid) end,
+    containerClose = function() TriggerServerEvent("rpp_inventory:containerClose") end,
 }
+local inContainer = false
 
 local function ensurePage()
     if page then return true end
@@ -79,6 +83,8 @@ local function ensurePage()
     page:on("inv:close", function()
         -- Закрыть окно во время обмена = отменить обмен.
         if trading then TriggerServerEvent("rpp_inventory:tradeCancel") end
+        -- Закрыть окно у багажника = закрыть багажник.
+        if inContainer then inContainer = false; TriggerServerEvent("rpp_inventory:containerClose") end
         -- Та же клавиша I закрывает окно со страницы и одновременно срабатывает
         -- привязка: окно не должно тут же открыться снова.
         open = false
@@ -114,6 +120,20 @@ end)
 RegisterNetEvent("rpp_inventory:tradeClosed", function(reason)
     trading = false
     send("tradeClosed", { reason = reason })
+end)
+
+-- Хранилище (багажник): окно инвентаря с панелью хранилища слева.
+RegisterNetEvent("rpp_inventory:container", function(box)
+    if type(box) ~= "table" then return end
+    inContainer = true
+    if not ensurePage() then return end
+    if not open then setOpen(true) end
+    send("container", box)
+end)
+
+RegisterNetEvent("rpp_inventory:containerClosed", function()
+    inContainer = false
+    send("containerClosed", {})
 end)
 
 RegisterNetEvent("rpp_inventory:tradeOffers", function(list)
