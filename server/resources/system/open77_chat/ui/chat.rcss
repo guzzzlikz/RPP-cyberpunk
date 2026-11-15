@@ -67,6 +67,12 @@ body { pointer-events: none; }
 #root.open .msg.stale { opacity: 1; transform: translateX(0dp); }
 .msg.old { display: none; }  /* closed: only the newest rows show */
 #root.open .msg.old { display: block; }
+/* RPP: погасшие строки не занимают место; длинное сообщение в закрытом чате —
+   не больше трёх строк (целиком видно, когда чат открыт). */
+.msg.gone { display: none; }
+#root.open .msg.gone { display: block; }
+.msg { max-height: 66dp; }
+#root.open .msg { max-height: none; }
 #root.open .msg { background-color: #ffffff06; }
 #root.open .msg:hover { background-color: #ffffff0f; }
 .msg.mention { background-color: #ff81201f; border-left-color: #ff8120; }
@@ -140,3 +146,7 @@ body { pointer-events: none; }
 scrollbarvertical { width: 3dp; }
 scrollbarvertical slidertrack { background-color: transparent; }
 scrollbarvertical sliderbar { background-color: #fbe70966; }
+
+/* RPP: пока чат открыт, история, плашка «новых ниже», подсказки и поле ввода
+   принимают мышь — колесом листается лог. Закрытый чат мышь не перехватывает. */
+#root.open #log, #root.open #latest, #root.open #suggestions, #root.open #composer { pointer-events: auto; }
