@@ -87,16 +87,16 @@
   // Где можно проиграть анимацию (из каталога open77_animations).
   var PLACES = { ground: "на земле", chair: "нужен стул", wall: "нужна стена", bed: "нужна кровать",
     counter: "нужна стойка", barstool: "нужен барный стул", ripperdoc_chair: "нужно кресло риппердока" };
-  // «Фоновые»: amb_* — анимации NPC, привязанные к месту (гриль, станок, стойка).
-  // По умолчанию скрыты: без нужного предмета рядом персонаж застывает в позе.
+  // Категории не из списка CATS (например, у анимаций NPC amb_*) — во вкладке «Прочее».
+  function catKey(p) { return CATS[p.category] ? p.category : "other"; }
   function renderCats() {
-    var present = {}, ambient = 0;
-    order.forEach(function (id) { present[profiles[id].category] = true; if (profiles[id].ambient) ambient++; });
+    var present = {};
+    order.forEach(function (id) { present[catKey(profiles[id])] = true; });
     var html = '<span class="cat' + (category === "all" ? " on" : "") + '" data-cat="all">Все</span>';
     Object.keys(CATS).forEach(function (key) {
       if (present[key]) html += '<span class="cat' + (category === key ? " on" : "") + '" data-cat="' + key + '">' + esc(CATS[key]) + "</span>";
     });
-    if (ambient) html += '<span class="cat amb' + (category === "ambient" ? " on" : "") + '" data-cat="ambient">Фоновые NPC (' + ambient + ")</span>";
+    if (present.other) html += '<span class="cat' + (category === "other" ? " on" : "") + '" data-cat="other">Прочее</span>';
     $("cats").innerHTML = html;
   }
   function renderItems() {
@@ -104,18 +104,14 @@
     var pinned = pinnedSet();
     var shown = order.filter(function (id) {
       var p = profiles[id];
-      if (category === "ambient") { if (!p.ambient) return false; }
-      else if (p.ambient) return false;
-      else if (category !== "all" && p.category !== category) return false;
+      if (category !== "all" && catKey(p) !== category) return false;
       if (!q) return true;
       return (p.label + " " + p.id + " " + catLabel(p.category)).toLowerCase().indexOf(q) >= 0;
     });
     $("count").textContent = shown.length + " / " + order.length;
-    var warn = category === "ambient"
-      ? '<div class="amb-warn">Фоновые анимации NPC привязаны к месту (гриль, стойка, станок). Без него персонаж застынет в позе.</div>' : "";
-    $("items").innerHTML = warn + (shown.length ? shown.map(function (id) {
+    $("items").innerHTML = (shown.length ? shown.map(function (id) {
       var p = profiles[id];
-      var place = p.ambient ? "нужно место / предмет" : (PLACES[p.placement] || "");
+      var place = PLACES[p.placement] || "";
       return '<div class="item" data-id="' + esc(id) + '"><span class="i-name">' + esc(p.label) + "</span>" +
         (pinned[id] ? '<span class="i-pin">В КОЛЕСЕ</span>' : "") +
         (place ? '<span class="i-place">' + esc(place) + "</span>" : "") +

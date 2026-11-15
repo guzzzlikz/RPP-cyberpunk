@@ -85,10 +85,7 @@ local function sendCatalog()
             local p = catalog[i]
             values[#values + 1] = { id = p.id, label = tostring(p.label or p.id), category = p.category or "",
                 once = p.kind == "layer" and p.mode == "once", walks = p.kind == "layer" and p.locomotion ~= false,
-                placement = p.placement or "standing",
-                -- amb_* — фоновые анимации NPC из игры, привязанные к месту (гриль,
-                -- стойка, станок): без него персонаж застывает в позе.
-                ambient = tostring(p.id):sub(1, 4) == "amb_" }
+                placement = p.placement or "standing" }
         end
         send("catalog", { batch = batch, total = total, profiles = values })
     end
@@ -123,13 +120,17 @@ local ERRORS = {
 
 local playSerial = 0
 
--- Вид от третьего лица. Анимация-воркспот показывается через временный вид от
--- 3-го лица, и Open77 ждёт, пока для него оденется отдельное тело. На медленном
--- кадре (15 FPS) тело одевалось ~2 с, Open77 не дожидался и возвращал вид от
--- 1-го лица («the incoming view did not become ready») — свою анимацию игрок
--- не видел, персонаж «просто стоял». Поэтому колесо само включает вид от 3-го
--- лица заранее, ждёт его, а после анимации возвращает 1-е лицо, если меняло его.
-local switchedView = false
+-- Вид от 3-го лица колесо НЕ включает: для анимации-воркспота Open77 сам
+-- временно переводит камеру на тело вида от 3-го лица (как F7) и не трогает
+-- настройку игрока. Раньше колесо делало это через open77_perspective, а тот
+-- сохраняет выбранный вид в kvp и при следующем входе включает его прямо во
+-- время загрузки персонажа. Тело для вида от 3-го лица тогда не создавалось
+-- («the player proxy record could not be provisioned»), и все воркспоты
+-- падали по playback_timeout, даже без колеса на сервере.
+--
+-- Разовое лечение: вернуть настройку на 1-е лицо тем, кому её сохранило
+-- прежнее колесо. Флаг в kvp — чтобы не сбрасывать вид при каждом входе.
+local VIEW_FIX_KEY = "rpp.animwheel.viewfix1"
 
 local function perspective(name, ...)
     local ok, result = pcall(function(...)
@@ -140,34 +141,18 @@ local function perspective(name, ...)
     return ok and result or nil
 end
 
-local function ensureThirdPerson()
-    if perspective("get") ~= "fpp" then return end
-    if not perspective("set", "tps") then return end
-    switchedView = true
-    local deadline = Open77.time.monotonic() + 8
-    while perspective("get") ~= "tps" and Open77.time.monotonic() < deadline do Wait(200) end
-    Wait(2500) -- тело для вида от 3-го лица одевается ~2 с на медленном кадре
+local function healStoredView()
+    local ok, done = pcall(Open77.kvp.get, VIEW_FIX_KEY, "")
+    if ok and done == "1" then return end
+    -- open77_perspective отвечает только после начала сессии.
+    local deadline = Open77.time.monotonic() + 60
+    local current = perspective("get")
+    while current == nil and Open77.time.monotonic() < deadline do Wait(1000); current = perspective("get") end
+    if current == nil then return end
+    if current ~= "fpp" and not perspective("set", "fpp") then return end
+    pcall(Open77.kvp.set, VIEW_FIX_KEY, "1")
+    log("stored third-person view reset to first person (one-time fix)")
 end
-
-local function restoreView()
-    if not switchedView then return end
-    switchedView = false
-    perspective("set", "fpp")
-end
-
-local function localPlayer()
-    local ok, state = pcall(Open77.network.status)
-    return ok and type(state) == "table" and tonumber(state.playerId) or nil
-end
-
-local starting = false -- идёт запуск новой анимации: остановка старой не возвращает вид
-
-AddEventHandler("onPlayerAnimationChanged", function(player, state)
-    if tonumber(player) ~= localPlayer() then return end
-    if type(state) == "table" and state.active then return end
-    if starting then return end
-    CreateThread(restoreView)
-end)
 
 -- Текущая анимация: nil, если ничего не играет. Профиль и клип — в steps[step+1].
 local function activeState()
@@ -183,8 +168,6 @@ local function play(profileId)
     playSerial = playSerial + 1
     local serial = playSerial
     CreateThread(function()
-        starting = true
-        local function done() if serial == playSerial then starting = false end end
         -- Новая анимация заменяет текущую: если что-то играет, сначала
         -- останавливаем и ждём, пока остановка дойдёт (до 1,5 с).
         local current = activeState()
@@ -193,9 +176,7 @@ local function play(profileId)
             local deadline = Open77.time.monotonic() + 1.5
             while activeState() and Open77.time.monotonic() < deadline do Wait(100) end
         end
-        if serial ~= playSerial then return done() end
-        ensureThirdPerson()
-        if serial ~= playSerial then return done() end
+        if serial ~= playSerial then return end
         -- Те же параметры, что у команды /anim: только loop, без клипа и
         -- длительности — сервер сам берёт клип профиля по умолчанию.
         local options = { loop = profile.mode ~= "once" }
@@ -203,11 +184,8 @@ local function play(profileId)
         if not value and err ~= "cancelled" then
             log(("play %s failed: %s"):format(profile.id, tostring(err)))
             notify(ERRORS[err] or ("Анимация недоступна: " .. tostring(err)))
-            done()
-            restoreView()
             return
         end
-        done()
         local now = activeState()
         log(("play %s (%s, loop=%s) -> playing %s / %s"):format(profile.id, tostring(profile.kind),
             tostring(options.loop), tostring(now and now.profile), tostring(now and now.clip)))
@@ -294,6 +272,7 @@ AddEventHandler("onClientResourceStart", function(name)
     if name ~= RESOURCE then return end
     loadSlots()
     refresh()
+    CreateThread(healStoredView)
 end)
 
 AddEventHandler("onClientResourceStop", function(name)
