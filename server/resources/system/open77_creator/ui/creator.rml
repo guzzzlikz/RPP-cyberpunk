@@ -1,0 +1,143 @@
+<rml>
+<head>
+    <title>Open77 character creator</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="creator.rcss"/>
+</head>
+<body data-model="cc">
+<div id="root" data-class-open="open">
+    <!-- The character's area between the panels: the wheel zooms and a drag turns or pans only here. -->
+    <div id="stage"></div>
+
+    <!-- Covers the scene while a new body is spawned (opening, body type change). -->
+    <div id="veil" data-class-on="veiled">
+        <div class="veil-stripes"></div>
+        <div class="veil-core">
+            <div class="loader"><shape type="circle" class="loader-ring"/><shape type="circle" class="loader-ring slow"/></div>
+            <span class="veil-text">{{veilText}}</span>
+        </div>
+    </div>
+
+    <!-- Brand bar -->
+    <div id="top">
+        <span class="slashes">//</span>
+        <div class="logo"><span>OPEN</span><span class="logo-cut">//</span><span>77</span></div>
+        <span class="crumb-sep">/</span>
+        <span class="crumb">{{t.title}}</span>
+    </div>
+    <path id="top-line" view-box="0 0 760 44" preserve-aspect="none" d="M0 42 H560 L598 4 H760"/>
+
+    <!-- Identity -->
+    <div id="left" class="frame">
+        <div class="eyebrow-line"><span class="eyebrow-text">{{t.identity}}</span></div>
+        <div class="title"><span>{{t.titleTop}}</span></div>
+        <div class="title second"><span>{{t.titleBottom}}</span></div>
+        <div class="subtitle"><span>{{t.subtitle}}</span></div>
+
+        <div class="section"><span class="eyebrow-text">{{t.bodyType}}</span></div>
+        <div id="segs">
+            <div id="seg-thumb"></div>
+            <div class="seg" data-class-on="family == 'male'" data-event-click="family('male')" data-event-mouseover="hover()"><span>{{t.male}}</span></div>
+            <div class="seg" data-class-on="family == 'female'" data-event-click="family('female')" data-event-mouseover="hover()"><span>{{t.female}}</span></div>
+        </div>
+
+        <div id="tabs">
+            <div id="tab-thumb"><div class="thumb-bar"></div></div>
+            <div class="tab" data-for="cat, i : categories" data-class-on="cat.id == category"
+                 data-event-click="tab(cat.id)" data-event-mouseover="hover()">
+                <div class="ico" data-rml="cat.icon"></div>
+                <span class="tab-label">{{cat.label}}</span>
+                <div class="tab-marks"><div class="mk"></div><div class="mk"></div><div class="mk"></div></div>
+            </div>
+        </div>
+
+        <div class="section" data-if="hasPresets"><span class="eyebrow-text">{{t.presets}}</span></div>
+        <div id="looks" data-if="hasPresets">
+            <div class="look" data-for="p : presets" data-class-on="p.name == preset" data-event-click="preset(p.name)" data-event-mouseover="hover()">
+                <img class="look-img" data-if="p.img != ''" data-attr-src="p.img"/>
+                <div class="look-blank" data-if="p.img == ''"><span>{{p.initial}}</span></div>
+                <div class="look-shade"></div>
+                <span class="look-name">{{p.label}}</span>
+                <div class="look-edge"></div>
+            </div>
+        </div>
+        <div id="random" data-event-click="random()" data-event-mouseover="hover()">
+            <div class="ico"><path view-box="0 0 24 24" d="M4 7.5 L12 3.5 L20 7.5 V16.5 L12 20.5 L4 16.5 Z M4 7.5 L12 11.5 L20 7.5 M12 11.5 V20.5"/></div>
+            <span>{{t.random}}</span>
+        </div>
+    </div>
+
+    <!-- Options of the category -->
+    <div id="right" class="frame">
+        <div id="cat-head">
+            <span class="cat-slashes">//</span>
+            <span id="cat-title">{{categoryLabel}}</span>
+            <span class="cat-slashes">//</span>
+            <div class="cat-spacer"></div>
+            <span class="cat-count">{{categoryIndex}}</span><span class="cat-total">/ {{categoryCount}}</span>
+        </div>
+        <div id="cat-rule"><div id="cat-rule-fill"></div><div class="cat-node"></div></div>
+        <div class="empty" data-if="!hasRows"><span>{{t.empty}}</span></div>
+        <div id="rows">
+            <div class="row" data-for="row, i : rows" data-if="row.show" data-attr-id="'row' + i" data-class-selected="row.selected">
+                <div class="row-top">
+                    <div class="row-head" data-event-click="select(i)" data-event-mouseover="hover()">
+                        <div class="caret"><path view-box="0 0 24 24" d="M9 5 L16 12 L9 19"/></div>
+                        <div class="row-main">
+                            <span class="row-label">{{row.label}}</span>
+                            <div class="track"><div class="fill"></div></div>
+                        </div>
+                    </div>
+                    <div class="nav" data-event-click="step(i, -1)"><path view-box="0 0 24 24" d="M15 5 L8 12 L15 19"/></div>
+                    <div class="row-val">
+                        <span class="row-value">{{row.value}}</span>
+                        <span class="row-count">{{row.position}} / {{row.count}}</span>
+                    </div>
+                    <div class="nav last" data-event-click="step(i, 1)"><path view-box="0 0 24 24" d="M9 5 L16 12 L9 19"/></div>
+                </div>
+                <div class="grid" data-if="row.selected &amp;&amp; hasCells">
+                    <div class="cell" data-for="c, j : cells" data-if="c.show" data-class-on="c.on" data-class-swatch="c.swatch"
+                         data-class-num="c.plain" data-event-click="pick(i, j)" data-event-mouseover="hover()">
+                        <img data-if="c.src != ''" data-attr-src="c.src"/>
+                        <div class="sw" data-if="c.swatch" data-style-background-color="c.color"></div>
+                        <span class="n" data-if="c.plain">{{c.n}}</span>
+                        <div class="tick"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live state of the preview -->
+    <div id="status" data-class-on="busy">
+        <shape type="circle" class="status-ring"/>
+        <span class="status-text">{{status}}</span>
+    </div>
+
+    <!-- Command bar -->
+    <div id="hints" class="frame thin">
+        <div class="hint"><div class="key"><span>Q</span></div><div class="key"><span>E</span></div><span class="hint-text">{{t.hintRotate}}</span></div>
+        <div class="hint-sep"></div>
+        <div class="hint">
+            <div class="ico small"><path view-box="0 0 24 24" d="M12 3 C8.6 3 7 5 7 8 V15 C7 18.6 9 21 12 21 C15 21 17 18.6 17 15 V8 C17 5 15.4 3 12 3 Z M12 6.5 V10"/></div>
+            <span class="hint-text">{{t.hintZoom}}</span>
+        </div>
+        <div class="hint-sep"></div>
+        <div class="hint">
+            <div class="ico small"><path view-box="0 0 24 24" d="M12 3 C8.6 3 7 5 7 8 V15 C7 18.6 9 21 12 21 C15 21 17 18.6 17 15 V8 C17 5 15.4 3 12 3 Z M7 10 H17"/></div>
+            <span class="hint-text">{{t.hintDrag}}</span>
+        </div>
+        <div class="hint-sep"></div>
+        <div class="hint"><div class="key wide"><span>ESC</span></div><span class="hint-text">{{cancelLabel}}</span></div>
+    </div>
+    <div id="actions">
+        <div id="later" class="btn" data-event-click="cancel()" data-event-mouseover="hover()"><span>{{cancelLabel}}</span></div>
+        <div id="confirm" class="btn" data-class-busy="saving" data-event-click="save()" data-event-mouseover="hover()">
+            <div class="confirm-stripes"></div>
+            <span>{{confirmLabel}}</span>
+            <div class="chev"><path view-box="0 0 24 24" d="M9 5 L16 12 L9 19"/></div>
+        </div>
+    </div>
+</div>
+</body>
+</rml>

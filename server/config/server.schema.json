@@ -202,7 +202,7 @@
         "note": { "type": "string", "maxLength": 512 },
         "packages": {
           "type": "array",
-          "maxItems": 64,
+          "maxItems": 256,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -212,10 +212,10 @@
               "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$" },
               "source": { "enum": ["indexed", "hosted"] },
               "displayName": { "type": "string", "maxLength": 96 },
-              "minVersion": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+){0,3}(-[0-9A-Za-z.-]{1,32})?$" },
-              "version": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+){0,3}(-[0-9A-Za-z.-]{1,32})?$" },
+              "minVersion": { "type": "string", "maxLength": 64, "pattern": "^[0-9]+(\\.[0-9]+){0,3}(-[0-9A-Za-z.-]{1,32})?$" },
+              "version": { "type": "string", "maxLength": 64, "pattern": "^[0-9]+(\\.[0-9]+){0,3}(-[0-9A-Za-z.-]{1,32})?$" },
               "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-              "sizeBytes": { "type": "integer", "minimum": 0 }
+              "sizeBytes": { "type": "integer", "minimum": 0, "maximum": 1073741824 }
             }
           }
         }
@@ -280,6 +280,21 @@
         }
       }
     },
+    "resourceEscrow": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional resource escrow: a resource whose folder contains escrow.json keeps its SERVER scripts encrypted at rest and has them loaded by a native library that obtains the key from a licence service. Off by default; while it is off nothing is loaded and an escrowed folder is refused with one log line. Deterrence, licence binding, revocation and traceability -- not a guarantee: the operator of the machine can ultimately recover what their own process runs. Client and shared scripts are sent to game clients in clear and cannot be escrowed. No secret belongs in this section: deployment tokens are files in tokensDirectory.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "master": { "type": ["string", "null"], "format": "uri", "maxLength": 2048, "description": "Base URL of the key service (the server POSTs to <master>/v1/licenses/key). HTTPS; plain HTTP only for loopback development. Required when enabled." },
+        "environment": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$", "default": "open77", "description": "Licence environment this server asks keys for." },
+        "identityFile": { "type": "string", "minLength": 1, "maxLength": 1024, "default": ".open77/escrow-identity.bin", "description": "Where the native library keeps this server's key pair; its public half binds licences to this server. An opaque binary file created on first use. On Windows it is sealed (DPAPI) for the account that created it: run the server under another account, or copy the file to another machine, and it cannot be opened (reason: identity). Relative to the configuration directory unless absolute. Back it up with the rest of .open77: a new identity must be bound again." },
+        "tokensDirectory": { "type": "string", "minLength": 1, "maxLength": 1024, "default": ".open77/escrow-tokens", "description": "Directory holding one <resource>.token file per escrowed resource (its deployment token). Relative to the configuration directory unless absolute. Never put a token in this file or in the resource folder." },
+        "trustedSigners": { "type": "array", "maxItems": 16, "uniqueItems": true, "default": [], "items": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }, "description": "Ed25519 public keys (32 bytes, base64url without padding) allowed to sign an escrow manifest. Empty: trust the signer the key service names for each licence." },
+        "nativeLibrary": { "type": ["string", "null"], "minLength": 1, "maxLength": 1024, "default": null, "description": "Explicit path of the native library file. Null uses the copy next to the server executable; nothing else is searched. Without the library every escrowed resource is refused (native_missing)." },
+        "strictClearFiles": { "type": "boolean", "default": false, "description": "True: a clear file (a config, a client script) that differs from the signed release refuses the start. False: the edit is logged and allowed, because operators are expected to edit the files a creator left clear. The resource manifest and the script list are always enforced." }
+      }
+    },
     "metrics": {
       "type": "object",
       "additionalProperties": false,
@@ -331,7 +346,7 @@
         "requestTimeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 600, "default": 60 },
         "idleTimeoutSeconds": { "type": "integer", "minimum": 10, "maximum": 86400, "default": 600 },
         "sessionLifetimeSeconds": { "type": "integer", "minimum": 10, "maximum": 86400, "default": 3600 },
-        "maxUploadBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824, "default": 67108864 }
+        "maxUploadBytes": { "type": "integer", "minimum": 1, "maximum": 1073741824, "default": 1073741824 }
       }
     },
     "convars": {

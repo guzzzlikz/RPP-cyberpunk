@@ -32,7 +32,6 @@
         <button class="tab" data-tab="weapons"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h17v5h-7l-2 7H6l2-7H3zM15 7V5m2 7v3h-4"/></svg><span>Weapons</span><i aria-hidden="true">›</i></button>
         <button class="tab" data-tab="cyberware"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4M10 10h4v4h-4z"/></svg><span>Cyberware</span><i aria-hidden="true">›</i></button>
         <button class="tab" data-tab="travel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2"/></svg><span>Travel</span><i aria-hidden="true">›</i></button>
-        <button class="tab" data-tab="tv" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="m8 2 4 4 4-4M8 22h8"/></svg><span>Televisions</span><i aria-hidden="true">›</i></button>
       </div>
       <div class="nav-group" role="group" aria-label="Character">
         <span class="nav-label">Your character</span>
@@ -216,34 +215,6 @@
       <section class="page" id="page-cyberware">
         <div class="section-head" data-kicker="CYBERWARE"><h2>Implant control.</h2><p class="hint">Character upgrades and implants.</p></div>
         <div class="empty-state"><span class="availability">FREEROAM MOVEMENT</span><h3>The city is your playground.</h3><p>Double jump and advanced ground / air dash are enabled for everyone throughout Freeroam. Open Cyberlab to view your cyberware and abilities.</p><button class="btn primary" id="cyberware-open">OPEN CYBERLAB →</button></div>
-      </section>
-      <section class="page" id="page-tv">
-        <div class="section-head" data-kicker="SHARED SCREENS">
-          <h2>Put something on.</h2>
-          <p class="hint">Place a television in front of you and share a web page with everyone nearby.</p>
-        </div>
-        <div class="stat-strip" id="tv-status" role="status">Requesting television catalog…</div>
-
-        <label class="field-label" for="tv-url">URL FOR THE NEXT SPAWNED SET</label>
-        <input type="text" class="search" id="tv-url" spellcheck="false"
-               placeholder="https://... (leave empty for the idle test pattern)" />
-        <label class="field-label" for="tv-search">TELEVISION RECORDS</label>
-        <input type="text" class="search" id="tv-search" spellcheck="false"
-               placeholder="Filter records" />
-        <div class="catalog-grid weapons" id="tv-grid"></div>
-        <p class="hint" id="tv-note"></p>
-
-        <div class="section-head compact">
-          <h2>SETS ON THIS SERVER</h2>
-          <p class="hint">Nearest screens first. Changes apply to everyone watching that television.</p>
-        </div>
-        <details class="advanced"><summary>Placement &amp; visibility <span>How it works</span></summary><div class="advanced-body"><p class="hint">Only the nearest screens are rendered. Look for ON SCREEN to control a television you can see.</p><p class="hint">Placement is relative to the television: LEFT is its left, FORWARD is the direction it faces. Select a step size, then move or rotate it by 15°. Its URL and playback settings are kept.</p></div></details>
-        <div class="stat-strip" id="tv-local-count">NO SETS IN RANGE</div>
-        <div class="catalogue-grid" id="tv-screens"></div>
-        <div class="action-grid">
-          <button class="btn" id="tv-refresh">REFRESH</button>
-        </div>
-        <p class="hint" id="tv-screens-note"></p>
       </section>
     </div>
 

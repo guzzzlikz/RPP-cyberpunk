@@ -37,7 +37,6 @@
   const navigation = [...body.querySelectorAll(".tab")];
   const pages = body.querySelector(".pages");
   function activatePage(name) {
-    if (name === "tv" && state.canManageTv !== true) name = "vehicles";
     const page = document.getElementById("page-" + name);
     if (!page) return;
     const changed = !page.classList.contains("active");
@@ -78,7 +77,6 @@
       }
       activatePage(tab.dataset.tab);
       if (tab.dataset.tab === "weapons") send("weaponSnapshot", {});
-      if (tab.dataset.tab === "tv") requestTv();
       if (tab.dataset.tab === "pvp") Open77.emit("pvp:open", {});
     });
   }
@@ -395,212 +393,6 @@
   document.getElementById("player-god-off").addEventListener("click", () => send("godMode", { enabled: false }));
   document.getElementById("player-suicide").addEventListener("click", () => send("suicide", {}));
 
-  // Televisions ----------------------------------------------------------
-  //
-  // The catalogue and the spawn path live in the `open77_media` resource, not
-  // here, so this tab is a client of it rather than a second implementation: it
-  // asks, and it renders the answer. Everything a player can change goes through
-  // that resource's server events, which is why changing a URL from here changes
-  // it for everyone watching the same set.
-
-  let tvCatalogue = [];
-  let tvLocal = [];
-  let tvFilter = "";
-
-  const tvSend = (action, extra) => {
-    if (state.canManageTv === true) Open77.emit("freeroam:tv", Object.assign({ action }, extra || {}));
-  };
-  const requestTv = () => {
-    tvSend("catalogue");
-    tvSend("local");
-  };
-
-  function renderTvCatalogue() {
-    const grid = document.getElementById("tv-grid");
-    grid.innerHTML = "";
-    const shown = tvCatalogue.filter(record =>
-      tvFilter === "" || text(record.label).includes(tvFilter) || text(record.id).includes(tvFilter));
-
-    for (const record of shown) {
-      const card = document.createElement("button");
-      card.className = "catalog-card";
-      card.type = "button";
-      const title = document.createElement("strong");
-      title.textContent = record.label || record.id;
-      const blurb = document.createElement("small");
-      blurb.textContent = record.blurb || record.model || "";
-      const size = document.createElement("span");
-      size.className = "tag";
-      size.textContent = `${Number(record.width).toFixed(2)}×${Number(record.height).toFixed(2)} m`;
-      card.append(title, blurb, size);
-      card.addEventListener("click", () => tvSend("spawn", {
-        record: record.id, url: document.getElementById("tv-url").value.trim(),
-      }));
-      grid.appendChild(card);
-    }
-    if (shown.length === 0) {
-      const empty = document.createElement("p");
-      empty.className = "hint";
-      empty.textContent = tvCatalogue.length === 0
-        ? "No records received. The open77_media resource may not be running."
-        : "No records match that filter.";
-      grid.appendChild(empty);
-    }
-  }
-
-  // One row per set this client is rendering. The controls map onto the media
-  // resource's own actions, so nothing here is a separate implementation of any
-  // of them.
-  function renderTvLocal() {
-    const list = document.getElementById("tv-screens");
-    list.innerHTML = "";
-    // Nearest first, and the count stops claiming "in range".
-    //
-    // `open77:media:local` carries every television this client knows about --
-    // the server's whole set, up to its own ceiling -- and it arrives in id
-    // order. So the row for the set standing in front of the player sat wherever
-    // its id happened to fall, and an operator changing "the volume" was usually
-    // changing a television kilometres away while the picture in front of them
-    // did not move. Nothing was broken in the control: it was aimed at the wrong
-    // set, and the list gave no way to tell. The ones this client is actually
-    // rendering come first, then by distance, and each row says which it is.
-    const ordered = tvLocal.slice().sort((a, b) => {
-      if (Boolean(a.materialised) !== Boolean(b.materialised)) return a.materialised ? -1 : 1;
-      const left = Number(a.distance), right = Number(b.distance);
-      if (isFinite(left) && isFinite(right) && left !== right) return left - right;
-      return (Number(a.id) || 0) - (Number(b.id) || 0);
-    });
-    const rendered = ordered.filter(screen => screen.materialised === true).length;
-    document.getElementById("tv-local-count").textContent = ordered.length === 0
-      ? "NO SETS IN RANGE"
-      : `${ordered.length} SET${ordered.length === 1 ? "" : "S"} — ${rendered} ON THIS CLIENT`;
-
-    for (const screen of ordered) {
-      const row = document.createElement("div");
-      row.className = "catalogue-row";
-
-      const head = document.createElement("strong");
-      head.textContent = `#${screen.id}  ${screen.label || "television"}`;
-      const where = document.createElement("small");
-      const distance = screen.distance === null || screen.distance === undefined
-        ? "distance unknown"
-        : `${Number(screen.distance).toFixed(1)} m away`;
-      // Which television this row is. A set this client is rendering is the one
-      // on its screen; everything else is somewhere else on the map, and its
-      // volume is not the volume of the picture in front of the player.
-      where.textContent = `${screen.materialised === true ? "ON SCREEN" : "DRIVING A SET ELSEWHERE"} · ${distance}`;
-
-      const urlRow = document.createElement("div");
-      urlRow.className = "row";
-      const url = document.createElement("input");
-      url.type = "text";
-      url.className = "search";
-      url.spellcheck = false;
-      url.value = screen.url || "";
-      url.placeholder = "https://... (empty = idle test pattern)";
-      url.setAttribute("aria-label", `Web page for television ${screen.id}`);
-      const load = document.createElement("button");
-      load.className = "btn";
-      load.type = "button";
-      load.textContent = "SHOW";
-      const show = () => tvSend("url", { id: screen.id, url: url.value.trim() });
-      load.addEventListener("click", show);
-      url.addEventListener("keydown", event => { if (event.key === "Enter") show(); });
-      urlRow.append(url, load);
-
-      const controls = document.createElement("div");
-      controls.className = "row";
-      const volume = document.createElement("input");
-      volume.type = "range";
-      volume.min = "0";
-      volume.max = "100";
-      volume.value = String(screen.volume === undefined ? 100 : screen.volume);
-      volume.setAttribute("aria-label", `Volume for television ${screen.id}`);
-      volume.addEventListener("change", () =>
-        tvSend("volume", { id: screen.id, volume: Number(volume.value) }));
-      const sounds = document.createElement("button");
-      sounds.className = "btn";
-      sounds.type = "button";
-      sounds.textContent = screen.muted ? "UNMUTE" : "MUTE";
-      sounds.addEventListener("click", () => tvSend("muted", { id: screen.id, value: !screen.muted }));
-      const play = document.createElement("button");
-      play.className = "btn";
-      play.type = "button";
-      play.textContent = screen.paused ? "PLAY" : "PAUSE";
-      play.addEventListener("click", () => tvSend("paused", { id: screen.id, value: !screen.paused }));
-      const remove = document.createElement("button");
-      remove.className = "btn danger";
-      remove.type = "button";
-      remove.textContent = "REMOVE";
-      remove.addEventListener("click", () => tvSend("remove", { id: screen.id }));
-      controls.append(volume, sounds, play, remove);
-
-      // Placement: where the cabinet stands and which way it points.
-      //
-      // A spawned set lands about a metre in front of you facing you, which is
-      // the right default and rarely the right answer -- hovering over a crate,
-      // half inside a shelf, or a hand's width from flush. Before this row, the
-      // only way to fix that was REMOVE and spawn again, which threw away the
-      // URL and the volume, and there was no way at all to turn a set that had
-      // come out facing the wrong way.
-      //
-      // The nudge is relative to the SET, not to the player or the world axis:
-      // LEFT moves the television along the cabinet's own left, so a set turned
-      // to face a room still moves the way the button says. The arithmetic lives
-      // in the media resource (`shared/placement.lua`) and is pinned by its own
-      // test, because a "left" that moves a set right is exactly the kind of
-      // wrong that no log line can report.
-      const placement = document.createElement("div");
-      placement.className = "row placement-controls";
-      const step = document.createElement("select");
-      step.className = "search";
-      step.title = "How far one press moves the set";
-      step.setAttribute("aria-label", "Placement step size");
-      for (const metres of [0.05, 0.25, 1, 5]) {
-        const option = document.createElement("option");
-        option.value = String(metres);
-        option.textContent = `${metres} m`;
-        if (metres === 0.25) option.selected = true;
-        step.appendChild(option);
-      }
-      placement.appendChild(step);
-      const nudges = [
-        ["▲ UP", "up"], ["▼ DOWN", "down"],
-        ["◀ LEFT", "left"], ["▶ RIGHT", "right"],
-        ["FORWARD", "forward"], ["BACK", "back"],
-      ];
-      for (const [label, direction] of nudges) {
-        const button = document.createElement("button");
-        button.className = "btn";
-        button.type = "button";
-        button.textContent = label;
-        button.title = `Move the set ${direction} by the step`;
-        button.addEventListener("click", () =>
-          tvSend("move", { id: screen.id, direction, metres: Number(step.value) }));
-        placement.appendChild(button);
-      }
-      for (const [label, direction] of [["↺ TURN", "left"], ["↻ TURN", "right"]]) {
-        const button = document.createElement("button");
-        button.className = "btn";
-        button.type = "button";
-        button.textContent = label;
-        button.title = `Turn the set 15° to its ${direction}`;
-        button.addEventListener("click", () =>
-          tvSend("rotate", { id: screen.id, direction, degrees: 15 }));
-        placement.appendChild(button);
-      }
-
-      row.append(head, where, urlRow, controls, placement);
-      list.appendChild(row);
-    }
-  }
-
-  document.getElementById("tv-search").addEventListener("input", event => {
-    tvFilter = text(event.target.value);
-    renderTvCatalogue();
-  });
-  document.getElementById("tv-refresh").addEventListener("click", requestTv);
-
   document.addEventListener("keydown", event => {
     if (!body.classList.contains("open")) return;
     if (event.key === "Escape") { event.preventDefault(); close(); }
@@ -624,17 +416,7 @@
 
   Open77.on("freeroam:state", payload => {
     if (payload && typeof payload === "object") state = payload;
-    body.querySelector('[data-tab="tv"]').hidden = state.canManageTv !== true;
-    if (state.canManageTv !== true) {
-      tvCatalogue = []; tvLocal = [];
-      renderTvCatalogue(); renderTvLocal();
-      if (document.getElementById("page-tv").classList.contains("active")) activatePage("vehicles");
-    }
     render();
-  });
-  Open77.on("freeroam:tv:open", () => {
-    if (state.canManageTv !== true) return;
-    activatePage("tv"); requestTv();
   });
   Open77.on("freeroam:weapons", payload => {
     weaponSlots = asArray(payload && payload.slots);
@@ -660,33 +442,6 @@
   Open77.on("freeroam:result", payload => {
     if (payload && payload.text) showToast(payload.ok === true, payload.text);
   });
-  // `freeroam:tv` carries three shapes, told apart by which key is present
-  // rather than by a discriminator: the catalogue, this client's nearby sets, and
-  // a one-line answer to an action. They arrive from different places (the media
-  // resource's server and its client), so a shared discriminator would have to
-  // be invented on both sides for no gain.
-  Open77.on("freeroam:tv", payload => {
-    if (state.canManageTv !== true) return;
-    if (!payload || typeof payload !== "object") return;
-    if (payload.catalogue) {
-      tvCatalogue = asArray(payload.catalogue);
-      document.getElementById("tv-status").textContent = tvCatalogue.length
-        ? `${tvCatalogue.length} screens available · Choose a model to place it nearby.`
-        : "No televisions are available. Check that the media resource is running.";
-      renderTvCatalogue();
-      return;
-    }
-    if (payload.screens) {
-      tvLocal = asArray(payload.screens);
-      renderTvLocal();
-      return;
-    }
-    if (payload.text) {
-      showToast(payload.ok === true, payload.text);
-      if (payload.ok === true) requestTv();
-    }
-  });
-
   Open77.ready();
   Open77.emit("freeroam:ready", {});
 })();

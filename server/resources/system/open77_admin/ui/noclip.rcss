@@ -1,0 +1,88 @@
+/* Admin flight (noclip) on NativeUI: one slim strip at the bottom centre, in the
+   language of the freeroam HUD (ui/hud.rcss of the freeroam gamemode): skewed cyan
+   badge, Chakra Petch figures, Roboto Mono keys, a thin glass band.
+   1 dp = 1 px of the 1080p reference. */
+
+body { width: 100%; height: 100%; pointer-events: none; font-family: "Chakra Petch"; font-weight: bold; color: #e6eaec; }
+
+/* hidden = visibility, not only opacity: a backdrop-filter is still drawn at opacity 0 */
+#root
+{
+    position: absolute; left: 0; right: 0; bottom: 44dp;
+    display: flex; flex-direction: row; justify-content: center;
+    opacity: 0; visibility: hidden;
+    transform: translateY(14dp);
+    transition: opacity transform 0.22s cubic-out;
+}
+#root.on { opacity: 1; visibility: visible; transform: translateY(0dp); }
+
+#strip
+{
+    position: relative;
+    display: flex; flex-direction: row; align-items: center;
+    height: 30dp; padding: 0 14dp 0 0;
+    background-color: #0b0e14a8;
+    decorator: linear-gradient(90deg, #05070bd8 0%, #0b0e1490 100%);
+    backdrop-filter: blur(10dp) saturate(1.3);
+    border-width: 1dp; border-color: #e6eaec1c;
+    transform: skewX(-12deg);
+}
+
+/* ---- badge + speed --------------------------------------------------------------- */
+#badge
+{
+    flex-shrink: 0;
+    height: 30dp; padding: 0 11dp; margin-right: 12dp;
+    background-color: #22d8e2;
+    filter: glow(7dp #22d8e2 0.9);
+    transition: background-color 0.18s cubic-out;
+}
+#badge span { font-size: 12dp; line-height: 30dp; letter-spacing: 0.2em; color: #05262a; }
+
+#speed { flex-shrink: 0; display: flex; flex-direction: row; align-items: baseline; margin-right: 10dp; }
+#speed-num
+{
+    min-width: 46dp; text-align: right;
+    font-size: 22dp; line-height: 30dp; color: #f7f9fb;
+    font-effect: shadow(0dp 1dp #000000);
+}
+#speed-unit { margin-left: 5dp; font-family: "Roboto Mono"; font-weight: normal; font-size: 10dp; color: #8a94a2; }
+
+#mode
+{
+    flex-shrink: 0;
+    height: 16dp; padding: 0 6dp; margin-right: 4dp;
+    border-width: 1dp; border-color: #22d8e266;
+    visibility: hidden;
+}
+#mode span { font-family: "Roboto Mono"; font-weight: normal; font-size: 9dp; line-height: 14dp; letter-spacing: 0.16em; color: #4ee6ee; }
+
+/* ---- key hints ----------------------------------------------------------------- */
+.sep { flex-shrink: 0; width: 1dp; height: 14dp; margin: 0 12dp 0 8dp; background-color: #e6eaec26; }
+.key { flex-shrink: 0; display: flex; flex-direction: row; align-items: center; margin-right: 12dp; }
+.key.last { margin-right: 0; }
+.key .k { font-family: "Roboto Mono"; font-weight: bold; font-size: 10dp; color: #4ee6ee; margin-right: 5dp; }
+.key .v { font-family: Rajdhani; font-weight: bold; font-size: 12dp; color: #c2cad3; }
+
+/* ---- the speed gauge: a hairline along the bottom edge ---------------------------- */
+#gauge { position: absolute; left: 0; right: 0; bottom: -1dp; height: 2dp; background-color: #22d8e214; }
+#gauge-fill
+{
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background-color: #22d8e2; filter: glow(4dp #22d8e2 1);
+    transition: width 0.18s cubic-out;
+}
+
+/* ---- modes ---------------------------------------------------------------------- */
+#root.boost #badge { background-color: #ffb020; filter: glow(8dp #ffb020 0.9); }
+#root.boost #mode { visibility: visible; border-color: #ffb02088; }
+#root.boost #mode span { color: #ffb020; }
+#root.boost #gauge-fill { background-color: #ffb020; filter: glow(4dp #ffb020 1); }
+
+#root.slow #mode { visibility: visible; }
+
+#root.paused #badge { background-color: #8a94a2; filter: none; }
+#root.paused #mode { visibility: visible; border-color: #8a94a266; }
+#root.paused #mode span { color: #8a94a2; }
+#root.paused #speed-num { color: #8a94a2; }
+#root.paused #gauge-fill { background-color: #8a94a2; filter: none; }

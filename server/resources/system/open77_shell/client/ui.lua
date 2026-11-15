@@ -156,10 +156,50 @@ function U.explainResource(reason, diagnostic)
     return { summary = summary, player = player, owner = owner, fields = fields }
 end
 
+local ERROR_KINDS = {
+    lua_error = "Lua runtime error", lua_syntax_error = "Lua syntax error", manifest_export_missing = "Missing export",
+    permission_denied = "Permission refused", resource_start_failed = "Start refused",
+}
+
+--- "res/dir/file.lua:12" for a report (empty when it names no file).
+function U.where(r)
+    if type(r) ~= "table" or tostring(r.file or "") == "" then return "" end
+    local owner = tostring(r.fileResource or "")
+    local line = tonumber(r.line) or 0
+    return (owner ~= "" and owner .. "/" or "") .. tostring(r.file) .. (line > 0 and (":" .. math.floor(line)) or "")
+end
+
+--- A server resource that could not start (client host report, open77:resources:activationFailed).
+--- The download diagnostic is NOT used here: the install succeeded, a script failed.
+function U.explainActivation(activation)
+    local r = type(activation) == "table" and type(activation.report) == "table" and activation.report or nil
+    if not r then
+        return { code = "resource_activation_failed", title = "Server script error",
+                 message = "One of this server's resources could not start on your game.",
+                 action = "Retry once. If it fails again, tell the server's staff: a script on the server failed, not your game.",
+                 owner = "The client log (red4ext/logs/open77-*.log) names the resource and the Lua error.", fields = {} }
+    end
+    local code = clean(r.code or ""):sub(1, 64)
+    local kind = ERROR_KINDS[code] or code
+    local resource = clean((r.resource or "") ~= "" and r.resource or "A server resource"):sub(1, 96)
+    local where = clean(U.where(r)):sub(1, 300)
+    local fields = { { "Resource", resource }, { "Error", kind } }
+    if where ~= "" then fields[#fields + 1] = { "Where", where } end
+    fields[#fields + 1] = { "Message", clean(r.message or "") }
+    fields[#fields + 1] = { "Stage", clean(r.stage or "") }
+    return { code = "resource_activation_failed", title = "Server script error",
+             message = resource .. " could not start.",
+             action = "Not a problem with your game: a script on this server failed. Copy the report and send it to the server's staff.",
+             owner = "The same report is in the server console (RESOURCE START FAILED ON A CLIENT)." ..
+                 (where ~= "" and (" Fix " .. where .. ", then refresh the resource.") or ""),
+             fields = fields, kind = kind, where = where, resource = resource }
+end
+
 --- A failure reason as the screen tells it: { code, title, message, action, owner, fields }.
-function U.explain(reason, diagnostic)
+function U.explain(reason, diagnostic, activation)
     local raw = clean(reason or "server_disconnected")
     local token = raw:match("^([^:]*)") or raw
+    if token == "resource_activation_failed" then return U.explainActivation(activation) end
     if token:match("^database_") then
         return { code = token, title = "Server database error", message = REASONS[token] or REASONS.database_error,
                  action = "This is a server-side problem. Contact the server owner, then retry after they restore the database.",
@@ -475,7 +515,8 @@ function U.create()
     end
 
     local function begin(value)
-        S.failure, S.terminal, S.busy, S.resourceDiagnostic, S.server = nil, false, false, nil, {}
+        S.failure, S.terminal, S.busy, S.resourceDiagnostic, S.server, S.activation = nil, false, false, nil, {}, nil
+        ui:class("#root", "has-script", false)
         S.target = value.target or S.target
         S.attempt = value.attempt or (S.attempt + 1)
         S.started, S.checkpoint = now(), -1
@@ -511,7 +552,56 @@ function U.create()
             lines[#lines + 1] = row[1] .. ": " .. tostring(row[2])
         end
         ui:rml("#details", table.concat(out))
+        local text = S.activation and f.code == "resource_activation_failed" and tostring(S.activation.text or "") or ""
+        if text ~= "" then
+            -- a code block: pasted in Discord or a ticket, the source window stays aligned
+            table.insert(lines, 1, "```\n" .. text:sub(1, 6000):gsub("```", "` ` `") .. "\n```")
+        end
         S.report = Privacy.text(table.concat(lines, "\n"))
+    end
+
+    local function renderScript()
+        local r = S.activation and S.activation.report
+        local on = S.failure ~= nil and S.failure.explanation.code == "resource_activation_failed" and type(r) == "table"
+        ui:class("#root", "has-script", on)
+        if not on then return end
+        local f = S.failure.explanation
+        ui:rml("#errtitle", ('<span class="res">%s</span> could not start'):format(esc(f.resource)))
+        ui:text("#errchip", tostring(f.kind or ""):upper())
+        ui:text("#errstage", "STAGE " .. clean(r.stage or ""):upper())
+        local where = f.where or ""
+        ui:rml("#errmsg", (where ~= "" and ('<span class="loc">%s</span>'):format(esc(where)) or "") .. esc(clean(r.message or "")))
+        local source = type(r.source) == "table" and r.source or {}
+        ui:class("#errcard", "nosrc", #source == 0)
+        local file = tostring(r.file or "")
+        local dir, base = file:match("^(.*/)([^/]+)$")
+        local owner = tostring(r.fileResource or "")
+        ui:rml("#errfile", ('<span class="dir">%s</span>%s'):format(esc((owner ~= "" and owner .. "/" or "") .. (dir or "")), esc(base or file)))
+        local hot = tonumber(r.line) or 0
+        local rows = {}
+        for i = 1, math.min(#source, 15) do
+            local row = source[i]
+            local n = math.floor(tonumber(type(row) == "table" and row.n) or 0)
+            local text = tostring(type(row) == "table" and row.t or ""):gsub("[%z\1-\31\127]", " "):sub(1, 220)
+            rows[#rows + 1] = ('<div class="sl%s"><div class="mk"></div><div class="ln">%d</div><div class="tx">%s</div></div>')
+                :format(n == hot and " hot" or "", n, text == "" and " " or esc(text))
+        end
+        ui:rml("#errsrc", table.concat(rows))
+        local frames = type(r.frames) == "table" and r.frames or {}
+        local out = {}
+        for i = 1, math.min(#frames, 12) do
+            local fr = frames[i]
+            if type(fr) == "table" then
+                local loc = (tostring(fr.resource or "") ~= "" and (fr.resource .. "/") or "") .. tostring(fr.file or "?") ..
+                    ((tonumber(fr.line) or 0) > 0 and (":" .. math.floor(fr.line)) or "")
+                out[#out + 1] = ('<div class="fr%s"><span class="fi">#%d</span>%s<span class="wh">%s</span></div>')
+                    :format(i == 1 and " top" or "", i, esc(clean(loc)), esc(clean(fr.where or "")))
+            end
+        end
+        if #out == 0 then out[1] = '<div class="fr"><span class="wh">No Lua stack: the host refused the resource before running it.</span></div>' end
+        ui:rml("#errstack", table.concat(out))
+        ui:text("#errplayer", f.action)
+        ui:text("#errdev", "Developers: the same report is in the server console.")
     end
 
     local function utcNow()
@@ -521,7 +611,7 @@ function U.create()
     end
 
     local function fail(reason)
-        local f = U.explain(reason, S.resourceDiagnostic)
+        local f = U.explain(reason, S.resourceDiagnostic, S.activation)
         -- repeated teardown events keep the first failure, its time and the open details
         if S.failure then setView("failed", "failure_retained") return end
         S.failure = { explanation = f, time = utcNow() }
@@ -543,6 +633,7 @@ function U.create()
         paintSteps(true)
         paintTarget()
         renderReport()
+        renderScript()
         setView("failed", "connection_failure")
         applyFocus()
         ui:animate("#herocopy", { from = { opacity = 0, x = -20 }, to = { opacity = 1, x = 0 }, spring = { duration = 0.45, bounce = 0.12 } })
@@ -1084,6 +1175,19 @@ function U.create()
             if tonumber(payload.total) and tonumber(payload.total) > 0 then parts[#parts + 1] = mb(payload.received) .. " / " .. mb(payload.total) end
             phase(payload.phase, table.concat(parts, " - "))
             progress(payload.received, payload.total)
+        elseif name == "resources:activationFailed" then
+            if type(payload.report) ~= "table" then return true end
+            S.activation = { report = payload.report, text = tostring(payload.text or "") }
+            -- the disconnect normally follows; if it already arrived, upgrade the screen in place
+            if S.failure and S.failure.explanation.code == "resource_activation_failed" then
+                S.failure.explanation = U.explain("resource_activation_failed", nil, S.activation)
+                local f = S.failure.explanation
+                ui:text("#h1a", f.title .. ".")
+                ui:text("#message", f.message)
+                ui:text("#nextstep", f.action)
+                renderReport()
+                renderScript()
+            end
         elseif name == "world:loading:begin" then
             phase("world", "Streaming the world")
             progress(0, 0)

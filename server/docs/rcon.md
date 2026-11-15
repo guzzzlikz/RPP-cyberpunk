@@ -101,7 +101,7 @@ configuration/mod edits preserve this section.
 | `requestTimeoutSeconds` | `60` | Cooperative deadline for normal operations; 1–600. Log streams use session lifetime instead. |
 | `idleTimeoutSeconds` | `600` | Deadline for the next complete client frame; 10–86400. Send periodic pings even when receiving logs. |
 | `sessionLifetimeSeconds` | `3600` | Absolute authenticated-session lifetime, including reconnects; 10–86400. |
-| `maxUploadBytes` | `67108864` | One staged upload per connection; 1–1073741824 bytes. Endpoint-specific body caps still apply. |
+| `maxUploadBytes` | `1073741824` | One staged upload per connection (on disk); 1–1073741824 bytes, 1 GiB by default so a required mod of the maximum size can be imported. Endpoint-specific body caps still apply. |
 
 The generic startup override system works unchanged:
 
@@ -185,7 +185,7 @@ JSON fields close the connection. Before auth the payload cap is 16384 bytes.
 The server first sends:
 
 ```json
-{"id":0,"type":"hello","protocol":"open77-rcon","version":1,"maxFrameBytes":1048576,"maxInFlightRequests":8,"maxUploadBytes":67108864,"maxRequestsPerSecond":30,"idleTimeoutSeconds":600}
+{"id":0,"type":"hello","protocol":"open77-rcon","version":1,"maxFrameBytes":1048576,"maxInFlightRequests":8,"maxUploadBytes":1073741824,"maxRequestsPerSecond":30,"idleTimeoutSeconds":600}
 ```
 
 Client IDs are positive integers up to `9007199254740991`, **strictly increasing

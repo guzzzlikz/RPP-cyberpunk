@@ -263,3 +263,42 @@ path { display: inline-block; }
 scrollbarvertical { width: 4dp; }
 scrollbarvertical slidertrack { background-color: #8bb0c514; }
 scrollbarvertical sliderbar { background-color: #8bb0c566; }
+
+/* ---- server script error (resource_activation_failed with a report) ------------------- */
+#errcard { display: none; margin-top: 2dp; padding: 20dp 28dp 16dp 30dp; }
+#root.v-failed.has-script #errcard { display: block; }
+#root.v-failed.has-script #rail { display: none; }
+#root.v-failed.has-script #layout { padding: 18dp 0 16dp 0; }
+#root.v-failed.has-script #h1a { font-size: 44dp; line-height: 50dp; }
+#root.v-failed.has-script #message { font-size: 18dp; line-height: 26dp; }
+#err-edge { position: absolute; left: -1dp; top: -1dp; bottom: -1dp; width: 3dp; background-color: #ff005c; }
+#errhead { display: flex; flex-direction: row; align-items: flex-end; }
+#errtitle { margin-top: 8dp; font-family: Druk; font-size: 30dp; line-height: 34dp; text-transform: uppercase; color: #f5f7fb; white-space: nowrap; }
+#errtitle .res { color: #ff005c; }
+.chip { display: inline-block; margin-left: 10dp; padding: 6dp 12dp; font-family: Nippo; font-size: 10dp; letter-spacing: 0.14em; color: #050b14; background-color: #ff005c; }
+.chip.dim { color: #a7b4c2; background-color: #0b1a2acc; border-width: 1dp; border-color: #8bb0c54d; }
+#errmsg { margin-top: 12dp; font-family: SatoshiMed; font-size: 19dp; line-height: 26dp; color: #f5f7fb; }
+#errmsg .loc { font-family: "Roboto Mono"; font-size: 16dp; color: #fcee0a; margin-right: 14dp; }
+#errbody { display: flex; flex-direction: row; margin-top: 14dp; }
+#errcard.nosrc #errcodepanel { display: none; }
+#errcard.nosrc #errstackpanel { margin-left: 0; }
+#errcodepanel { flex: 1.7 1 0dp; min-width: 0; background-color: #02070dd9; border-width: 1dp; border-color: #8bb0c529; }
+#errfile { padding: 8dp 14dp; font-family: "Roboto Mono"; font-size: 12dp; color: #a7b4c2; border-bottom-width: 1dp; border-bottom-color: #8bb0c529; }
+#errfile .dir { color: #4b6385; }
+#errsrc { padding: 6dp 0; }
+.sl { display: flex; flex-direction: row; font-family: "Roboto Mono"; font-size: 13dp; line-height: 19dp; color: #c9d4df; }
+.sl .mk { width: 4dp; flex: 0 0 auto; }
+.sl .ln { width: 54dp; flex: 0 0 auto; text-align: right; padding-right: 14dp; color: #4b6385; }
+.sl .tx { flex: 1 1 auto; white-space: pre; overflow: hidden; }
+.sl.hot { background-color: #ff005c33; color: #ffffff; }
+.sl.hot .mk { background-color: #ff005c; }
+.sl.hot .ln { color: #ff005c; }
+#errstackpanel { flex: 1 1 0dp; min-width: 0; margin-left: 18dp; }
+#errstack { margin-top: 4dp; max-height: 250dp; overflow-y: auto; }
+.fr { margin-top: 8dp; font-family: "Roboto Mono"; font-size: 12dp; line-height: 17dp; color: #c9d4df; }
+.fr .fi { color: #4b6385; margin-right: 8dp; }
+.fr.top { color: #fcee0a; }
+.fr .wh { display: block; margin-left: 24dp; color: #738597; font-family: Satoshi; font-size: 12dp; }
+#errhelp { display: flex; flex-direction: row; margin-top: 14dp; font-size: 13dp; line-height: 18dp; color: #a7b4c2; }
+#errplayer { max-width: 900dp; }
+#errdev { color: #738597; }

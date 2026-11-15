@@ -7,7 +7,6 @@ local Config = FreeroamConfig
 local blipsCreated = false
 local menu
 local menuOpen = false
-local canManageTv = false
 local hud
 local hudReady = false
 local hudClaimsActive = false
@@ -266,7 +265,6 @@ end)
 local function menuState()
     return {
         locations = Config.teleport.locations,
-        canManageTv = canManageTv,
         spawns = Config.spawn.points,
         vehicles = {
             catalog = Config.vehicles.catalog,
@@ -362,12 +360,10 @@ end)
 -- The server answers /freeroam with this event.
 RegisterNetEvent("freeroam:menu:open", function(access)
     print("[freeroam] freeroam:menu:open received")
-    canManageTv = type(access) == "table" and access.canManageTv == true
     local wasOpen = menuOpen
     setMenuOpen(true)
     if menu then
         if wasOpen then menu:send("freeroam:state", menuState()) end
-        if canManageTv and access.page == "tv" then menu:send("freeroam:tv:open", {}) end
     end
 end)
 
@@ -532,38 +528,6 @@ CreateThread(function()
     end
 end)
 
--- The last television list this client was told about, and the position a
--- spawn was requested from. Both are declared before the menu exists because the
--- handlers below can fire before `onClientResourceStart` has built it -- a
--- snapshot that arrived during the resource's own start, for instance.
-local lastMediaScreens = {}
-
-RegisterNetEvent("open77:media:catalogue", function(records)
-    if menu ~= nil then menu:send("freeroam:tv", { catalogue = records }) end
-end)
-
-RegisterNetEvent("open77:media:result", function(ok, detail)
-    if ok ~= true and tostring(detail):find("permission_denied", 1, true) then
-        canManageTv = false
-        if menu then
-            menu:send("freeroam:state", menuState())
-            menu:send("freeroam:result", { ok = false,
-                text = "Television controls are reserved for authorized administrators." })
-        end
-    end
-    if menu ~= nil then
-        menu:send("freeroam:tv", { ok = ok == true, text = tostring(detail or "") })
-    end
-end)
-
-AddEventHandler("open77:media:local", function(screens)
-    lastMediaScreens = type(screens) == "table" and screens or {}
-    -- `screens`, not `local`: `local` is a reserved word in Lua and cannot be a
-    -- bare table key. It cost one parse error to remember, and the page reads
-    -- the same key.
-    if menu ~= nil then menu:send("freeroam:tv", { screens = lastMediaScreens }) end
-end)
-
 AddEventHandler("onClientResourceStart", function(name)
     if name ~= GetCurrentResourceName() then return end
 
@@ -613,79 +577,6 @@ AddEventHandler("onClientResourceStart", function(name)
             end
         end)
 
-        -- TELEVISIONS ---------------------------------------------------------
-        --
-        -- The catalogue, the spawn path and every setting live in the
-        -- `open77_media` resource. This is a client of that resource, not a
-        -- second implementation of it: the page asks, these handlers forward,
-        -- and the answers are relayed back. Changing a URL from here therefore
-        -- changes it for everyone watching the same set, because the change goes
-        -- through the server like any other.
-        --
-        -- The catalogue and the action results arrive as net events addressed to
-        -- this player and are handled straight from the server, which is why
-        -- there is no re-emission anywhere: a resource that re-emitted them
-        -- locally would deliver each one twice.
-        --
-        -- The nearby-set list is different -- it is this CLIENT's rendering
-        -- state, which the server cannot know -- so the media resource pushes it
-        -- locally as `open77:media:local` when it changes, and the last one is
-        -- cached here so REFRESH can redraw without waiting for a change that is
-        -- not coming.
-        menu:on("freeroam:tv", function(payload)
-            if not canManageTv then return end
-            if type(payload) ~= "table" or type(payload.action) ~= "string" then return end
-            local action = payload.action
-            if action == "catalogue" then
-                TriggerServerEvent("open77:media:catalogue")
-            elseif action == "local" then
-                menu:send("freeroam:tv", { screens = lastMediaScreens })
-            elseif action == "spawn" then
-                -- The facing is offered, not asserted: the server has no way to
-                -- read a player's heading (`Open77.players.position` publishes
-                -- x, y, z and bucket only) and clamps whatever arrives. The
-                -- position is never sent -- the server reads that itself.
-                --
-                -- `character.state()` is where a heading lives on this side, and
-                -- it can be absent while the body is still streaming in, so the
-                -- field is optional and the server treats its absence as zero
-                -- rather than as an error.
-                local character = Open77.character.state()
-                TriggerServerEvent("open77:media:spawn", {
-                    record = tostring(payload.record or ""),
-                    url = payload.url,
-                    yaw = type(character) == "table" and character.yaw or nil,
-                })
-            elseif action == "url" then
-                TriggerServerEvent("open77:media:control", "url",
-                    { id = tonumber(payload.id), url = payload.url })
-            elseif action == "volume" then
-                TriggerServerEvent("open77:media:control", "volume",
-                    { id = tonumber(payload.id), volume = tonumber(payload.volume) })
-            elseif action == "muted" then
-                TriggerServerEvent("open77:media:control", "muted",
-                    { id = tonumber(payload.id), value = payload.value == true })
-            elseif action == "paused" then
-                TriggerServerEvent("open77:media:control", "paused",
-                    { id = tonumber(payload.id), value = payload.value == true })
-            elseif action == "move" then
-                -- A nudge along the set's own axes. The direction is forwarded as
-                -- written and validated on the server, which owns the axis
-                -- convention (`shared/placement.lua` in the media resource): a
-                -- client that invents a direction gets `unknown_direction` back
-                -- rather than moving a set the wrong way.
-                TriggerServerEvent("open77:media:control", "move",
-                    { id = tonumber(payload.id), direction = tostring(payload.direction or ""),
-                        metres = tonumber(payload.metres) })
-            elseif action == "rotate" then
-                TriggerServerEvent("open77:media:control", "rotate",
-                    { id = tonumber(payload.id), direction = tostring(payload.direction or ""),
-                        degrees = tonumber(payload.degrees) })
-            elseif action == "remove" then
-                TriggerServerEvent("open77:media:control", "remove",
-                    { id = tonumber(payload.id) })
-            end
-        end)
     end
 
     local hudError

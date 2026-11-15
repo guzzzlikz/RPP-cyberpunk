@@ -57,6 +57,8 @@ local function presentationRestored()
         -- Nonvisual templates stay in the equipment registry but spawn no garment.
         local info = expected and Open77.equipment.info(expected)
         if info and info.nonvisual then expected = false end
+        -- A layered outfit (Open77.layers) shows nothing in the base clothing slots.
+        if type(Open77.layers) == "table" and Open77.layers.hidesBase() then expected = false end
         if Open77.equipment.visualSettled(slot, expected or false) ~= true then return false end
     end
     return true
@@ -81,6 +83,40 @@ end
 local function finishMutation()
     local ok, reason = Open77.appearance.finishCommit()
     if not ok then print("[open77_appearance] finishCommit: " .. tostring(reason)) end
+end
+
+-- The runtime body switch (Open77.body), or nil on a client without it: such a client changes
+-- family by reloading the session of the other family, as before.
+local function runtimeBody()
+    if type(Open77.body) ~= "table" or type(Open77.body.state) ~= "function" then return nil end
+    local ok, state = pcall(Open77.body.state)
+    return ok and type(state) == "table" and state or nil
+end
+
+-- True while the player drives a body of the other family than their save's. Its look is the
+-- body (customization keys) it was put on with; the logical snapshot describes the save's puppet.
+local function switchedBody()
+    local state = runtimeBody()
+    return state ~= nil and state.switched == true
+end
+
+-- Whether two bodies carry the same keys and morphs in the groups `stored` has (a stored body is
+-- the replicated set; a captured one may carry more).
+local function sameBody(worn, stored)
+    if type(worn) ~= "table" or type(stored) ~= "table" or worn.family ~= stored.family then return false end
+    local function signature(group)
+        local entries = {}
+        for _, key in ipairs(group.keys or {}) do entries[#entries + 1] = "k" .. tostring(key[1]) .. tostring(key[2]) end
+        for _, morph in ipairs(group.morphs or {}) do entries[#entries + 1] = "m" .. tostring(morph[1]) .. tostring(morph[2]) end
+        table.sort(entries)
+        return table.concat(entries, ",")
+    end
+    local groups = {}
+    for _, group in ipairs(worn.groups or {}) do groups[tostring(group.part) .. ":" .. tostring(group.name)] = signature(group) end
+    for _, group in ipairs(stored.groups or {}) do
+        if groups[tostring(group.part) .. ":" .. tostring(group.name)] ~= signature(group) then return false end
+    end
+    return true
 end
 
 -- The body family the game currently shows on the player.
@@ -141,7 +177,8 @@ local function publishBody()
         previewRestoring = false
     end
     if not announced or not world or not reset or record == nil or applying or edit ~= nil or reopen ~= nil then return false end
-    if record.snapshot ~= nil and not wears(record.snapshot) then return false end
+    local runtime = switchedBody()
+    if not runtime and record.snapshot ~= nil and not wears(record.snapshot) then return false end
     local body, reason = Open77.appearance.captureBody()
     if type(body) ~= "table" then
         print("[open77_appearance] body capture failed: " .. tostring(reason))
@@ -150,7 +187,7 @@ local function publishBody()
     local logical = networkSnapshot(settledSnapshot or Open77.appearance.capture())
     bodySequence = bodySequence + 1
     local sent, sendReason = TriggerServerEvent("open77:appearance:body", body,
-        record.key or "default", record.revision or 0, logical, bodySequence)
+        record.key or "default", record.revision or 0, logical, bodySequence, runtime)
     if not sent then print("[open77_appearance] body not sent: " .. tostring(sendReason)) end
     return sent
 end
@@ -186,15 +223,30 @@ end
 
 -- Make the game equal to the record, then publish. Runs whenever either side
 -- changed; every step is idempotent and reads the game before acting.
+-- A runtime creator previews looks on the player (Open77.body.switch), other body types included:
+-- while it holds the body, the record (what the server set) must not switch it back.
+--   TriggerEvent("open77:appearance:hold", true)  ... TriggerEvent("open77:appearance:hold", false)
+local previewHeld = false
+
 local function reconcile()
     -- A watchdog can leave the native mirror open after its API state clears.
     -- Do not retry, publish, or signal gameplay until a validated confirmation
     -- or a fresh world entry establishes recovery.
+    if previewHeld then return end
     if failed ~= nil or not world or not reset or record == nil or edit ~= nil or applying then return end
     local current = family()
     -- An edit that reloaded the other family is not the record until accepted.
     if reopen == nil and record.family ~= nil and current ~= nil and record.family ~= current then
-        -- Only a reload shows the other body family; the world entry that follows
+        -- In place when the client can: the player is put in a body of the other family and
+        -- `open77:body:changed` runs this again. Nothing is reloaded.
+        local state = runtimeBody()
+        if state ~= nil then
+            if state.busy then return end
+            local switched, reason = Open77.body.switch(record.family, record.body)
+            if switched then return end
+            print("[open77_appearance] runtime body switch refused: " .. tostring(reason))
+        end
+        -- Otherwise only a reload shows the other body family; the world entry that follows
         -- runs this again on the new player.
         local switched, reason = Open77.appearance.switchBodyFamily(record.family, false)
         if switched then
@@ -207,7 +259,20 @@ local function reconcile()
             notify("error", "Body type change unavailable: " .. tostring(reason))
         end
     end
-    if record.snapshot ~= nil and failed ~= record.revision and not wears(record.snapshot) then
+    -- A stored body of the family the save already has: a look made at run time (a character
+    -- creator on Open77.body.compose, a switch) that the save's customization state does not
+    -- hold. The server stores runtime bodies only, so it wins over the state, once per record.
+    if record.body ~= nil and not record.bodyChecked and not switchedBody() and current ~= nil
+        and record.body.family == current then
+        record.bodyChecked = true
+        local state = runtimeBody()
+        if state ~= nil and not state.busy and not sameBody(Open77.appearance.captureBody(), record.body) then
+            local switched, reason = Open77.body.switch(current, record.body)
+            if switched then return end
+            print("[open77_appearance] stored body refused: " .. tostring(reason))
+        end
+    end
+    if not switchedBody() and record.snapshot ~= nil and failed ~= record.revision and not wears(record.snapshot) then
         local ok, reason = Open77.appearance.apply(record.snapshot)
         if ok then
             applying = true -- confirmed or restore_failed continues
@@ -329,7 +394,7 @@ RegisterNetEvent("open77:appearance:bootstrapFailed", function(reason)
 end)
 
 
-RegisterNetEvent("open77:appearance:bootstrapReady", function(family, characterKey)
+RegisterNetEvent("open77:appearance:bootstrapReady", function(family, characterKey, _, body, singleSave)
     family = string.lower(tostring(family or ""))
     if family ~= "female" and family ~= "male" then
         Open77.session.failCharacterBootstrap("invalid_body_family")
@@ -338,7 +403,13 @@ RegisterNetEvent("open77:appearance:bootstrapReady", function(family, characterK
     record = record or {}
     record.family = family
     record.key = tostring(characterKey or "default")
-    local ok, reason = Open77.session.resolveCharacterBootstrap(family)
+    record.body = type(body) == "table" and body.family == family and body or nil
+    record.bodyChecked = nil
+    -- Single save: every character starts in the male pristine session; reconcile then puts a
+    -- female character in her body at run time. Only with the runtime body API.
+    local session = family
+    if singleSave == true and runtimeBody() ~= nil then session = "male" end
+    local ok, reason = Open77.session.resolveCharacterBootstrap(session)
     if not ok then notify("error", "Character bootstrap failed: " .. tostring(reason)) end
     reconcile()
 end)
@@ -363,12 +434,44 @@ RegisterNetEvent("open77:appearance:characterChanged", function(characterKey, sn
 end)
 
 -- The server changed this player's body family (a session command).
-RegisterNetEvent("open77:appearance:switchBodyFamily", function(target)
+RegisterNetEvent("open77:appearance:switchBodyFamily", function(target, body)
     target = string.lower(tostring(target or ""))
     if target ~= "male" and target ~= "female" then return end
     record = record or {}
     record.family = target
+    record.body = type(body) == "table" and body.family == target and body or nil
+    -- Same family, another look (a character creator): re-dress the driven body in place.
+    local state = runtimeBody()
+    if state ~= nil and record.body ~= nil and state.family == target and not state.busy then
+        local ok, reason = Open77.body.switch(target, record.body)
+        if not ok then print("[open77_appearance] runtime re-dress refused: " .. tostring(reason)) end
+        return
+    end
     reconcile()
+end)
+
+AddEventHandler("open77:appearance:hold", function(on)
+    previewHeld = on == true
+    if not previewHeld then
+        bodyPending = true
+        reconcile()
+    end
+end)
+
+-- The runtime body switch settled: publish the body now driven, or give the family back.
+AddEventHandler("open77:body:changed", function(event, family)
+    event = tostring(event or "")
+    if event == "switched" or event == "reverted" or event == "redressed" then
+        bodyPending = true
+        reconcile()
+    elseif event:sub(1, 7) == "failed:" then
+        local rejected = record and record.family
+        if record then record.family = family ~= "" and family or record.family end
+        if rejected and rejected ~= family then
+            TriggerServerEvent("open77:appearance:bodyFamilyRejected", rejected)
+        end
+        notify("error", "Body type change failed: " .. event:sub(8))
+    end
 end)
 
 -- A body, or false while the player has none in the world (its own is being

@@ -1,0 +1,147 @@
+<rml>
+<head>
+    <title>Open//77 Quickhack</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="quickhack.rcss"/>
+</head>
+<!-- The scanner and quickhack interface. client/ui.lua owns every decision and position;
+     the document binds the "qh" model and holds the shapes. Layers, back to front:
+     tint + vignette, scan sweep, the scanner frame, the target reticle and its label,
+     the quickhack list, the RAM bar, the data panel, the key hints, the upload bars over
+     targets, and the "upload detected" warning a hacked player sees. -->
+<body data-model="qh">
+<div id="root" data-class-scan="scanning" data-class-locked="locked" data-class-menu="menu"
+     data-class-hostile="tone == 'hostile'" data-class-device="tone == 'device'"
+     data-class-friendly="tone == 'friendly'" data-class-hacking="tab == 'hacking'"
+     data-class-help="help" data-class-noram="noRam" data-class-tint="tint">
+
+    <!-- ===== scanner vision ===== -->
+    <div id="tint"></div>
+    <div id="vignette"></div>
+    <div id="sweep"><div id="sweep-line"></div><div id="sweep-glow"></div></div>
+    <div id="grain"></div>
+
+    <!-- ===== frame ===== -->
+    <div id="frame">
+        <div class="corner c-tl"><div class="bars"><div></div><div></div><div></div><div></div></div></div>
+        <div class="corner c-tr"><div class="bars"><div></div><div></div><div></div><div></div></div></div>
+        <div class="corner c-bl"><div class="bars"><div></div><div></div><div></div><div></div></div></div>
+        <div class="corner c-br"><div class="bars"><div></div><div></div><div></div><div></div></div></div>
+        <div id="scanner-tag"><span class="tiny">SCANNER</span><div class="rule"></div><div class="rule short"></div></div>
+        <div id="hline-top"></div>
+        <div id="hline-bl"></div>
+        <div id="hline-br"></div>
+        <div id="serial"><span class="tiny">{{serial}}</span><span class="tiny barcode">||||||| ||| |||||</span><span class="tiny">{{vendor}}</span></div>
+        <div id="code-l" class="code"><span>{{codeLeft}}</span></div>
+        <div id="code-r" class="code"><span>{{codeRight}}</span></div>
+    </div>
+
+    <!-- ===== target reticle (positioned over the target) ===== -->
+    <div id="reticle"><div id="ret-size"><div id="ret-anim">
+        <div class="sq s0"></div><div class="sq s1"></div><div class="sq s2"></div>
+        <div class="sq s3"></div><div class="sq s4"></div><div class="sq s5"></div>
+        <div class="sq s6"></div><div class="sq s7"></div>
+        <div id="chev-l"><span class="mult">{{mult}}</span><div class="chevs"><span>&gt;</span></div></div>
+        <div id="chev-r"><div class="chevs"><span>&lt;</span></div><span class="dist">{{distance}}</span></div>
+        <div id="ring"><shape type="circle" class="ring-a"/></div>
+        <div id="ring-fill"><shape type="circle" class="ring-b"/></div>
+        <div id="dot"></div>
+    </div></div></div>
+    <div id="nameplate">
+        <div id="np-icon"><img src="/ui/icons/generic.png"/></div>
+        <span id="np-name">{{nameShown}}</span>
+    </div>
+
+    <!-- ===== quickhack list ===== -->
+    <div id="list">
+        <div id="list-head">
+            <div id="deck-ver"><div class="mini-bars"><div></div><div></div><div></div></div><span class="tiny">{{deckName}}</span></div>
+            <span id="list-title">AVAILABLE QUICKHACKS:</span>
+            <div id="list-rule"></div>
+        </div>
+        <div id="rows"></div>
+        <div id="list-empty"><span>{{emptyText}}</span></div>
+        <div id="desc"><span class="desc-title">{{descTitle}}</span><span class="desc-text">{{descText}}</span>
+            <div id="desc-meta">
+                <span class="meta-k">UPLOAD</span><span class="meta-v">{{descUpload}}</span>
+                <span class="meta-k">COOLDOWN</span><span class="meta-v">{{descCooldown}}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== cyberdeck RAM ===== -->
+    <div id="ram">
+        <div id="ram-head"><span class="tiny dim">RESOURCES_V.2304.802</span></div>
+        <span id="ram-title">CYBERDECK RAM: {{ramText}}</span>
+        <div id="ram-rule"></div>
+        <div id="ram-bar"></div>
+    </div>
+
+    <!-- ===== data panel ===== -->
+    <div id="panel">
+        <div id="tabs">
+            <div id="tab-data" class="tab"><span>DATA</span></div>
+            <div id="tab-hack" class="tab"><span>HACKING</span><div class="key"><span>{{tabKey}}</span></div></div>
+        </div>
+        <div id="panel-body">
+            <div id="pb-data">
+                <span class="label">SCAN RESULTS</span>
+                <div id="title-row"><span id="p-name">{{nameShown}}</span><div id="p-mark"><img src="/ui/icons/data.png"/></div></div>
+                <div id="fields"></div>
+                <div id="extra"></div>
+                <span class="label" id="abil-label">{{abilitiesLabel}}</span>
+                <div id="abilities"></div>
+            </div>
+            <div id="pb-hack">
+                <span class="label">NETWORK</span>
+                <div id="hack-lines"></div>
+            </div>
+        </div>
+        <div id="panel-foot">
+            <div class="foot-glyphs"><div class="g-ring"></div><div class="g-ring small"></div><span class="tiny">OF</span></div>
+            <span id="brand">{{vendor}}</span>
+        </div>
+    </div>
+
+    <!-- ===== key hints ===== -->
+    <div id="hints">
+        <div class="hint" id="h-exec"><div class="key"><span>{{keyExecute}}</span></div><span class="ht">EXECUTE</span></div>
+        <div class="hint" id="h-target"><div class="key"><span>{{keyPrev}}</span></div><div class="key"><span>{{keyNext}}</span></div><span class="ht">CHANGE TARGET</span></div>
+        <div class="hint" id="h-scroll"><div class="key mouse"><div class="wheel"></div></div><span class="ht">SELECT</span></div>
+        <div class="hint" id="h-help"><div class="key"><span>{{keyHelp}}</span></div><span class="ht">HELP</span></div>
+    </div>
+    <div id="helpbox"><span>{{helpText}}</span></div>
+
+    <!-- ===== uploads over targets (one element per running upload, inserted by Lua) ===== -->
+    <div id="uploads"></div>
+
+    <!-- ===== the hacked player's warning ===== -->
+    <div id="alert">
+        <div id="alert-head">
+            <div id="alert-icon"><img src="/ui/icons/generic.png" id="alert-img"/></div>
+            <div id="alert-titles">
+                <span id="alert-title">{{alertTitle}}</span>
+                <span id="alert-sub">{{alertSub}}</span>
+            </div>
+            <span id="alert-pct">{{alertPct}}</span>
+        </div>
+        <div id="alert-bar"><div id="alert-fill"></div><div id="alert-ticks"></div></div>
+        <span id="alert-foot">{{alertFoot}}</span>
+    </div>
+
+    <!-- ===== report card (exports.open77_quickhack:report) ===== -->
+    <div id="report">
+        <div id="rp-head">
+            <div id="rp-icon"><img id="rp-img" src="/ui/icons/ping.png"/></div>
+            <div id="rp-titles"><span id="rp-title">{{reportTitle}}</span><span id="rp-sub">{{reportSub}}</span></div>
+        </div>
+        <div id="rp-rule"></div>
+        <div id="rp-fields"></div>
+        <div id="rp-timer"><div id="rp-timer-fill"></div></div>
+    </div>
+
+    <!-- ===== toast (result of an action) ===== -->
+    <div id="toast"><div id="toast-tag"><span>{{toastTag}}</span></div><span id="toast-text">{{toastText}}</span></div>
+</div>
+</body>
+</rml>

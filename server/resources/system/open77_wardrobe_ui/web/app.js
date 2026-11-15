@@ -2,6 +2,11 @@
   "use strict";
   const M=WardrobeModel, $=id=>document.getElementById(id), emit=(name,value={})=>Open77.emit(name,value);
   let baseline, draft, confirmed, catalogue=[], lookup={}, mode="equipment", outfit=0, slot="Head", page=0, yaw=180;
+  // Layered outfits (Equipment-EX slots, outfit-slots.js): the chosen body area and layer.
+  const LAYERS=Array.isArray(globalThis.OutfitSlots)?globalThis.OutfitSlots:[];
+  const AREAS=[...new Set(LAYERS.map(l=>l.area))];
+  let area=AREAS[0] || "Head", layer=(LAYERS[0] || {}).name || "";
+  const layerInfo=name=>LAYERS.find(l=>l.name===name) || {};
   let busy=false, previewPending=false, pendingConfirm=null, favoritesOnly=false, favoritesReady=false, favorites=new Set();
   const PAGE_SIZE=24;
   const errors={save_timeout:"The server has not confirmed the save. You can retry; your draft is still here.",presentation_revision_conflict:"Your saved wardrobe changed elsewhere. The latest saved look has been restored. Please try your changes again.",revision_conflict:"Your saved wardrobe changed elsewhere. The latest saved look has been restored.",presentation_database_error:"Your look could not be saved. Your previous saved wardrobe is safe.",incompatible_body_family:"This item does not fit your current body type.",restricted_record:"This clothing item is not available on this server.",item_unavailable:"This clothing item is unavailable. Your last preview has been restored.",presentation_character_changed:"Your character changed. Close the wardrobe and open it again."};
@@ -10,8 +15,15 @@
   function visualValue(value) { return value && (lookup[String(value).toLowerCase()] || {}).nonvisual === true ? false : value; }
   function catalogTitle(item) { return item.label || M.title(item.record); }
   function itemName(value) { value=visualValue(value);return value ? catalogTitle(lookup[String(value).toLowerCase()] || {record:value}) : "No item equipped"; }
-  function currentSlots() { return mode==="equipment"?draft.equipment:draft.wardrobe.outfits[outfit]; }
+  function currentSlots() { return mode==="layers"?draft.layers.slots:mode==="equipment"?draft.equipment:draft.wardrobe.outfits[outfit]; }
+  function currentKey() { return mode==="layers"?layer:slot; }
   function editSlot(value) {
+    if(mode==="layers") {
+      // Any clothing goes in any layer (Equipment-EX remapping); choosing one turns the look on.
+      if(value) { draft.layers.slots[layer]=value; draft.layers.active=true; }
+      else delete draft.layers.slots[layer];
+      return;
+    }
     currentSlots()[slot]=value;
     if(mode==="outfits") draft.wardrobe.active=outfit;
     else {
@@ -36,7 +48,7 @@
     confirmed=M.clone(draft);
     change();
     previewPending=true;
-    emit("wardrobe:preview",{equipment:draft.equipment,wardrobe:draft.wardrobe});
+    emit("wardrobe:preview",{equipment:draft.equipment,wardrobe:draft.wardrobe,layers:draft.layers});
     render();
     message(text || "Trying on. Save changes to keep this look.");
   }
@@ -51,15 +63,17 @@
   }
   function renderItems() {
     const q=$("search").value.trim().toLowerCase();
-    const entries=catalogue.filter(item=>item.slot===slot && (!favoritesOnly || favorites.has(item.record)) && (!q || (catalogTitle(item)+" "+item.record).toLowerCase().includes(q)));
+    const fallback=layerInfo(layer).fallback;
+    let entries=catalogue.filter(item=>(mode==="layers" || item.slot===slot) && (!favoritesOnly || favorites.has(item.record)) && (!q || (catalogTitle(item)+" "+item.record).toLowerCase().includes(q)));
+    if(mode==="layers" && fallback) entries=entries.filter(i=>i.slot===fallback).concat(entries.filter(i=>i.slot!==fallback));
     const maxPage=Math.max(0,Math.ceil(entries.length/PAGE_SIZE)-1);page=Math.min(page,maxPage);
     const grid=$("catalogue");grid.replaceChildren();
     entries.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE).forEach(item=>{
       const row=document.createElement("div");row.className="item";row.setAttribute("role","listitem");
-      const selected=canonical(currentSlots()[slot])===item.record;row.classList.toggle("selected",selected);
+      const selected=canonical(currentSlots()[currentKey()])===item.record;row.classList.toggle("selected",selected);
       const choose=document.createElement("button");choose.className="choose catalog-card";choose.dataset.record=item.record;choose.setAttribute("aria-pressed",String(selected));
       choose.title=catalogTitle(item);const title=document.createElement("strong");title.textContent=catalogTitle(item);
-      const subtitle=document.createElement("small");subtitle.textContent=selected?"SELECTED":M.labels[item.slot].toUpperCase();
+      const subtitle=document.createElement("small");subtitle.textContent=selected?"SELECTED":(M.labels[item.slot] || M.layerTitle(item.slot)).toUpperCase();
       choose.append(title,subtitle);choose.onclick=()=>preview(()=>editSlot(item.record));
       const favorite=document.createElement("button");favorite.className="favorite";favorite.classList.toggle("on",favorites.has(item.record));favorite.textContent=favorites.has(item.record)?"★":"☆";
       favorite.setAttribute("aria-label",(favorites.has(item.record)?"Remove favorite ":"Favorite ")+catalogTitle(item));
@@ -72,8 +86,12 @@
   }
   function render() {
     if(!draft)return;
-    for(const name of ["equipment","outfits"]){$(name+"-tab").classList.toggle("selected",mode===name);$(name+"-tab").setAttribute("aria-pressed",String(mode===name));}
+    for(const name of ["equipment","outfits","layers"]){$(name+"-tab").classList.toggle("selected",mode===name);$(name+"-tab").setAttribute("aria-pressed",String(mode===name));}
     $("outfit-tools").hidden=mode!=="outfits";
+    $("layer-tools").hidden=mode!=="layers" || LAYERS.length===0;
+    $("layers-toggle").textContent=draft.layers.active?"LAYERED LOOK: ON":"LAYERED LOOK: OFF";
+    const areas=$("areas");areas.replaceChildren();
+    AREAS.forEach(name=>{const b=document.createElement("button");const worn=LAYERS.filter(l=>l.area===name && draft.layers.slots[l.name]).length;b.textContent=name.toUpperCase()+(worn?" · "+worn:"");b.classList.toggle("selected",name===area);b.setAttribute("aria-pressed",String(name===area));b.onclick=()=>{area=name;layer=(LAYERS.find(l=>l.area===name) || {}).name || layer;page=0;render();};areas.append(b);});
     const outfits=$("outfits");outfits.replaceChildren();
     for(let i=0;i<7;i++){const b=document.createElement("button");b.textContent=String(i+1).padStart(2,"0");b.title=draft.wardrobe.names[i];b.setAttribute("aria-label",draft.wardrobe.names[i]);b.classList.toggle("selected",i===outfit);b.classList.toggle("active",draft.wardrobe.active===i);b.onclick=()=>{outfit=i;render();};outfits.append(b);}
     $("outfit-name").value=draft.wardrobe.names[outfit];
@@ -81,22 +99,26 @@
     $("overlay-text").textContent=active===false?"":"Wearing “"+draft.wardrobe.names[active]+"” over equipment.";
     $("wear").textContent=active===outfit?"OUTFIT ACTIVE":"WEAR OUTFIT";
     const nav=$("slots");nav.replaceChildren();
-    M.slots.forEach(name=>{const b=document.createElement("button");b.textContent=M.labels[name].toUpperCase();b.classList.toggle("selected",name===slot);b.setAttribute("aria-pressed",String(name===slot));b.onclick=()=>{slot=name;page=0;render();};nav.append(b);});
-    $("slot-label").textContent=M.labels[slot].toUpperCase();
-    const value=visualValue(currentSlots()[slot]);$("selected-name").textContent=mode==="outfits" && value===undefined?"Use equipment · "+itemName(draft.equipment[slot]):mode==="outfits" && value===false?"Hidden in this outfit":itemName(value);
-    $("inherit").hidden=mode!=="outfits";$("remove").textContent=mode==="outfits"?"HIDE SLOT":"REMOVE";
-    $("semantics").textContent=mode==="outfits"?"Hide slot shows nothing. Use equipment lets your worn clothing show through.":"Equipment is what your character wears underneath an outfit.";
+    if(mode==="layers") LAYERS.filter(l=>l.area===area).forEach(l=>{const b=document.createElement("button");b.textContent=M.layerTitle(l.name).toUpperCase()+(draft.layers.slots[l.name]?" ●":"");b.classList.toggle("selected",l.name===layer);b.setAttribute("aria-pressed",String(l.name===layer));b.onclick=()=>{layer=l.name;page=0;render();};nav.append(b);});
+    else M.slots.forEach(name=>{const b=document.createElement("button");b.textContent=M.labels[name].toUpperCase();b.classList.toggle("selected",name===slot);b.setAttribute("aria-pressed",String(name===slot));b.onclick=()=>{slot=name;page=0;render();};nav.append(b);});
+    $("slot-label").textContent=mode==="layers"?("LAYER · "+M.layerTitle(layer)).toUpperCase():M.labels[slot].toUpperCase();
+    const value=visualValue(currentSlots()[currentKey()]);$("selected-name").textContent=mode==="layers"?(value?itemName(value):"Empty layer"):mode==="outfits" && value===undefined?"Use equipment · "+itemName(draft.equipment[slot]):mode==="outfits" && value===false?"Hidden in this outfit":itemName(value);
+    $("inherit").hidden=mode!=="outfits";$("remove").textContent=mode==="outfits"?"HIDE SLOT":mode==="layers"?"EMPTY LAYER":"REMOVE";
+    $("semantics").textContent=mode==="layers"?"Layers stack over each other in order (under, inner, middle, outer). When the layered look is on, it replaces your worn clothing; underwear stays.":mode==="outfits"?"Hide slot shows nothing. Use equipment lets your worn clothing show through.":"Equipment is what your character wears underneath an outfit.";
     renderItems();updateControls();
   }
-  for(const name of ["equipment","outfits"]) $(name+"-tab").onclick=()=>{mode=name;page=0;render();};
+  for(const name of ["equipment","outfits","layers"]) $(name+"-tab").onclick=()=>{mode=name;page=0;render();};
+  $("layers-toggle").onclick=()=>preview(()=>{draft.layers.active=!draft.layers.active;},draft.layers.active?"Layered look off: your worn clothing shows again.":"Layered look on.");
+  $("layers-copy").onclick=()=>preview(()=>{for(const s of M.slots){const v=visualValue(draft.equipment[s]);if(v && M.layerOf[s])draft.layers.slots[M.layerOf[s]]=v;}draft.layers.active=true;},"Worn clothing copied into layers. Add more on top, then save.");
+  $("layers-clear").onclick=()=>confirmAction("CLEAR ALL LAYERS?","This empties every layer and turns the layered look off. Save changes to keep it.",()=>preview(()=>{draft.layers={active:false,slots:{}};}),"CLEAR LAYERS");
   $("search").oninput=()=>{page=0;renderItems();updateControls();};$("filter").onclick=()=>{favoritesOnly=!favoritesOnly;$("filter").textContent=favoritesOnly?"FAVORITES":"ALL CLOTHING";$("filter").setAttribute("aria-pressed",String(favoritesOnly));page=0;renderItems();updateControls();};
   $("previous").onclick=()=>{page--;renderItems();updateControls();};$("next").onclick=()=>{page++;renderItems();updateControls();};
   $("remove").onclick=()=>preview(()=>editSlot(false));
   $("inherit").onclick=()=>preview(()=>{delete currentSlots()[slot];draft.wardrobe.active=outfit;});
-  $("wear").onclick=()=>preview(()=>{draft.wardrobe.active=outfit;});
+  $("wear").onclick=()=>preview(()=>{draft.wardrobe.active=outfit;if(draft.outfitLayers[outfit])draft.layers=M.clone(draft.outfitLayers[outfit]);});
   $("disable-overlay").onclick=()=>preview(()=>{draft.wardrobe.active=false;});
-  $("capture").onclick=()=>preview(()=>{const items={};for(const s of M.slots)items[s]=visualValue(draft.equipment[s]) || false;draft.wardrobe.outfits[outfit]=items;draft.wardrobe.active=outfit;},"Worn clothing copied into this outfit. Save changes to keep it.");
-  $("delete").onclick=()=>confirmAction("RESET THIS OUTFIT?","This clears its clothing and name. Your equipped items stay in place. Save changes to keep the reset.",()=>preview(()=>{draft.wardrobe.outfits[outfit]={};draft.wardrobe.names[outfit]=`Outfit ${outfit+1}`;if(draft.wardrobe.active===outfit)draft.wardrobe.active=false;}),"RESET OUTFIT");
+  $("capture").onclick=()=>preview(()=>{const items={};for(const s of M.slots)items[s]=visualValue(draft.equipment[s]) || false;draft.wardrobe.outfits[outfit]=items;draft.wardrobe.active=outfit;draft.outfitLayers[outfit]=Object.keys(draft.layers.slots).length?M.clone(draft.layers):null;},"Worn clothing copied into this outfit. Save changes to keep it.");
+  $("delete").onclick=()=>confirmAction("RESET THIS OUTFIT?","This clears its clothing and name. Your equipped items stay in place. Save changes to keep the reset.",()=>preview(()=>{draft.wardrobe.outfits[outfit]={};draft.outfitLayers[outfit]=null;draft.wardrobe.names[outfit]=`Outfit ${outfit+1}`;if(draft.wardrobe.active===outfit)draft.wardrobe.active=false;}),"RESET OUTFIT");
   $("rename").onclick=()=>{const name=$("outfit-name").value.trim();if(!name || [...name].length>48 || /[\x00-\x1f\x7f]/.test(name)){message("Use an outfit name between 1 and 48 characters.","error");return;}draft.wardrobe.names[outfit]=name;render();message("Name updated. Save changes to keep it.");};
   $("outfit-name").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();$("rename").click();}};
   $("save").onclick=()=>{if(busy || previewPending || !dirty())return;busy=true;updateControls();message("Saving your look…");emit("wardrobe:save",M.patch(baseline,draft));};

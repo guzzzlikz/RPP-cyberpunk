@@ -30,6 +30,51 @@ CREATE TABLE IF NOT EXISTS open77_characters (
 ) ENGINE=InnoDB
 ]]
 
+-- The body (family + customization keys) a character last wore in each family. A runtime body
+-- switch (Open77.body) puts it back on without the editor and without reloading a save: the
+-- logical snapshot above can only be applied to the save's own family.
+local BODY_SCHEMA_SQL = [[
+CREATE TABLE IF NOT EXISTS open77_character_bodies (
+    user_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    character_key VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    body_family VARCHAR(8) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    body_json LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, character_key, body_family),
+    CONSTRAINT chk_open77_character_body_family CHECK (body_family IN ('female', 'male'))
+) ENGINE=InnoDB
+]]
+
+-- One save for every character: the shell always loads the male pristine session and a female
+-- character is put in her own body at run time (Open77.body). Off by default; clients without
+-- the runtime body API keep loading the session of their family.
+local SINGLE_SAVE = GetConvar ~= nil and GetConvar("open77_appearance_single_save", "false") == "true"
+
+-- How a new character is made.
+--   "vanilla" (default): the game's own first-character creator, in the main menu.
+--   "runtime": no menu creator. The character is created on the spot with the male body, the
+--   player spawns in the world, and a runtime creator (open77_creator, on Open77.body) edits the
+--   look in game. The look is the stored runtime body; there is no customization snapshot.
+--   Runtime creation implies one save for every character.
+-- A gamemode chooses it at start: exports.open77_appearance:setCreationMode("runtime").
+local SINGLE_SAVE_CONVAR = SINGLE_SAVE
+local CREATION = GetConvar ~= nil and GetConvar("open77_appearance_creation", "vanilla") or "vanilla"
+local RUNTIME_CREATION = CREATION == "runtime"
+if RUNTIME_CREATION then SINGLE_SAVE = true end
+-- user id -> true: characters a no-database server has already seen this run (runtime creation).
+local seenWithoutDatabase = {}
+
+-- Tells the other server resources which character a player plays, once it is resolved:
+--   AddEventHandler("open77:appearance:characterReady", function(player, info) ... end)
+-- info = { userId, characterKey, family, isNew, runtimeCreation }. `isNew` is true for a character
+-- created by this join (a runtime creator opens itself then).
+local function announceCharacter(player, userId, key, family, isNew)
+    TriggerEvent("open77:appearance:characterReady", player, {
+        userId = userId, characterKey = key, family = family,
+        isNew = isNew == true, runtimeCreation = RUNTIME_CREATION,
+    })
+end
+
 local dbReady = false
 local dbMode = "starting"
 local nonceCounter = 0
@@ -41,6 +86,12 @@ local sessionBodyFamily = Presentation.families
 local pendingBodyFamily = {}
 local sessionAppearance = {}
 local readinessDiagnostics = {}
+-- player -> { male = body, female = body }: the stored body of each family (see BODY_SCHEMA_SQL).
+local storedBodies = {}
+-- player -> family the player is in a runtime-switched body of (nil = the save's own family).
+local runtimeFamily = {}
+-- Defined with the body publication below; the bootstrap above it calls them.
+local storeBody, loadBodies, storedBody, forgetBody
 
 -- Nobody may act on a joining player until this resource has had its say.
 --
@@ -317,15 +368,18 @@ local function sendCurrent(player, session)
         -- A playable character is committed in the same transaction as its
         -- canonical appearance. Never let a damaged/partially migrated row
         -- bypass first-character creation and boot a naked default puppet.
-        if not snapshot then
+        -- (A runtime-created character has none: its look is its stored runtime body.)
+        if not snapshot and not RUNTIME_CREATION then
             print(("[open77_appearance] character integrity failure player=%s user=%s character=%s")
                 :format(tostring(player), userId, key))
             return false, "character_appearance_missing"
         end
         local family = tostring(character.body_family)
         sessionBodyFamily[player] = family
+        loadBodies(player, userId, key)
         TriggerClientEvent("open77:appearance:bootstrapReady", player,
-            family, key, tostring(character.character_id))
+            family, key, tostring(character.character_id), storedBody(player, family), SINGLE_SAVE)
+        announceCharacter(player, userId, key, family, false)
     elseif snapshot then
         -- One-time migration for profiles authored before characters gained an
         -- explicit body-family row. Those builds only shipped a female seed.
@@ -337,7 +391,29 @@ local function sendCurrent(player, session)
         print(("[open77_appearance] migrated legacy profile player=%s affected=%s")
             :format(tostring(player), tostring(migrated)))
         sessionBodyFamily[player] = "female"
-        TriggerClientEvent("open77:appearance:bootstrapReady", player, "female", key, "")
+        loadBodies(player, userId, key)
+        TriggerClientEvent("open77:appearance:bootstrapReady", player, "female", key, "",
+            storedBody(player, "female"), SINGLE_SAVE)
+    elseif RUNTIME_CREATION then
+        -- No menu creator: the character exists from now on, in the male body, and the player
+        -- spawns in the world, where the runtime creator opens.
+        local ok, created = pcall(MySQL.update.await, [[
+            INSERT IGNORE INTO open77_characters
+                (user_id, character_key, character_id, body_family, status)
+            VALUES (@user, @character, UUID(), 'male', 'active')
+        ]], { user = userId, character = key })
+        if not ok then
+            print("[open77_appearance] runtime character creation failed: " .. tostring(created))
+            return false, "database_error"
+        end
+        print(("[open77_appearance] runtime character created player=%s user=%s character=%s")
+            :format(tostring(player), userId, key))
+        sessionBodyFamily[player] = "male"
+        loadBodies(player, userId, key)
+        TriggerClientEvent("open77:appearance:bootstrapReady", player, "male", key, "",
+            storedBody(player, "male"), SINGLE_SAVE)
+        TriggerEvent("open77:appearance:characterCreated", player, userId, key, "male", nil)
+        announceCharacter(player, userId, key, "male", true)
     else
         local creation = pendingCreation[player]
         if not creation or creation.userId ~= userId or creation.characterKey ~= key then
@@ -363,7 +439,7 @@ local function sendCurrent(player, session)
         TriggerClientEvent("open77:appearance:createRequired", player, nonce, key)
         return true, nil, true
     end
-    sessionAppearance[player] = { key=key, revision=revision, snapshot=snapshot }
+    sessionAppearance[player] = { key=key, revision=revision or 0, snapshot=snapshot }
     if snapshot then
         print(("[open77_appearance] restore sending player=%s revision=%s character=%s")
             :format(tostring(player), tostring(revision), key))
@@ -509,13 +585,18 @@ RegisterNetEvent("open77:appearance:ready", function()
         -- ships no resources. Resolve the same default the legacy no-resource
         -- path uses, and say clearly that nothing will be persisted.
         if not dbReady then
-            local family = sessionBodyFamily[player] or "female"
+            local family = sessionBodyFamily[player] or (RUNTIME_CREATION and "male" or "female")
             sessionBodyFamily[player] = family
             sessionAppearance[player] = { key=activeCharacter[player] or "default", revision=0 }
             pendingBodyFamily[player] = nil
             print(("[open77_appearance] no database: resolving player=%s with the default character, nothing will persist")
                 :format(tostring(player)))
-            TriggerClientEvent("open77:appearance:bootstrapReady", player, family, "default", "")
+            TriggerClientEvent("open77:appearance:bootstrapReady", player, family, "default", "",
+                storedBody(player, family), SINGLE_SAVE)
+            local userId = GetPlayerIdentifier(player) or tostring(player)
+            announceCharacter(player, userId, activeCharacter[player] or "default", family,
+                not seenWithoutDatabase[userId])
+            seenWithoutDatabase[userId] = true
             releaseGate(player, session)
             return
         end
@@ -623,13 +704,86 @@ RegisterCommand("appearance.status", function(player, _, raw)
     commandResult(player, raw, true, message)
 end, false)
 
-RegisterNetEvent("open77:appearance:body", function(body, characterKey, revision, logical, sequence)
+-- The stored body of a family, once per change.
+-- The look published from the save's own body (its customization state, the mirror) is the
+-- character's look again: a body stored for that family by a runtime creator no longer applies.
+function forgetBody(player, family)
+    local stored = storedBodies[player]
+    if not stored or stored[family] == nil then return end
+    stored[family] = nil
+    stored[family .. ":json"] = nil
+    if not dbReady then return end
+    local userId = GetPlayerIdentifier(player)
+    local key = activeCharacter[player] or "default"
+    if not userId then return end
+    CreateThread(function()
+        local ok, reason = pcall(MySQL.update.await, [[
+            DELETE FROM open77_character_bodies
+            WHERE user_id = @user AND character_key = @character AND body_family = @family
+        ]], { user = userId, character = key, family = family })
+        if not ok then print("[open77_appearance] body forget failed: " .. tostring(reason)) end
+    end)
+end
+
+function storeBody(player, body)
+    local stored = storedBodies[player] or {}
+    storedBodies[player] = stored
+    local encoded = json.encode(body)
+    if stored[body.family .. ":json"] == encoded then return end
+    stored[body.family] = body
+    stored[body.family .. ":json"] = encoded
+    if not dbReady then return end
+    local userId = GetPlayerIdentifier(player)
+    local key = activeCharacter[player] or "default"
+    if not userId then return end
+    CreateThread(function()
+        local ok, reason = pcall(MySQL.update.await, [[
+            INSERT INTO open77_character_bodies (user_id, character_key, body_family, body_json)
+            VALUES (@user, @character, @family, @body)
+            ON DUPLICATE KEY UPDATE body_json = VALUES(body_json)
+        ]], { user = userId, character = key, family = body.family, body = encoded })
+        if not ok then print("[open77_appearance] body store failed: " .. tostring(reason)) end
+    end)
+end
+
+function loadBodies(player, userId, key)
+    storedBodies[player] = {}
+    if not dbReady then return end
+    local ok, rows = pcall(MySQL.query.await, [[
+        SELECT body_family, body_json FROM open77_character_bodies
+        WHERE user_id = @user AND character_key = @character
+    ]], { user = userId, character = key })
+    if not ok or type(rows) ~= "table" then return end
+    for _, row in ipairs(rows) do
+        local body = json.decode(tostring(row.body_json or ""))
+        if validBody(body) and body.family == row.body_family then
+            storedBodies[player][body.family] = body
+            storedBodies[player][body.family .. ":json"] = tostring(row.body_json)
+        end
+    end
+end
+
+function storedBody(player, family)
+    local stored = storedBodies[player]
+    return stored and stored[family] or nil
+end
+
+RegisterNetEvent("open77:appearance:body", function(body, characterKey, revision, logical, sequence, runtime)
     local player = tonumber(source)
     local expected = player and sessionAppearance[player]
     if not expected or characterKey ~= expected.key or revision ~= expected.revision
         or not isInteger(sequence) or sequence < 1 or not validBody(body)
-        or body.family ~= sessionBodyFamily[player] or not matchesAppearance(expected.snapshot, logical) then return end
+        or body.family ~= sessionBodyFamily[player] then return end
+    if runtime == true then
+        runtimeFamily[player] = body.family
+    else
+        runtimeFamily[player] = nil
+        if not matchesAppearance(expected.snapshot, logical) then return end
+    end
     bodies[player] = body
+    -- Only a runtime body is stored: it is what a later session must put the player in. A body
+    -- published from the save is restored from the customization state instead.
+    if runtime == true then storeBody(player, body) else forgetBody(player, body.family) end
     absent[player] = nil
     Presentation.sendToObservers("open77:appearance:body", player, body)
     TriggerClientEvent("open77:appearance:bodyAck", player, characterKey, revision, sequence)
@@ -720,9 +874,10 @@ RegisterCommand("gender", function(player, _, raw)
     local target = current == "male" and "female" or "male"
     sessionBodyFamily[player] = target
     pendingBodyFamily[player] = { previous = current, target = target }
-    bodyAbsent(player)
-    TriggerClientEvent("open77:appearance:switchBodyFamily", player, target)
-    commandResult(player, raw, true, "Body type reload requested.")
+    -- Observers keep the current body until the new one is published: a runtime switch
+    -- replaces it in place, and a client that reloads leaves the world, which retires it.
+    TriggerClientEvent("open77:appearance:switchBodyFamily", player, target, storedBody(player, target))
+    commandResult(player, raw, true, "Body type change requested.")
 end, false)
 
 RegisterNetEvent("open77:appearance:bodyFamilyRejected", function(target)
@@ -903,6 +1058,8 @@ AddEventHandler("playerDropped", function()
     activeCharacter[source] = nil
     sessionBodyFamily[source] = nil
     pendingBodyFamily[source] = nil
+    storedBodies[source] = nil
+    runtimeFamily[source] = nil
     absent[source] = nil
     -- The host drops the gate itself when a player leaves; forgetting them here is
     -- what stops the sweeper from chasing an id that may already belong to somebody
@@ -940,6 +1097,7 @@ CreateThread(function()
     local ok, reason = pcall(function()
         MySQL.update.await(SCHEMA_SQL)
         MySQL.update.await(CHARACTER_SCHEMA_SQL)
+        MySQL.update.await(BODY_SCHEMA_SQL)
     end)
     if not ok then
         dbReady = false
@@ -983,6 +1141,66 @@ CreateThread(function()
             end
         end
     end
+end)
+
+-- Puts a player in a body of `family` at run time, without reloading their save.
+--   exports.open77_appearance:setBodyFamily(playerId, "female")                -- their stored look
+--   exports.open77_appearance:setBodyFamily(playerId, "male", body)            -- a given body
+--   exports.open77_appearance:setBodyFamily(playerId, "female", nil, true)     -- and keep it
+-- `body` is the table Open77.body.capture/defaults return (family + groups). With `persist`, the
+-- character's family is saved (open77_characters.body_family). Observers receive the new body
+-- once the client has switched and published it.
+exports("setBodyFamily", function(player, family, body, persist)
+    player = tonumber(player)
+    family = string.lower(tostring(family or ""))
+    if not player or player <= 0 or not GetPlayerName(player) then return false, "invalid_player" end
+    if family ~= "male" and family ~= "female" then return false, "invalid_family" end
+    if body ~= nil and (not validBody(body) or body.family ~= family) then return false, "invalid_body" end
+    if not sessionAppearance[player] then return false, "appearance_not_ready" end
+    sessionBodyFamily[player] = family
+    if persist == true and dbReady then
+        local userId = GetPlayerIdentifier(player)
+        local key = activeCharacter[player] or "default"
+        CreateThread(function()
+            local ok, reason = pcall(MySQL.update.await, [[
+                UPDATE open77_characters SET body_family = @family
+                WHERE user_id = @user AND character_key = @character
+            ]], { family = family, user = userId, character = key })
+            if not ok then print("[open77_appearance] family persist failed: " .. tostring(reason)) end
+        end)
+    end
+    TriggerClientEvent("open77:appearance:switchBodyFamily", player, family, body or storedBody(player, family))
+    return true
+end)
+
+-- The family a player is in a runtime-switched body of, or nil when they wear their save's.
+exports("runtimeBodyFamily", function(player) return runtimeFamily[tonumber(player) or 0] end)
+
+-- How new characters are made from now on (see CREATION above): "vanilla" or "runtime". A gamemode
+-- calls it when it starts, before players join; players already resolved keep their session.
+exports("setCreationMode", function(mode)
+    if mode ~= "vanilla" and mode ~= "runtime" then return false, "invalid_mode" end
+    CREATION = mode
+    RUNTIME_CREATION = mode == "runtime"
+    SINGLE_SAVE = RUNTIME_CREATION or SINGLE_SAVE_CONVAR
+    print(("[open77_appearance] character creation: %s"):format(mode))
+    return true
+end)
+
+exports("creationMode", function() return CREATION end)
+
+-- The character a player plays: { userId, characterKey, family, runtimeCreation, persistent }, or nil
+-- before it is resolved. `family` is the body family the server last set for the session.
+exports("character", function(player)
+    player = tonumber(player)
+    if not player or not sessionAppearance[player] then return nil end
+    return {
+        userId = GetPlayerIdentifier(player),
+        characterKey = activeCharacter[player] or "default",
+        family = sessionBodyFamily[player],
+        runtimeCreation = RUNTIME_CREATION,
+        persistent = dbReady,
+    }
 end)
 
 print("Open77 persistent appearance server ready")

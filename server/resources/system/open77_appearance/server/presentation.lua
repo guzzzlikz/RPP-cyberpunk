@@ -70,6 +70,56 @@ local function item(slot, value, family)
     return entry.record
 end
 
+-- Layered outfits (Equipment-EX slots, shared/outfit_slots.lua). Any catalogued or
+-- registered clothing item may go in any layer slot (Equipment-EX lets a player remap an
+-- item), unless the server sets open77_layers_strict 1: then a registered item keeps the
+-- layer it declares. open77_layers_uncatalogued 1 also admits item records the catalogue
+-- does not know (mod items not registered with Open77.clothing): trust the clients.
+local function convarOn(name)
+    return GetConvar and GetConvar(name, "0") == "1" or false
+end
+local function layerItem(layer, value, family)
+    if not OutfitSlotIndex[layer] then return nil end
+    if value == false or value == nil then return false end
+    if type(value) ~= "string" or #value == 0 or #value > 160 or value:find("[%z\1-\31\127]") then return nil end
+    local custom = Open77.clothing and Open77.clothing.info(value)
+    if custom then
+        if not custom.selectable then return nil end
+        if family == "male" and not custom.supportsMale or family ~= "male" and not custom.supportsFemale then return nil end
+        if convarOn("open77_layers_strict") and OutfitSlotIndex[custom.slot] and custom.slot ~= layer then return nil end
+        return custom.record
+    end
+    local entry = PresentationCatalog[value] or PresentationCatalog[string.lower(value)]
+    if entry then
+        local mask = family == "male" and 1 or 2
+        if entry.flags & mask == 0 or entry.flags & 4 == 0 then return nil end
+        return entry.record
+    end
+    if convarOn("open77_layers_uncatalogued") and value:match("^Items%.[%w_]+$") then return value end
+    return nil
+end
+
+-- { active = bool, slots = { ["OutfitSlots.X"] = record | false } } -> clean copy, or nil.
+local function layerSet(value, family)
+    if type(value) ~= "table" then return nil end
+    for key in pairs(value) do
+        if key ~= "active" and key ~= "slots" then return nil end
+    end
+    if value.active ~= nil and type(value.active) ~= "boolean" then return nil end
+    local clean, count = { active = value.active == true, slots = {} }, 0
+    if value.slots ~= nil then
+        if type(value.slots) ~= "table" then return nil end
+        for layer, record in pairs(value.slots) do
+            count = count + 1
+            if count > #OutfitSlots then return nil end
+            local resolved = layerItem(layer, record, family)
+            if resolved == nil then return nil end
+            if resolved then clean.slots[layer] = resolved end
+        end
+    end
+    return clean
+end
+
 local function slotSet(value, family, wardrobe)
     if type(value) ~= "table" then return nil end
     local clean, count = {}, 0
@@ -197,6 +247,23 @@ local function load(player, user, character, epoch)
                 or wardrobe.revision % 1 ~= 0 or wardrobe.revision < 0 or wardrobe.revision > 9007199254740990) then
                 error("invalid_stored_revision")
             end
+            local function validateStoredLayers(values)
+                if type(values) ~= "table" or (values.active ~= nil and type(values.active) ~= "boolean")
+                    or (values.slots ~= nil and type(values.slots) ~= "table") then error("invalid_stored_layers") end
+                for layer, value in pairs(values.slots or {}) do
+                    if not OutfitSlotIndex[layer] or type(value) ~= "string" or #value == 0 or #value > 160 then
+                        error("invalid_stored_layer")
+                    end
+                end
+            end
+            if wardrobe.layers ~= nil then validateStoredLayers(wardrobe.layers) end
+            if wardrobe.outfitLayers ~= nil then
+                if type(wardrobe.outfitLayers) ~= "table" then error("invalid_stored_layers") end
+                for index, values in pairs(wardrobe.outfitLayers) do
+                    if not outfitIndex(tonumber(index)) then error("invalid_stored_outfit") end
+                    validateStoredLayers(values)
+                end
+            end
             if wardrobe.names ~= nil then
                 if type(wardrobe.names) ~= "table" then error("invalid_stored_names") end
                 for index, name in pairs(wardrobe.names) do
@@ -224,8 +291,26 @@ local function save(player, user, character, epoch, record)
     return true
 end
 
+-- The layered outfit others see: unknown or incompatible items are dropped, not stored
+-- away (the durable record keeps them, as for equipment).
+local function visibleLayers(player, stored)
+    local result = { active = false, slots = {} }
+    if type(stored) ~= "table" then return result end
+    result.active = stored.active == true
+    for layer, value in pairs(stored.slots or {}) do
+        local shown = layerItem(layer, value, P.families[player])
+        if shown then result.slots[layer] = shown end
+    end
+    return result
+end
+
 local function visible(player, record)
     local result = { equipment={}, wardrobe={ active=record.wardrobe.active, outfits={}, names=copy(record.wardrobe.names or {}) } }
+    result.layers = visibleLayers(player, record.wardrobe.layers)
+    result.outfitLayers = {}
+    for index, values in pairs(record.wardrobe.outfitLayers or {}) do
+        result.outfitLayers[tostring(index)] = visibleLayers(player, values)
+    end
     for slot in pairs(slots) do
         result.equipment[slot] = item(slot, record.equipment[slot], P.families[player]) or false
     end
@@ -247,6 +332,8 @@ local function visible(player, record)
         -- outfit in the durable record. Observers receive the same projection.
         result.equipment.Wardrobe = false
         result.wardrobe.active = false
+        -- A gamemode costume is shown as is: layers stay stored but off.
+        result.layers.active = false
     end
     return result
 end
@@ -255,12 +342,14 @@ local function broadcast(player, record)
     local shown = visible(player, record)
     P.sendToObservers("open77:equipment:record", player, shown.equipment)
     P.sendToObservers("open77:wardrobe:record", player, shown.wardrobe)
+    P.sendToObservers("open77:layers:record", player, shown.layers)
 end
 
 restoreOwner = function(player)
     local shown = visible(player, P.records[player])
     TriggerClientEvent("open77:equipment:self", player, shown.equipment)
     TriggerClientEvent("open77:wardrobe:self", player, shown.wardrobe)
+    TriggerClientEvent("open77:layers:self", player, shown.layers)
 end
 
 -- A temporarily missing provider hides its projection without deleting the
@@ -337,6 +426,7 @@ function P.sendRecords(viewer, player)
     local shown = visible(player, record)
     TriggerClientEvent("open77:equipment:record", viewer, player, shown.equipment)
     TriggerClientEvent("open77:wardrobe:record", viewer, player, shown.wardrobe)
+    TriggerClientEvent("open77:layers:record", viewer, player, shown.layers)
 end
 
 function P.ready(player)
@@ -349,12 +439,14 @@ function P.ready(player)
         TriggerClientEvent("open77:wardrobe:me", player, player)
         TriggerClientEvent("open77:equipment:self", player, shown.equipment)
         TriggerClientEvent("open77:wardrobe:self", player, shown.wardrobe)
+        TriggerClientEvent("open77:layers:self", player, shown.layers)
         for _, other in ipairs(Open77.players.inScope(player)) do
             local state = P.records[other]
             if other ~= player and state then
                 local otherShown = visible(other, state)
                 TriggerClientEvent("open77:equipment:record", player, other, otherShown.equipment)
                 TriggerClientEvent("open77:wardrobe:record", player, other, otherShown.wardrobe)
+                TriggerClientEvent("open77:layers:record", player, other, otherShown.layers)
             end
         end
         broadcast(player, record)
@@ -383,6 +475,11 @@ local function uiState(player)
             end
         end
     end
+    state.incompatible.layers = {}
+    for layer, value in pairs((record.wardrobe.layers or {}).slots or {}) do
+        if value and not layerItem(layer, value, state.family) then state.incompatible.layers[layer] = true end
+    end
+    state.layerSlots = OutfitSlots
     -- false is explicit over JSON/Lua transport, unlike omitted nil.
     state.wardrobe.active = state.wardrobe.active or false
     return state
@@ -405,7 +502,8 @@ local function patchRecord(player, record, patch)
     if temporaryOutfit(player) then return nil, "temporary_outfit_active" end
     if type(patch) ~= "table" then return nil, "invalid_patch" end
     for key in pairs(patch) do
-        if key ~= "expectedRevision" and key ~= "characterKey" and key ~= "equipment" and key ~= "wardrobe" then
+        if key ~= "expectedRevision" and key ~= "characterKey" and key ~= "equipment" and key ~= "wardrobe"
+            and key ~= "layers" and key ~= "outfitLayers" then
             return nil, "invalid_patch_field"
         end
     end
@@ -418,6 +516,30 @@ local function patchRecord(player, record, patch)
         local equipment = slotSet(patch.equipment, P.families[player], false)
         if not equipment then return nil, "invalid_equipment" end
         for slot, value in pairs(equipment) do result.equipment[slot] = value end
+    end
+    if patch.layers ~= nil then
+        local layers = layerSet(patch.layers, P.families[player])
+        if not layers then return nil, "invalid_layers" end
+        result.wardrobe.layers = layers
+    end
+    if patch.outfitLayers ~= nil then
+        if type(patch.outfitLayers) ~= "table" then return nil, "invalid_outfit_layers" end
+        result.wardrobe.outfitLayers = result.wardrobe.outfitLayers or {}
+        local count, seen = 0, {}
+        for index, values in pairs(patch.outfitLayers) do
+            count = count + 1
+            local number = tonumber(index)
+            if count > 7 or not outfitIndex(number) or seen[number] then return nil, "invalid_outfit" end
+            seen[number] = true
+            if values == false then
+                result.wardrobe.outfitLayers[tostring(number)] = nil
+            else
+                local layers = layerSet(values, P.families[player])
+                if not layers then return nil, "invalid_outfit_layers" end
+                result.wardrobe.outfitLayers[tostring(number)] = layers
+            end
+            result.wardrobe.outfitLayers[number] = nil
+        end
     end
     if patch.wardrobe ~= nil then
         if type(patch.wardrobe) ~= "table" then return nil, "invalid_wardrobe" end
@@ -476,6 +598,7 @@ RegisterNetEvent("open77:presentation:commit", function(request, patch)
             local shown = visible(player, record)
             TriggerClientEvent("open77:equipment:self", player, shown.equipment)
             TriggerClientEvent("open77:wardrobe:self", player, shown.wardrobe)
+            TriggerClientEvent("open77:layers:self", player, shown.layers)
             broadcast(player, record)
             return true
         end)
@@ -553,6 +676,59 @@ RegisterNetEvent("open77:wardrobe:outfit", function(index, values)
     end)
 end)
 
+-- The owner's layered outfit, stated whole ({ active, slots }). Same admission as the
+-- menu commit; a refused intent re-sends the committed layers to the owner.
+local lastLayers = {}
+RegisterNetEvent("open77:layers:set", function(values)
+    local player = tonumber(source)
+    if not player or not P.records[player] then return end
+    if temporaryOutfit(player) then restoreOwner(player); return end
+    local now = GetGameTimer()
+    if now - (lastLayers[player] or -100) < 100 then return end
+    lastLayers[player] = now
+    local clean = layerSet(values, P.families[player])
+    if not clean then
+        TriggerClientEvent("open77:layers:self", player, visible(player, P.records[player]).layers)
+        return
+    end
+    P.enqueue(player, function(user, character, epoch)
+        local record = load(player, user, character, epoch)
+        if not record then return end
+        if temporaryOutfit(player) then restoreOwner(player); return end
+        record = copy(record)
+        record.wardrobe.layers = clean
+        if save(player, user, character, epoch, record) then
+            P.sendToObservers("open77:layers:record", player, visible(player, record).layers)
+        end
+    end)
+end)
+
+-- Gamemodes: read and state a player's layered outfit (validated like a client intent,
+-- saved with the character). getLayers returns the visible projection.
+exports("getLayers", function(player)
+    if type(player) ~= "number" or not P.records[player] then return nil, "presentation_not_ready" end
+    return visible(player, P.records[player]).layers
+end)
+
+exports("setLayers", function(player, values)
+    if type(player) ~= "number" or player % 1 ~= 0 or player <= 0 then return false, "invalid_player" end
+    if not P.records[player] then return false, "presentation_not_ready" end
+    local clean = layerSet(values, P.families[player])
+    if not clean then return false, "invalid_layers" end
+    local queued = P.enqueue(player, function(user, character, epoch)
+        local record = load(player, user, character, epoch)
+        if not record then return end
+        record = copy(record)
+        record.wardrobe.layers = clean
+        if save(player, user, character, epoch, record) then
+            local shown = visible(player, record)
+            TriggerClientEvent("open77:layers:self", player, shown.layers)
+            P.sendToObservers("open77:layers:record", player, shown.layers)
+        end
+    end)
+    return queued, not queued and "presentation_busy" or nil
+end)
+
 AddEventHandler("playerDropped", function()
     local player = tonumber(source)
     if not player then return end
@@ -560,6 +736,7 @@ AddEventHandler("playerDropped", function()
     P.families[player] = nil
     lastRequest[player] = nil
     lastUiRequest[player] = nil
+    lastLayers[player] = nil
 end)
 
 -- Host notifications run after the state transition and cross VM boundaries;

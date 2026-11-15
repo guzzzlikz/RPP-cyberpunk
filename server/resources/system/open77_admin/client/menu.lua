@@ -1778,8 +1778,13 @@ AddEventHandler("onClientResourceStart", function(name)
         draw()
     end)
 
-    -- Reuse the existing transparent HUD: no extra browser/surface for flight.
+    -- The flight strip is a NativeUI document (client/noclip_hud.lua); the WebUI
+    -- panel in web/menu.html is only the fallback for a client without NativeUI.
     -- Poll at 10 Hz and send only changes; keyboard ownership remains native.
+    -- Guarded: a host that loads this file alone (the Lua tests do) has no NoclipHud.
+    local strip, stripWhy = nil, "noclip_hud_missing"
+    if type(NoclipHud) == "table" then strip, stripWhy = NoclipHud.create() end
+    if not strip then Open77.log.info("admin: noclip strip on WebUI (" .. tostring(stripWhy) .. ")") end
     CreateThread(function()
         local previous, previousSpeed, previousPaused, previousBoost, previousSlow
         while page ~= nil do
@@ -1790,9 +1795,10 @@ AddEventHandler("onClientResourceStart", function(name)
             local paused = Open77.input.isCaptured() == true or Open77.session.isMenuOpen() == true
             local boost = active and not paused and (Open77.input.isDown("shift") or Open77.input.isDown("padLeftShoulder")) == true
             local slow = active and not paused and (Open77.input.isDown("alt") or Open77.input.isDown("padRightShoulder")) == true
-            if pageReady and (active ~= previous or speed ~= previousSpeed or paused ~= previousPaused or boost ~= previousBoost or slow ~= previousSlow) then
-                page:send("menu:noclip", { active = active, speed = speed, paused = paused,
-                    effective = speed * (boost and 4 or 1) * (slow and 0.25 or 1), boost = boost, slow = slow })
+            if (pageReady or strip) and (active ~= previous or speed ~= previousSpeed or paused ~= previousPaused or boost ~= previousBoost or slow ~= previousSlow) then
+                local sample = { active = active, speed = speed, paused = paused,
+                    effective = speed * (boost and 4 or 1) * (slow and 0.25 or 1), boost = boost, slow = slow }
+                if strip then strip.update(sample) else page:send("menu:noclip", sample) end
                 TriggerEvent("open77_admin:noclipChanged", active, speed)
                 -- Only transitions hit the network, never wheel/keyboard samples.
                 if previous ~= nil and active ~= previous then
@@ -1804,6 +1810,7 @@ AddEventHandler("onClientResourceStart", function(name)
             end
             Wait(active and 100 or 300)
         end
+        if strip then strip.destroy() end
     end)
 
     page:on("menu:viewport", function(payload)

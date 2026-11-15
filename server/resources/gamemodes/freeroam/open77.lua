@@ -5,6 +5,9 @@ auto_start true
 reload_policy "local"
 
 dependency "open77_weapons >=0.1.0"
+-- New characters spawn in the world (male body by default) and build their look with the runtime
+-- creator; server/creator.lua switches open77_appearance to runtime creation.
+dependency "open77_creator >=1.0.0"
 dependencies {
     "open77_vehicle_siren >=1.0.0",
     "open77_cyberware_lab >=0.1.0",
@@ -43,6 +46,7 @@ server_script "pvp/server/freeroam.lua"
 server_script "race/server/courses.lua"
 server_script "race/server/state_delivery.lua"
 server_script "race/server/main.lua"
+server_script "server/creator.lua"
 server_script "server/main.lua"
 server_script "server/combat.lua"
 server_script "server/context.lua"
