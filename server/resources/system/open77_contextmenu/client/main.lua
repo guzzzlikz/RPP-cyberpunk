@@ -80,13 +80,25 @@ local function alive()
     local state=Open77.character.state()
     return state and state.attached and state.alive and state.health and state.health>0 and state
 end
+-- RPP: страховка от «замёрзшей камеры». Меню замораживает поворот камеры
+-- (freezeRotation). Если сброс не дошёл (меню закрылось посреди открытия,
+-- закрытие пришлось на Alt+Tab, когда окно в фоне), поворот оставался
+-- замороженным: бегать можно, крутить камеру нельзя. controlsHeld помнит,
+-- что управление ещё не возвращено, и цикл ниже возвращает его ещё раз.
+local controlsHeld=false
+local function releaseControls()
+    if Open77.players and Open77.players.freezeRotation then pcall(Open77.players.freezeRotation,false) end
+    if Open77.players and Open77.players.resetControls then pcall(Open77.players.resetControls) end
+    -- В фоне игра может не принять сброс: повторим, когда окно вернётся.
+    controlsHeld=Open77.input.cursor()==nil
+end
 local function close(reason)
     epoch=epoch+1
     local wasOpen=active
     active,busy,selection,visibleActions=false,false,nil,{}
     focused,lostForeground=false,0
     if page then page:setFocus(false,false);send("context:close");page:hide() end
-    if Open77.players and Open77.players.resetControls then Open77.players.resetControls() end
+    releaseControls()
     if wasOpen then TriggerEvent("open77:contextmenu:closed",reason or "closed") end
 end
 exports("close",function() close("provider_closed");return true end)
@@ -211,13 +223,26 @@ local function open()
     page:show()
     if not page:setFocus(true,true) then close("focus_refused");return end
     focused,lostForeground=true,0
+    local opened=epoch
+    controlsHeld=true
     if not Open77.players.allowAim(false) or not Open77.players.allowShoot(false) or
        not Open77.players.allowInteraction(false) or not Open77.players.freezeRotation(true) then
         close("controls_unavailable");return
     end
+    -- RPP: меню успело закрыться, пока мы забирали управление (быстрый ALT+ЛКМ,
+    -- потеря фокуса): вернуть управление, иначе камера останется замороженной.
+    if not active or epoch~=opened then releaseControls();return end
     TriggerEvent("open77:contextmenu:opened")
 end
 AddEventHandler("open77:pauseKey",function() if active then close("pause") end end)
+-- RPP: ручной выход, если камера всё же замёрзла (например, Windows «съела»
+-- отпускание ALT при Shift+Alt — это системное переключение раскладки).
+RegisterCommand("camfix",function()
+    if active then close("camfix") else releaseControls() end
+    armed=true
+    pcall(Open77.exports.call,"open77_chat","addMessage",{type="system",author="КАМЕРА",
+        text="Управление камерой возвращено.",color={252,238,10}})
+end,false)
 AddEventHandler("onClientResourceStop",function(name)
     if name==resource then
         close("resource_stopped")
@@ -266,7 +291,11 @@ AddEventHandler("onClientResourceStart",function(name)
                     local current=contextAt(selection.screen.x,selection.screen.y)
                     if not sameTarget(selection,current) then close("target_changed") end
                 end
-            else registry.sweep() end
+            else
+                -- RPP: меню закрыто, а управление не вернулось (окно было в фоне) — вернуть.
+                if controlsHeld and Open77.input.cursor() then releaseControls() end
+                registry.sweep()
+            end
             Wait(active and config.activePollMs or config.idlePollMs)
         end
     end)
