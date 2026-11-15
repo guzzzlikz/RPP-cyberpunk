@@ -210,6 +210,7 @@
 
 | Ресурс | Команда | Доступ | Что делает |
 |---|---|---|---|
+| `open77_contextmenu` | `/camfix` | Игрок | Если камера «замёрзла» (не крутится, а бегать можно) после ALT-меню: закрывает меню и возвращает управление |
 | `open77_perspective` | `perspective` | Админ | Политика вида от 1-го/3-го лица |
 | `open77_prediction` | `prediction [status\|on\|off <семейство>\|ping <мс>\|telemetry <с>]` | Админ | Настройки сетевого предсказания |
 | `open77_notifications` | `notification.test [info\|success\|warning\|error]` | Админ | Тестовое уведомление |
