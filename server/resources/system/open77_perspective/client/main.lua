@@ -123,6 +123,32 @@ local function applyPreference(explicit)
     return ok, reason
 end
 
+-- RPP: сохранённый вид от 3-го лица включаем только когда персонаж уже в мире.
+-- Восстановление сразу после старта ресурса попадало в загрузку персонажа:
+-- Open77 не мог создать тело для вида от 3-го лица («the player proxy record
+-- could not be provisioned») и до конца сессии не показывал воркспот-анимации
+-- (playback_timeout). Нажатие F7 игроком сюда не относится — оно сразу.
+local deferringRestore = false
+
+local function inWorld()
+    if type(Open77.character) ~= "table" or type(Open77.character.state) ~= "function" then return true end
+    local ok, state = pcall(Open77.character.state)
+    return ok and type(state) == "table" and state.alive == true
+end
+
+local function restorePreference()
+    if preferred ~= "tps" then return applyPreference() end
+    if deferringRestore then return true end
+    deferringRestore = true
+    CreateThread(function()
+        while not inWorld() do Wait(500) end
+        Wait(5000) -- тело персонажа и импланты ещё одеваются после появления
+        deferringRestore = false
+        applyPreference()
+    end)
+    return true
+end
+
 local function setMode(mode)
     local normalised = normalise(mode)
     if normalised == nil then return false, "invalid_perspective" end
@@ -177,7 +203,7 @@ RegisterNetEvent("open77:perspective:policy", function(payload)
     -- refused and merely records the intent, which is what makes a later lift
     -- of the pin land on the right view.
     loadPreferences()
-    applyPreference()
+    if inWorld() then applyPreference() else restorePreference() end
     TriggerEvent("open77:perspective:policyChanged", value, pinned)
 end)
 
@@ -220,7 +246,7 @@ AddEventHandler("onClientResourceStart", function(name)
     CreateThread(function()
         for _ = 1, 60 do
             if loadPreferences() then
-                applyPreference()
+                restorePreference()
                 return
             end
             Wait(500)
@@ -256,7 +282,7 @@ end)
 
 AddEventHandler("open77:worldReady", function()
     if not available() then return end
-    if loadPreferences() then applyPreference() end
+    if loadPreferences() then restorePreference() end
 end)
 
 exports("get", function()
