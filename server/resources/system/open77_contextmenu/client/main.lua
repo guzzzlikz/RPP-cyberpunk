@@ -294,6 +294,39 @@ RegisterCommand("camfix",function()
         releaseControls("camfix")
     end
     armed=true
+    -- RPP: при зависании клики проходят, а движение мыши — нет: игра осталась
+    -- в «курсорном» режиме мыши. Берём курсор на миг и отдаём — Open77 при
+    -- отдаче возвращает игре относительную мышь. Ждём, пока закроется чат,
+    -- из которого набрали команду.
+    CreateThread(function()
+        Wait(400)
+        if active or not page then return end
+        page:show()
+        local took=page:setFocus(true,true)
+        Wait(150)
+        page:setFocus(false,false)
+        page:hide()
+        releaseControls("camfix_cursor_cycle")
+        diag("camfix: cursor cycle took="..tostring(took).." state: "..inputState())
+    end)
+    -- RPP: по логам ввод свободен, а камера от 3-го лица (open77_rig) не берёт
+    -- мышь. Пересоздаём её: вид от 1-го лица и обратно.
+    local P=Open77.perspective
+    if P and type(P.set)=="function" then
+        local mode
+        if type(P.state)=="function" then local ok,s=pcall(P.state);mode=ok and type(s)=="table" and s.mode or nil end
+        if not mode and type(P.get)=="function" then local ok,g=pcall(P.get);mode=ok and (type(g)=="table" and g.mode or g) or nil end
+        if mode=="tps" or mode=="third" then
+            CreateThread(function()
+                local function set(a,b) local ok,r=pcall(P.set,a);if ok and r~=false then return true end;ok,r=pcall(P.set,b);return ok and r~=false end
+                Wait(800) -- после цикла с курсором
+                local first=set("fpp","first")
+                Wait(300)
+                local third=set("tps","third")
+                diag(("camfix: perspective reseat first=%s third=%s"):format(tostring(first),tostring(third)))
+            end)
+        end
+    end
     pcall(Open77.exports.call,"open77_chat","addMessage",{type="system",author="КАМЕРА",
         text="Управление камерой возвращено.",color={252,238,10}})
 end,false)
