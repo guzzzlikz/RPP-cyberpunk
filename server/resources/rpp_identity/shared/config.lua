@@ -16,8 +16,10 @@ RppIdentityConfig = {
     -- без неё редактор open77_appearance не открывается.
     customizeBeforeName = true,
     -- Если запущен open77_creator (77.248), внешность создаётся в нём, MySQL не нужна.
-    -- Сколько секунд ждать, что он откроется сам, прежде чем открыть его явно.
-    creatorWaitSeconds = 25,
+    -- Он открывается сам (новому персонажу или без сохранённого образа); rpp_identity
+    -- его никогда не открывает, чтобы персонажа не создавали дважды. Если за это
+    -- время редактор не появился, сразу просим имя.
+    creatorWaitSeconds = 90,
     -- Запасной путь без open77_creator: старый редактор open77_appearance.
     -- Режим: "ripperdoc" (всё тело) или "hairdresser" (причёска).
     appearanceMode = "ripperdoc",

@@ -107,17 +107,29 @@ local function creatorRunning()
     return ok and (state == "running" or state == "started")
 end
 
--- Клиент не дождался, что open77_creator откроется сам (например, у игрока уже
--- есть сохранённый образ): открываем его явно.
-RegisterNetEvent("rpp_identity:openCreator", function()
-    local player = source
-    if stage[player] ~= "appearance" or not creatorRunning() then return end
-    local ok, opened, reason = pcall(function() return exports.open77_creator:open(player) end)
-    if not ok or not opened then
-        log(("player %s: creator did not open (%s)"):format(tostring(player), tostring(ok and reason or opened)))
-        askName(player)
-    end
+-- Какого персонажа играет игрок (open77_appearance сообщает это до входа в мир).
+local characters = {} -- [playerId] = { userId, characterKey, isNew, runtimeCreation }
+AddEventHandler("open77:appearance:characterReady", function(player, info)
+    player = tonumber(player)
+    if player and type(info) == "table" then characters[player] = info end
 end)
+
+-- Откроется ли open77_creator у игрока сам. Повторяет его правило
+-- (open77_creator/server/main.lua): новый персонаж или персонаж без сохранённого
+-- образа в open77_creator_looks. Без базы образы не хранятся, и он открывается всегда.
+-- Сами мы редактор не открываем никогда: иначе он открылся бы второй раз.
+local function creatorWillOpen(player)
+    if GetConvar and GetConvar("open77_creator_open_new", "true") == "false" then return false end
+    local info = characters[player]
+    if not info then return true end -- не знаем: ждём, на этот случай есть таймаут
+    if not info.runtimeCreation then return false end
+    if info.isNew or not dbReady then return true end
+    local ok, rows = pcall(MySQL.query.await,
+        "SELECT 1 FROM open77_creator_looks WHERE user_id = @user AND character_key = @character LIMIT 1",
+        { user = info.userId, character = info.characterKey or "default" })
+    if not ok then return true end
+    return type(rows) ~= "table" or #rows == 0
+end
 
 local function startRegistration(player)
     local entry = load(player)
@@ -129,11 +141,16 @@ local function startRegistration(player)
         if stage[player] == "name" then askName(player) end
         return true
     end
-    if cfg.customizeBeforeName and creatorRunning() then
+    if creatorRunning() then
         -- 77.248: внешность создаётся в open77_creator прямо в мире. Он сам
-        -- открывается новому персонажу; клиент ждёт, пока его закроют.
-        stage[player] = "appearance"
-        TriggerClientEvent("rpp_identity:awaitCreator", player, cfg.creatorWaitSeconds)
+        -- открывается новому персонажу; клиент ждёт, пока его закроют. Если у
+        -- персонажа образ уже есть, редактор не откроется, и сразу просим имя.
+        if cfg.customizeBeforeName and creatorWillOpen(player) then
+            stage[player] = "appearance"
+            TriggerClientEvent("rpp_identity:awaitCreator", player, cfg.creatorWaitSeconds)
+        else
+            askName(player)
+        end
     elseif cfg.customizeBeforeName and dbReady and not created[player] then
         -- Запасной путь без open77_creator: старый редактор open77_appearance.
         stage[player] = "appearance"
@@ -423,6 +440,7 @@ AddEventHandler("onPlayerDisconnected", function(playerIdStr)
     local player = tonumber(playerIdStr)
     if not player then return end
     online[player], stage[player], created[player], lastIntroduce[player] = nil, nil, nil, nil
+    characters[player] = nil
     loading[player] = nil
     offers[player] = nil
     for _, list in pairs(offers) do list[player] = nil end
