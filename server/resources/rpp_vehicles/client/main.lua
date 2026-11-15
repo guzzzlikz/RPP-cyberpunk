@@ -60,6 +60,14 @@ local function ensurePage()
     page:on("garage:spawn", function(p)
         if type(p) == "table" and tonumber(p.id) then TriggerServerEvent("rpp_vehicles:spawn", tonumber(p.id)) end
     end)
+    page:on("garage:buy", function(p)
+        if type(p) == "table" and tonumber(p.index) then TriggerServerEvent("rpp_vehicles:buy", tonumber(p.index)) end
+    end)
+    page:on("garage:rent", function(p)
+        if type(p) == "table" and tonumber(p.index) and tonumber(p.minutes) then
+            TriggerServerEvent("rpp_vehicles:rent", tonumber(p.index), tonumber(p.minutes))
+        end
+    end)
     return true
 end
 
@@ -76,6 +84,66 @@ RegisterNetEvent("rpp_vehicles:garage", function(view, openWindow)
 end)
 
 RegisterNetEvent("rpp_vehicles:garageClose", closeGarage)
+
+-- ---------------------------------------------------------------------------
+-- Автосалон и прокат: метка в мире (E — открыть окно) и на карте
+-- ---------------------------------------------------------------------------
+local points = {}   -- [mode] = handle метки worldui
+local blipsMade = false
+
+local function worldui(name, arg)
+    local pending, reason = Open77.exports.call("open77_worldui", name, arg)
+    if not pending then return nil, reason end
+    return pending:await()
+end
+
+local function createPoint(mode, section)
+    if points[mode] or not section.enabled then return end
+    points[mode] = "pending"
+    local result = worldui("create", {
+        id = "rpp_" .. mode,
+        position = section.position,
+        style = "interaction",
+        radius = 0.8,
+        maxDistance = 25,
+        label = section.label,
+        description = mode == "dealer" and "Купить машину" or "Взять машину на время",
+        key = "E",
+        promptDistance = cfg.promptDistance,
+        event = "rpp_vehicles:" .. mode .. "Prompt",
+    })
+    if type(result) == "table" and result.ok then points[mode] = result.handle
+    else
+        points[mode] = nil
+        log(mode .. " marker failed: " .. tostring(type(result) == "table" and result.error or result))
+    end
+end
+
+local function createBlips()
+    if blipsMade or not cfg.blips or type(Open77.blips) ~= "table" then return end
+    local made = 0
+    for _, row in ipairs({ { cfg.dealership, "fast_travel", "Купить машину" }, { cfg.rental, "objective", "Взять машину на время" } }) do
+        if row[1].enabled then
+            local ok, id = pcall(Open77.blips.create, { position = row[1].position, sprite = row[2],
+                title = row[1].label, description = row[3] })
+            if ok and id ~= nil then made = made + 1 end
+        end
+    end
+    if made > 0 then blipsMade = true end
+end
+
+local function setupPoints()
+    createPoint("dealer", cfg.dealership)
+    createPoint("rental", cfg.rental)
+    createBlips()
+end
+
+AddEventHandler("rpp_vehicles:dealerPrompt", function() TriggerServerEvent("rpp_vehicles:shopOpen", "dealer") end)
+AddEventHandler("rpp_vehicles:rentalPrompt", function() TriggerServerEvent("rpp_vehicles:shopOpen", "rental") end)
+AddEventHandler("open77:worldReady", function()
+    points, blipsMade = {}, false -- новый мир: метки ставятся заново
+    CreateThread(setupPoints)
+end)
 
 -- ---------------------------------------------------------------------------
 -- ALT-меню
@@ -133,7 +201,12 @@ end)
 exports("canPark", function(ctx)
     if not fromMenu() then return false end
     local _, r = vehicleOf(ctx)
-    return r ~= nil and r.owner == true
+    return r ~= nil and r.owner == true and not r.rental
+end)
+exports("canReturn", function(ctx)
+    if not fromMenu() then return false end
+    local _, r = vehicleOf(ctx)
+    return r ~= nil and r.owner == true and r.rental == true
 end)
 exports("selectPark", function(ctx)
     if not fromMenu() then return false end
@@ -217,6 +290,9 @@ local function registerContext()
     register("registerVehicles", { id = "rpp_veh_park", label = "Припарковать", icon = "location",
         description = "Убрать машину в гараж. Багажник сохранится, вызвать снова — /garage.", group = "Машина",
         distance = cfg.parkDistance, canInteract = "canPark", onSelect = "selectPark" })
+    register("registerVehicles", { id = "rpp_veh_return", label = "Вернуть в прокат", icon = "location",
+        description = "Закончить аренду сейчас. Вещи из багажника пропадут.", group = "Машина",
+        distance = cfg.parkDistance, canInteract = "canReturn", onSelect = "selectPark" })
     register("registerPlayers", { id = "rpp_veh_eject_player", label = "Высадить из машины", icon = "person",
         description = "Высадить этого человека из вашей машины.", group = "Машина", distance = d,
         canInteract = "canEjectPlayer", onSelect = "selectEjectPlayer" })
@@ -232,8 +308,12 @@ AddEventHandler("onClientResourceStart", function(name)
     if name == RESOURCE then
         TriggerServerEvent("rpp_vehicles:hello")
         CreateThread(registerContext)
+        CreateThread(setupPoints)
     elseif name == "open77_contextmenu" then
         CreateThread(registerContext)
+    elseif name == "open77_worldui" then
+        points = {}
+        CreateThread(setupPoints)
     end
 end)
 

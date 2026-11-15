@@ -12,7 +12,7 @@
     .hidden { display: none !important; }
     .root { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
             background: radial-gradient(ellipse at center, rgba(0,0,0,.45), rgba(0,0,0,.85)); }
-    .frame { width: 720px; background: rgba(6,6,6,.95); border: 1px solid var(--line); padding: 22px 26px 22px; position: relative;
+    .frame { width: 860px; background: rgba(6,6,6,.95); border: 1px solid var(--line); padding: 22px 26px 22px; position: relative;
              clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 26px 100%, 0 calc(100% - 26px)); }
     .frame::before { content: ""; position: absolute; left: 0; top: 0; width: 220px; height: 4px; background: var(--y); }
     .top { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 16px; }
@@ -33,6 +33,12 @@
     .car .c-state { font-size: 11px; letter-spacing: 2px; color: var(--muted); }
     .car.out .c-state { color: var(--green); }
     .empty { color: var(--muted); font-size: 14px; padding: 18px 6px; text-align: center; }
+    .money { text-align: right; font-size: 11px; letter-spacing: 2px; color: var(--muted); }
+    .money b { display: block; font-size: 22px; letter-spacing: 1px; color: var(--y); }
+    .price { font-size: 15px; color: var(--y); white-space: nowrap; }
+    .terms { display: flex; gap: 6px; }
+    .active { border: 1px solid rgba(59,255,138,.45); background: rgba(59,255,138,.06); color: var(--green);
+              padding: 10px 14px; margin-bottom: 12px; font-size: 14px; }
     .foot { margin-top: 14px; display: flex; justify-content: space-between; gap: 16px; font-size: 12px; color: var(--muted); }
   </style>
 </head>
@@ -41,9 +47,10 @@
     <div class="frame">
       <div class="top">
         <div class="title">
-          <div class="eyebrow">NIGHT CITY // ЛИЧНЫЙ ТРАНСПОРТ</div>
-          <h1>Гараж</h1>
+          <div class="eyebrow" id="eyebrow">NIGHT CITY // ЛИЧНЫЙ ТРАНСПОРТ</div>
+          <h1 id="title">Гараж</h1>
         </div>
+        <div class="money hidden" id="moneyBox"><span>ЕВРОДОЛЛАРЫ</span><b id="money">0</b></div>
         <button class="btn" data-act="close">✕ Закрыть</button>
       </div>
       <div class="list" id="list"></div>
@@ -62,8 +69,53 @@
     function on(e, h) { if (bridge && bridge.on) bridge.on("garage:" + e, h); }
     function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
+    function fmt(n) { return String(Math.floor(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
+
+    function header(eyebrow, title, showMoney) {
+      $("eyebrow").textContent = eyebrow;
+      $("title").textContent = title;
+      $("moneyBox").classList.toggle("hidden", !showMoney);
+      if (showMoney) $("money").textContent = fmt(view.money) + " €$";
+    }
+
+    function renderDealer() {
+      header("NIGHT CITY // АВТОСАЛОН", view.title || "Автосалон", true);
+      var cars = view.cars || [];
+      $("list").innerHTML = cars.length ? cars.map(function (c) {
+        var afford = (view.money || 0) >= c.price;
+        return '<div class="car"><div class="c-body"><div class="c-name">' + esc(c.label) + '</div><div class="c-sub">' +
+          esc(c.model) + '</div></div><span class="price">' + fmt(c.price) + ' €$</span><button class="btn" data-act="buy" data-index="' +
+          c.index + '"' + (afford && !busy ? "" : " disabled") + (afford ? "" : ' title="Не хватает денег"') + ">Купить</button></div>";
+      }).join("") : '<div class="empty">Сейчас машин в продаже нет.</div>';
+      $("hint").textContent = "Купленная машина попадает в гараж: вызвать её — /garage.";
+    }
+
+    function renderRental() {
+      header("NIGHT CITY // ПРОКАТ", view.title || "Прокат машин", true);
+      var cars = view.cars || [], minutes = view.minutes || [];
+      var html = "";
+      if (view.active) {
+        html += '<div class="active">У вас уже есть аренда: «' + esc(view.active.label) + "», осталось " +
+          Math.max(1, Math.ceil(view.active.left / 60)) + " мин. Вернуть раньше — ALT на машине → «Вернуть в прокат».</div>";
+      }
+      html += cars.length ? cars.map(function (c) {
+        var terms = minutes.map(function (m) {
+          var price = Math.floor(c.perMinute * m), afford = (view.money || 0) >= price;
+          return '<button class="btn" data-act="rent" data-index="' + c.index + '" data-minutes="' + m + '"' +
+            (afford && !busy && !view.active ? "" : " disabled") + ">" + m + " мин · " + fmt(price) + " €$</button>";
+        }).join("");
+        return '<div class="car"><div class="c-body"><div class="c-name">' + esc(c.label) + '</div><div class="c-sub">' +
+          esc(c.model) + " · " + fmt(c.perMinute) + ' €$ / мин</div></div><div class="terms">' + terms + "</div></div>";
+      }).join("") : '<div class="empty">Свободных машин нет.</div>';
+      $("list").innerHTML = html;
+      $("hint").textContent = "Машина появится рядом с вами. Когда срок выйдет, её заберут вместе с вещами в багажнике.";
+    }
+
     function render() {
       if (!view) return;
+      if (view.mode === "dealer") return renderDealer();
+      if (view.mode === "rental") return renderRental();
+      header("NIGHT CITY // ЛИЧНЫЙ ТРАНСПОРТ", "Гараж", false);
       var cars = view.cars || [];
       var outCount = cars.filter(function (c) { return c.spawned; }).length;
       var full = outCount >= (view.max || 1);
@@ -87,6 +139,9 @@
         : "Машина появится рядом с вами. Убрать её в гараж — ALT на машине → «Припарковать».";
     }
 
+    // После нажатия кнопки — пауза, пока сервер не ответит (или 1,5 с: ответ мог не прийти).
+    function lock() { busy = true; render(); setTimeout(function () { busy = false; if (open) render(); }, 1500); }
+
     // Кнопки по mouseup: окно Open77 присылает не все события «click».
     document.addEventListener("mouseup", function (ev) {
       if (!open || ev.button !== 0) return;
@@ -94,7 +149,12 @@
       if (!b || b.disabled) return;
       var act = b.getAttribute("data-act");
       if (act === "close") { hide(); emit("close"); }
-      else if (act === "spawn") { busy = true; render(); emit("spawn", { id: Number(b.getAttribute("data-id")) }); }
+      else if (act === "spawn") { lock(); emit("spawn", { id: Number(b.getAttribute("data-id")) }); }
+      else if (act === "buy") { lock(); emit("buy", { index: Number(b.getAttribute("data-index")) }); }
+      else if (act === "rent") {
+        lock();
+        emit("rent", { index: Number(b.getAttribute("data-index")), minutes: Number(b.getAttribute("data-minutes")) });
+      }
     });
     document.addEventListener("keydown", function (ev) {
       if (open && (ev.key || "").toLowerCase() === "escape") { hide(); emit("close"); }

@@ -130,7 +130,7 @@ local function pushRights()
             local right = rightsOf(player, entry)
             if right then
                 list[#list + 1] = { vehicleId = entry.vehicleId, carId = carId, label = entry.car.label,
-                    locked = entry.locked == true, owner = right == "owner" }
+                    locked = entry.locked == true, owner = right == "owner", rental = entry.rental == true }
             end
             if guid and entry.car.owner == guid then
                 -- Кто из игроков онлайн держит ключи от моей машины: для «Забрать ключи».
@@ -159,18 +159,57 @@ local function closeTrunksOf(carId, reason)
     end
 end
 
+local function deleteTrunk(carId)
+    pcall(function()
+        local p = Open77.exports.call("rpp_inventory", "deleteContainer", "vehicle:" .. carId)
+        if p then p:await() end
+    end)
+end
+
 local function forget(carId)
     local entry = spawned[carId]
     if not entry then return end
     spawned[carId] = nil
     byVehicle[entry.vehicleId] = nil
     closeTrunksOf(carId, "Багажник закрыт: машину убрали.")
+    -- Прокатная машина исчезает вместе с вещами в багажнике.
+    if entry.rental then deleteTrunk(carId) end
 end
 
+-- Прокатные машины в лимит вызванных не входят.
 local function spawnedCountFor(guid)
     local count = 0
-    for _, entry in pairs(spawned) do if entry.car.owner == guid then count = count + 1 end end
+    for _, entry in pairs(spawned) do
+        if entry.car.owner == guid and not entry.rental then count = count + 1 end
+    end
     return count
+end
+
+--- Создаёт машину рядом с игроком: vehicleId или nil, ошибка.
+local function createNear(player, record)
+    local pos = playerPos(player)
+    if not pos then return nil, "Позиция ещё не определена, попробуйте через секунду." end
+    local o = cfg.spawnOffset
+    local vehicleId, reason = Open77.vehicles.create({
+        record = record,
+        position = { x = pos.x + o.x, y = pos.y + o.y, z = pos.z + o.z },
+        yaw = 0,
+        bucket = pos.bucket or 0,
+    })
+    if vehicleId == nil then return nil, "Не удалось создать машину: " .. tostring(reason) end
+    return vehicleId
+end
+
+local function register(carId, car, vehicleId, player, extra)
+    local entry = { car = car, vehicleId = vehicleId, locked = false, ownerPlayer = player }
+    for k, v in pairs(extra or {}) do entry[k] = v end
+    spawned[carId] = entry
+    byVehicle[vehicleId] = carId
+    if cfg.lockedOnSpawn then
+        local ok = Open77.vehicles.setLocked(vehicleId, true)
+        entry.locked = ok == true
+    end
+    return entry
 end
 
 local function spawnCar(player, car)
@@ -178,26 +217,12 @@ local function spawnCar(player, car)
     if spawnedCountFor(car.owner) >= cfg.maxSpawnedPerPlayer then
         return false, "Сначала припаркуйте вызванную машину: ALT на машине → «Припарковать»."
     end
-    local pos = playerPos(player)
-    if not pos then return false, "Позиция ещё не определена, попробуйте через секунду." end
-    local o = cfg.spawnOffset
-    local vehicleId, reason = Open77.vehicles.create({
-        record = car.record,
-        position = { x = pos.x + o.x, y = pos.y + o.y, z = pos.z + o.z },
-        yaw = 0,
-        bucket = pos.bucket or 0,
-    })
+    local vehicleId, reason = createNear(player, car.record)
     if vehicleId == nil then
         log(("spawn of car #%d (%s) failed: %s"):format(car.id, car.record, tostring(reason)))
-        return false, "Не удалось вызвать машину: " .. tostring(reason)
+        return false, reason
     end
-    local entry = { car = car, vehicleId = vehicleId, locked = false, ownerPlayer = player }
-    spawned[car.id] = entry
-    byVehicle[vehicleId] = car.id
-    if cfg.lockedOnSpawn then
-        local ok = Open77.vehicles.setLocked(vehicleId, true)
-        entry.locked = ok == true
-    end
+    local entry = register(car.id, car, vehicleId, player)
     log(("car #%d (%s) spawned as vehicle %d for %d"):format(car.id, car.record, vehicleId, player))
     pushRights()
     return true, "«" .. car.label .. "» рядом с вами" .. (entry.locked and " (закрыта)." or ".")
@@ -348,7 +373,8 @@ playerAction("giveKeys", function(player, target)
     if not targetGuid then return notify(player, "error", "Игрок недоступен.") end
     if entry.car.keys[targetGuid] then return notify(player, "info", "У него уже есть ключи.") end
     entry.car.keys[targetGuid] = true
-    local ok, err = RppVehStore.setKeys(entry.car.id, entry.car.keys)
+    local ok, err = true, nil
+    if not entry.rental then ok, err = RppVehStore.setKeys(entry.car.id, entry.car.keys) end -- прокат: только в памяти
     if not ok then
         entry.car.keys[targetGuid] = nil
         log("keys save failed: " .. tostring(err))
@@ -370,6 +396,12 @@ playerAction("takeKeys", function(player, target)
         if live.keys[targetGuid] then
             live.keys[targetGuid] = nil
             RppVehStore.setKeys(car.id, live.keys)
+            taken = taken + 1
+        end
+    end
+    for _, entry in pairs(spawned) do
+        if entry.rental and entry.car.owner == guid and entry.car.keys[targetGuid] then
+            entry.car.keys[targetGuid] = nil
             taken = taken + 1
         end
     end
@@ -450,10 +482,176 @@ vehicleAction("park", function(player, entry, carId, right)
         if id ~= player then return notify(player, "error", "В машине пассажиры: сначала высадите их.") end
     end
     local label = entry.car.label
+    local rental = entry.rental
     parkEntry(carId)
     pushRights()
-    notify(player, "success", "«" .. label .. "» отправлена в гараж. Багажник сохранён.")
+    notify(player, "success", rental and ("«" .. label .. "» возвращена в прокат. Аренда закончена.")
+        or ("«" .. label .. "» отправлена в гараж. Багажник сохранён."))
 end)
+
+-- ---------------------------------------------------------------------------
+-- Автосалон и прокат
+-- ---------------------------------------------------------------------------
+local nextRentalId = 0
+
+local function money(player)
+    local ok, value = pcall(function()
+        local p = Open77.exports.call("rpp_inventory", "getMoney", player)
+        return p and p:await() or nil
+    end)
+    return ok and tonumber(value) or nil
+end
+
+local function moneyOp(name, player, amount)
+    local ok, done, reason = pcall(function()
+        local p, err = Open77.exports.call("rpp_inventory", name, player, amount)
+        if not p then return false, err end
+        return p:await()
+    end)
+    if not ok then return false, tostring(done) end
+    return done == true, reason
+end
+
+--- Рядом ли игрок с точкой (салон / прокат).
+local function nearPoint(player, point)
+    local pos = playerPos(player)
+    if not pos or type(point) ~= "table" then return false end
+    local dx, dy, dz = pos.x - point.x, pos.y - point.y, pos.z - point.z
+    local limit = cfg.promptDistance + 3.0 -- запас на задержку позиций
+    return dx * dx + dy * dy + dz * dz <= limit * limit
+end
+
+local function rentalOf(guid)
+    for carId, entry in pairs(spawned) do
+        if entry.rental and entry.car.owner == guid then return carId, entry end
+    end
+    return nil
+end
+
+local function shopView(player, mode)
+    local view = { mode = mode, money = money(player) or 0, cars = {} }
+    if mode == "dealer" then
+        view.title = cfg.dealership.label
+        for index, item in ipairs(cfg.dealership.catalog) do
+            view.cars[#view.cars + 1] = { index = index, label = item.label or modelLabel(item.record),
+                model = modelLabel(item.record), price = item.price }
+        end
+    else
+        view.title = cfg.rental.label
+        view.minutes = cfg.rental.minutes
+        for index, item in ipairs(cfg.rental.catalog) do
+            view.cars[#view.cars + 1] = { index = index, label = item.label or modelLabel(item.record),
+                model = modelLabel(item.record), perMinute = item.pricePerMinute }
+        end
+        local _, entry = rentalOf(guidOf(player))
+        if entry then
+            view.active = { label = entry.car.label, left = math.max(0, math.floor(entry.expires - now())) }
+        end
+    end
+    return view
+end
+
+local function pushShop(player, mode, openWindow)
+    TriggerClientEvent("rpp_vehicles:garage", player, shopView(player, mode), openWindow == true)
+end
+
+RegisterNetEvent("rpp_vehicles:shopOpen", function(mode)
+    local player = tonumber(source)
+    if not player or (mode ~= "dealer" and mode ~= "rental") or throttled(player) then return end
+    local section = mode == "dealer" and cfg.dealership or cfg.rental
+    if not section.enabled then return end
+    CreateThread(function()
+        if not nearPoint(player, section.position) then return notify(player, "error", "Подойдите к стойке ближе.") end
+        pushShop(player, mode, true)
+    end)
+end)
+
+RegisterNetEvent("rpp_vehicles:buy", function(index)
+    local player = tonumber(source)
+    index = tonumber(index)
+    if not player or not index or throttled(player) or not cfg.dealership.enabled then return end
+    CreateThread(function()
+        local item = cfg.dealership.catalog[math.floor(index)]
+        if not item then return end
+        if not nearPoint(player, cfg.dealership.position) then return notify(player, "error", "Подойдите к стойке ближе.") end
+        local guid = guidOf(player)
+        if not guid then return end
+        local label = item.label or modelLabel(item.record)
+        local paid, reason = moneyOp("removeMoney", player, item.price)
+        if not paid then
+            return notify(player, "error", reason == "not_enough_money"
+                and ("Не хватает денег: «" .. label .. "» стоит " .. item.price .. " €$.") or ("Оплата не прошла: " .. tostring(reason)))
+        end
+        local car, err = RppVehStore.create(guid, item.record, label)
+        if not car then
+            moneyOp("addMoney", player, item.price) -- вернуть деньги
+            log("purchase save failed: " .. tostring(err))
+            return notify(player, "error", "Покупка не удалась, деньги возвращены.")
+        end
+        log(("car #%d (%s) bought by %s for %d"):format(car.id, item.record, guid, item.price))
+        notify(player, "success", "Вы купили «" .. label .. "» за " .. item.price .. " €$. Машина в гараже: /garage.")
+        pushShop(player, "dealer", false)
+    end)
+end)
+
+RegisterNetEvent("rpp_vehicles:rent", function(index, minutes)
+    local player = tonumber(source)
+    index, minutes = tonumber(index), tonumber(minutes)
+    if not player or not index or not minutes or throttled(player) or not cfg.rental.enabled then return end
+    CreateThread(function()
+        local item = cfg.rental.catalog[math.floor(index)]
+        local allowedMinutes = false
+        for _, m in ipairs(cfg.rental.minutes) do if m == minutes then allowedMinutes = true end end
+        if not item or not allowedMinutes then return end
+        if not nearPoint(player, cfg.rental.position) then return notify(player, "error", "Подойдите к стойке ближе.") end
+        local guid = guidOf(player)
+        if not guid then return end
+        if rentalOf(guid) then return notify(player, "error", "У вас уже есть арендованная машина.") end
+        local label = item.label or modelLabel(item.record)
+        local price = math.floor(item.pricePerMinute * minutes)
+        local paid, reason = moneyOp("removeMoney", player, price)
+        if not paid then
+            return notify(player, "error", reason == "not_enough_money"
+                and ("Не хватает денег: аренда стоит " .. price .. " €$.") or ("Оплата не прошла: " .. tostring(reason)))
+        end
+        local vehicleId, err = createNear(player, item.record)
+        if not vehicleId then
+            moneyOp("addMoney", player, price)
+            return notify(player, "error", tostring(err) .. " Деньги возвращены.")
+        end
+        nextRentalId = nextRentalId + 1
+        local carId = -nextRentalId -- отрицательные номера — прокат, в базе их нет
+        local car = { id = carId, owner = guid, record = item.record, label = label, keys = {} }
+        register(carId, car, vehicleId, player, { rental = true, expires = now() + minutes * 60 })
+        deleteTrunk(carId) -- на всякий случай: багажник новой аренды пуст
+        log(("rental %d (%s) for %s, %d min, %d eddies"):format(carId, item.record, guid, minutes, price))
+        notify(player, "success", ("«%s» ваша на %d мин. Вернуть раньше — ALT на машине → «Вернуть в прокат»."):format(label, minutes))
+        TriggerClientEvent("rpp_vehicles:garageClose", player)
+        pushRights()
+    end)
+end)
+
+--- Аренды: предупредить заранее, по окончании — убрать машину.
+local function checkRentals()
+    local t = now()
+    local ended = false
+    for carId, entry in pairs(spawned) do
+        if entry.rental then
+            local left = entry.expires - t
+            if left <= 0 then
+                local player = entry.ownerPlayer
+                parkEntry(carId)
+                ended = true
+                if player then notify(player, "warning", "Аренда «" .. entry.car.label .. "» закончилась: машину забрали.") end
+            elseif left <= cfg.rental.warnBeforeEndSec and not entry.warned then
+                entry.warned = true
+                notify(entry.ownerPlayer, "warning", ("Аренда «%s» закончится через %d мин. Вещи из багажника заберите заранее.")
+                    :format(entry.car.label, math.max(1, math.ceil(left / 60))))
+            end
+        end
+    end
+    if ended then pushRights() end
+end
 
 -- /carkeys — забрать ключи от всех своих машин у всех.
 RegisterCommand("carkeys", function(player, _, raw)
@@ -558,10 +756,9 @@ AddEventHandler("onPlayerDisconnected", function(playerIdStr)
     if not player then return end
     trunkOpen[player], lastAction[player] = nil, nil
     CreateThread(function() -- parkEntry ждёт ответа rpp_inventory
-        if cfg.parkOnDisconnect then
-            for carId, entry in pairs(spawned) do
-                if entry.ownerPlayer == player then parkEntry(carId) end
-            end
+        for carId, entry in pairs(spawned) do
+            -- Прокат кончается при выходе всегда; своя машина — если parkOnDisconnect.
+            if entry.ownerPlayer == player and (entry.rental or cfg.parkOnDisconnect) then parkEntry(carId) end
         end
         pushRights()
     end)
@@ -577,6 +774,7 @@ CreateThread(function()
             if not vehicleSnapshot(entry.vehicleId) then forget(carId); lost = true end
         end
         if lost then pushRights() end
+        checkRentals()
         for player, carId in pairs(trunkOpen) do
             local entry = spawned[carId]
             local reason = nil
