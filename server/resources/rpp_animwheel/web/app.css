@@ -101,3 +101,7 @@ html, body {
   position: fixed; z-index: 50; pointer-events: none; padding: 6px 12px; background: var(--y); color: #000;
   font-weight: 700; font-size: 14px; transform: translate(-50%, -120%); box-shadow: 0 4px 18px rgba(0,0,0,0.6);
 }
+.item .i-place { font-size: 10px; color: #ff9a3c; border: 1px solid rgba(255,154,60,0.5); padding: 1px 4px; }
+.cat.amb { color: #ff9a3c; border-color: rgba(255,154,60,0.5); }
+.cat.amb.on { background: #ff9a3c; color: #000; border-color: #ff9a3c; }
+.amb-warn { font-size: 12px; color: #ff9a3c; border: 1px solid rgba(255,154,60,0.45); padding: 7px 9px; margin-bottom: 6px; line-height: 1.35; }
